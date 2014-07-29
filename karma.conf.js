@@ -23,7 +23,9 @@ module.exports = function(config) {
 
     // List of files / patterns to load in the browser.
     files : [
+      'http://maps.google.com/maps/api/js?sensor=false',
       'app/bower_components/jquery/dist/jquery.min.js',
+      'app/bower_components/underscore/underscore.js',
       'app/bower_components/handlebars/handlebars.runtime.js',
       'app/bower_components/ember/ember.js',
       'app/bower_components/ember-data/ember-data.js',
@@ -83,7 +85,7 @@ module.exports = function(config) {
     // - Safari (only Mac)
     // - PhantomJS
     // - IE (only Windows)
-    browsers : ['IE'],
+    browsers : ['Chrome'],
 
 
     // If the browser does not capture in the given timeout [ms], then kill it.

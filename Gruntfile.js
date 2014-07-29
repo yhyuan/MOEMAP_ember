@@ -93,6 +93,12 @@ module.exports = function (grunt) {
                 path: 'http://localhost:<%= connect.options.port %>'
             }
         },
+        browserify: {
+            specs: {
+				src: ['test/spec_dev/**/*Specs.js'],
+				dest: 'test/spec/test.js'
+            }
+        },
         clean: {
             dist: {
                 files: [{
@@ -364,6 +370,7 @@ module.exports = function (grunt) {
 
     grunt.registerTask('test', [
         'clean:server',
+        'browserify',
         'replace:app',
         'concurrent:test',
         'connect:test',
