@@ -1,4 +1,4 @@
-/* global _, $ */
+/* global _, $, escape */
 'use strict';
 var formatTimeString_ = function (time, endTime) {
     var ret = '';

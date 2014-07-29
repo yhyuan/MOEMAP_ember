@@ -1,16 +1,17 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-/* global _, $ */
+/* global _, $, google */
 'use strict';
 var geocoder = require('./geocoder');
 
 var geocode = function(input) {
+	var geocodeParams = {};
 	if (input.hasOwnProperty('lat') && input.hasOwnProperty('lng')) {
 		var reverseGeocoder = function(params) {
 			var dfd = new $.Deferred();
 			var geocoder = new google.maps.Geocoder();
 			var latlng = new google.maps.LatLng(input.lat, input.lng);
 			geocoder.geocode({'latLng': latlng}, function(results, status) {
-				if (status == google.maps.GeocoderStatus.OK) {
+				if (status === google.maps.GeocoderStatus.OK) {
 					if (results[1]) {
 						var result = {
 							address: results[1].formatted_address,
@@ -27,7 +28,7 @@ var geocode = function(input) {
 			});
 			return dfd.promise();
 		};
-		var geocodeParams = {
+		geocodeParams = {
 			latlng: input,
 			reverseGeocoder: reverseGeocoder
 		};
@@ -95,7 +96,7 @@ var geocode = function(input) {
 			}
 			return dfd.promise();
 		};
-		var geocodeParams = {
+		geocodeParams = {
 			address: input,
 			defaultRegionNames: ["ON", "ONT", "ONTARIO"], 
 			failedLocation: {
@@ -117,7 +118,7 @@ var createPolylines = function (rings, strokeOptions){
 	return _.map(rings, function(ring) {
 		return new google.maps.Polyline({    
 			path: _.map(ring, function(pt) {
-				return new google.maps.LatLng(pt[1], pt[0])
+				return new google.maps.LatLng(pt[1], pt[0]);
 			}),
 			strokeColor: strokeOptions.color,    
 			strokeOpacity: strokeOptions.opacity,   
@@ -126,8 +127,55 @@ var createPolylines = function (rings, strokeOptions){
 		});
 	});
 };
+
+/*
+	Usage: Create a marker on a location with pop up content and used icon. 
+	Called by: queryLayerWithPointBuffer.
+	Rely on: map, openInfoWindow function.  
+*/	
+/*var createMarker = function (latlng, popupContent, icon) {
+	var gLatLng = new google.maps.LatLng(latlng.lat, latlng.lng);
+	var marker = new google.maps.Marker({
+		position: gLatLng,
+		icon: icon
+	});
+	(function (popupContent, marker) {
+		google.maps.event.addListener(marker, 'click', function () {
+			MOEMAP.openInfoWindow(marker.getPosition(), popupContent);
+		});
+	})(popupContent, marker);
+	return marker;
+};*/
+
+var getIdentifyRadius = function(zoomLevel) {
+	var identifyRadiusZoomLevelList = {
+		21 : 0.001,
+		20 : 0.001,
+		19 : 0.002,
+		18 : 0.003,
+		17 : 0.005,
+		16 : 0.01,
+		15 : 0.02,
+		14 : 0.05,
+		13 : 0.08,
+		12 : 0.16,
+		11 : 0.3,
+		10 : 0.6,
+		9  : 1.2,
+		8  : 2.4,
+		7  : 4.8,
+		6  : 9.6,
+		5  : 20,
+		4  : 40,
+		3  : 80,
+		2  : 160,
+		1  : 320
+	};
+	return identifyRadiusZoomLevelList[zoomLevel] * 1000; // in meters
+};
 var api = {
     geocode: geocode,
+    getIdentifyRadius: getIdentifyRadius, 
     createPolylines: createPolylines
 };
 
@@ -177,8 +225,8 @@ var computeDistance = function (fromLatlng, toLatlng) {
 };
 
 var computePointsBounds = function (latlngs){
-	var getLat = function(latlng){ return latlng.lat};
-	var getLng = function(latlng){ return latlng.lng};
+	var getLat = function(latlng){ return latlng.lat;};
+	var getLng = function(latlng){ return latlng.lng;};
 	return {
 		southWest: {lat: _.min(latlngs, getLat).lat, lng: _.min(latlngs, getLng).lng},
 		northEast: {lat: _.max(latlngs, getLat).lat, lng: _.max(latlngs, getLng).lng}
@@ -209,7 +257,7 @@ var api = {
 
 module.exports = api;
 },{}],3:[function(require,module,exports){
-/* global _, $ */
+/* global _, $, escape */
 'use strict';
 var formatTimeString_ = function (time, endTime) {
     var ret = '';
@@ -1193,7 +1241,7 @@ var Util = require('../../app/scripts/Util');
 })();
 
 },{"../../app/scripts/Util":2}],7:[function(require,module,exports){
-/* global describe, it, expect, _ */
+/* global describe, it, expect, _, $ */
 var agsQuery = require('../../app/scripts/agsQuery');
 var geocoder = require('../../app/scripts/geocoder');
 var Util = require('../../app/scripts/Util');
@@ -1268,7 +1316,7 @@ var Util = require('../../app/scripts/Util');
 	    });
 	    describe('agsQuery can query the Sport Fish layer', function () {
 	        this.timeout(150000);
-			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish2/MapServer';
+			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer';
 	        it('should query the lake name for the sport fish layer', function (done) {
 				var queryParams = {
 					mapService: sportfishMapService,
@@ -1322,7 +1370,7 @@ var Util = require('../../app/scripts/Util');
 	    });
 	    describe('agsQuery can export the Sport Fish map', function () {
 	        this.timeout(150000);
-			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish2/MapServer';
+			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer';
 	        it('should query the lake name for the sport fish layer', function (done) {
 				var exportParams = {
 					bounds: {
@@ -1331,9 +1379,9 @@ var Util = require('../../app/scripts/Util');
 					},
 					width: 1920,
 					height: 105,
-					mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish2/MapServer',
+					mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer',
 					visibleLayers: [0, 1, 2]
-				}
+				};
 				var exportMapPromise = agsQuery.exportMap(exportParams);
 				exportMapPromise.done(function (result) {
 					expect(result.width).to.equal(1920);
@@ -1346,7 +1394,7 @@ var Util = require('../../app/scripts/Util');
 })();
 
 },{"../../app/scripts/Util":2,"../../app/scripts/agsQuery":3,"../../app/scripts/geocoder":4}],8:[function(require,module,exports){
-/* global describe, it, expect */
+/* global describe, it, expect, $ */
 var geocoder = require('../../app/scripts/geocoder');
 
 (function () {

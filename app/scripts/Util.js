@@ -42,8 +42,8 @@ var computeDistance = function (fromLatlng, toLatlng) {
 };
 
 var computePointsBounds = function (latlngs){
-	var getLat = function(latlng){ return latlng.lat};
-	var getLng = function(latlng){ return latlng.lng};
+	var getLat = function(latlng){ return latlng.lat;};
+	var getLng = function(latlng){ return latlng.lng;};
 	return {
 		southWest: {lat: _.min(latlngs, getLat).lat, lng: _.min(latlngs, getLng).lng},
 		northEast: {lat: _.max(latlngs, getLat).lat, lng: _.max(latlngs, getLng).lng}

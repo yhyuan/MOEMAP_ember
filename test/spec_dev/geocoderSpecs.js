@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* global describe, it, expect, $ */
 var geocoder = require('../../app/scripts/geocoder');
 
 (function () {

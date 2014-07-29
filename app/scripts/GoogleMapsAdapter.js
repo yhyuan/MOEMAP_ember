@@ -1,15 +1,16 @@
-/* global _, $ */
+/* global _, $, google */
 'use strict';
 var geocoder = require('./geocoder');
 
 var geocode = function(input) {
+	var geocodeParams = {};
 	if (input.hasOwnProperty('lat') && input.hasOwnProperty('lng')) {
 		var reverseGeocoder = function(params) {
 			var dfd = new $.Deferred();
 			var geocoder = new google.maps.Geocoder();
 			var latlng = new google.maps.LatLng(input.lat, input.lng);
 			geocoder.geocode({'latLng': latlng}, function(results, status) {
-				if (status == google.maps.GeocoderStatus.OK) {
+				if (status === google.maps.GeocoderStatus.OK) {
 					if (results[1]) {
 						var result = {
 							address: results[1].formatted_address,
@@ -26,7 +27,7 @@ var geocode = function(input) {
 			});
 			return dfd.promise();
 		};
-		var geocodeParams = {
+		geocodeParams = {
 			latlng: input,
 			reverseGeocoder: reverseGeocoder
 		};
@@ -94,7 +95,7 @@ var geocode = function(input) {
 			}
 			return dfd.promise();
 		};
-		var geocodeParams = {
+		geocodeParams = {
 			address: input,
 			defaultRegionNames: ["ON", "ONT", "ONTARIO"], 
 			failedLocation: {
@@ -116,7 +117,7 @@ var createPolylines = function (rings, strokeOptions){
 	return _.map(rings, function(ring) {
 		return new google.maps.Polyline({    
 			path: _.map(ring, function(pt) {
-				return new google.maps.LatLng(pt[1], pt[0])
+				return new google.maps.LatLng(pt[1], pt[0]);
 			}),
 			strokeColor: strokeOptions.color,    
 			strokeOpacity: strokeOptions.opacity,   

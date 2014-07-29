@@ -1,4 +1,4 @@
-/* global describe, it, expect, _ */
+/* global describe, it, expect, _, $ */
 var agsQuery = require('../../app/scripts/agsQuery');
 var geocoder = require('../../app/scripts/geocoder');
 var Util = require('../../app/scripts/Util');
@@ -73,7 +73,7 @@ var Util = require('../../app/scripts/Util');
 	    });
 	    describe('agsQuery can query the Sport Fish layer', function () {
 	        this.timeout(150000);
-			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish2/MapServer';
+			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer';
 	        it('should query the lake name for the sport fish layer', function (done) {
 				var queryParams = {
 					mapService: sportfishMapService,
@@ -127,7 +127,7 @@ var Util = require('../../app/scripts/Util');
 	    });
 	    describe('agsQuery can export the Sport Fish map', function () {
 	        this.timeout(150000);
-			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish2/MapServer';
+			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer';
 	        it('should query the lake name for the sport fish layer', function (done) {
 				var exportParams = {
 					bounds: {
@@ -136,9 +136,9 @@ var Util = require('../../app/scripts/Util');
 					},
 					width: 1920,
 					height: 105,
-					mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish2/MapServer',
+					mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer',
 					visibleLayers: [0, 1, 2]
-				}
+				};
 				var exportMapPromise = agsQuery.exportMap(exportParams);
 				exportMapPromise.done(function (result) {
 					expect(result.width).to.equal(1920);
