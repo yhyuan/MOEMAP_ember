@@ -11,7 +11,7 @@ var toDegree = function (rad) {
 	return rad * 180 / Math.PI;
 };
 
-var computerOffset = function(latlng, radius, heading) {
+var computeOffset = function(latlng, radius, heading) {
 	var distRad = radius/EARTH_RADIUS;
 	var headingRad = toRad(heading);
 	var latRad = toRad(latlng.lat);
@@ -26,13 +26,13 @@ var computerOffset = function(latlng, radius, heading) {
 	return {lat: lat, lng: lng};
 };
 
-var computerCircle = function (latlng, radius) {
+var computeCircle = function (latlng, radius) {
 	return _.map(_.range(0, 361, 10), function(heading) {
-		return computerOffset(latlng, radius, heading);
+		return computeOffset(latlng, radius, heading);
 	});
 };
 
-var computerDistance = function (fromLatlng, toLatlng) {
+var computeDistance = function (fromLatlng, toLatlng) {
 	var lat1 = toRad(fromLatlng.lat);
 	var lng1 = toRad(fromLatlng.lng);
 	var lat2 = toRad(toLatlng.lat);
@@ -41,10 +41,35 @@ var computerDistance = function (fromLatlng, toLatlng) {
 	return d;
 };
 
+var computePointsBounds = function (latlngs){
+	var getLat = function(latlng){ return latlng.lat};
+	var getLng = function(latlng){ return latlng.lng};
+	return {
+		southWest: {lat: _.min(latlngs, getLat).lat, lng: _.min(latlngs, getLng).lng},
+		northEast: {lat: _.max(latlngs, getLat).lat, lng: _.max(latlngs, getLng).lng}
+	};
+};
+
+var computeClusters = function (features){
+	var size = features.length;
+	var groups = _.groupBy(features, function(feature) {
+		return '' + feature.latlng.lat.toFixed(6) + ':' + feature.latlng.lng.toFixed(6);
+	});
+	var keys = _.keys(groups);
+	var values = _.values(groups);	
+	return _.map(_.range(keys.length), function(index) {
+		var key = keys[index].split(':');
+		var latlng = {lat: parseFloat(key[0]), lng: parseFloat(key[1])};
+		return {latlng: latlng, list: values[index]};
+	});
+};
+
 var api = {
-	computerCircle: computerCircle,
-	computerOffset: computerOffset,
-	computerDistance: computerDistance
+	computeCircle: computeCircle,
+	computeOffset: computeOffset,
+	computeDistance: computeDistance,
+	computePointsBounds: computePointsBounds,
+	computeClusters: computeClusters
 };
 
 module.exports = api;

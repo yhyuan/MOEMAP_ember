@@ -12,7 +12,7 @@ var toDegree = function (rad) {
 	return rad * 180 / Math.PI;
 };
 
-var computerOffset = function(latlng, radius, heading) {
+var computeOffset = function(latlng, radius, heading) {
 	var distRad = radius/EARTH_RADIUS;
 	var headingRad = toRad(heading);
 	var latRad = toRad(latlng.lat);
@@ -27,13 +27,13 @@ var computerOffset = function(latlng, radius, heading) {
 	return {lat: lat, lng: lng};
 };
 
-var computerCircle = function (latlng, radius) {
+var computeCircle = function (latlng, radius) {
 	return _.map(_.range(0, 361, 10), function(heading) {
-		return computerOffset(latlng, radius, heading);
+		return computeOffset(latlng, radius, heading);
 	});
 };
 
-var computerDistance = function (fromLatlng, toLatlng) {
+var computeDistance = function (fromLatlng, toLatlng) {
 	var lat1 = toRad(fromLatlng.lat);
 	var lng1 = toRad(fromLatlng.lng);
 	var lat2 = toRad(toLatlng.lat);
@@ -42,10 +42,35 @@ var computerDistance = function (fromLatlng, toLatlng) {
 	return d;
 };
 
+var computePointsBounds = function (latlngs){
+	var getLat = function(latlng){ return latlng.lat};
+	var getLng = function(latlng){ return latlng.lng};
+	return {
+		southWest: {lat: _.min(latlngs, getLat).lat, lng: _.min(latlngs, getLng).lng},
+		northEast: {lat: _.max(latlngs, getLat).lat, lng: _.max(latlngs, getLng).lng}
+	};
+};
+
+var computeClusters = function (features){
+	var size = features.length;
+	var groups = _.groupBy(features, function(feature) {
+		return '' + feature.latlng.lat.toFixed(6) + ':' + feature.latlng.lng.toFixed(6);
+	});
+	var keys = _.keys(groups);
+	var values = _.values(groups);	
+	return _.map(_.range(keys.length), function(index) {
+		var key = keys[index].split(':');
+		var latlng = {lat: parseFloat(key[0]), lng: parseFloat(key[1])};
+		return {latlng: latlng, list: values[index]};
+	});
+};
+
 var api = {
-	computerCircle: computerCircle,
-	computerOffset: computerOffset,
-	computerDistance: computerDistance
+	computeCircle: computeCircle,
+	computeOffset: computeOffset,
+	computeDistance: computeDistance,
+	computePointsBounds: computePointsBounds,
+	computeClusters: computeClusters
 };
 
 module.exports = api;
@@ -883,50 +908,50 @@ var Util = require('../../app/scripts/Util');
 	        it('should calculate distance on the Earth surface', function () {
 	            var latlng1 = {lat: 45, lng: -77};
 	            var latlng2 = {lat: 46, lng: -77};
-	            var dist = Util.computerDistance(latlng1, latlng2);
+	            var dist = Util.computeDistance(latlng1, latlng2);
 	            expect(Math.abs(dist - 111319.49)).to.be.below(1);
 	        });
 	        it('should calculate distance on the Earth surface', function () {
 	            var latlng1 = {lat: 46, lng: -77};
 	            var latlng2 = {lat: 46, lng: -78};
-	            var dist = Util.computerDistance(latlng1, latlng2);
+	            var dist = Util.computeDistance(latlng1, latlng2);
 	            expect(Math.abs(dist - 77328.50819644716)).to.be.below(1);
 	        });
 	        it('should calculate distance on the Earth surface', function () {
 	            var latlng1 = {lat: 46.5, lng: -77.5};
 	            var latlng2 = {lat: 46, lng: -78};
-	            var dist = Util.computerDistance(latlng1, latlng2);
+	            var dist = Util.computeDistance(latlng1, latlng2);
 	            expect(Math.abs(dist - 67671.25839256)).to.be.below(1);
 	        });
 	    });
 	    describe('Util calculate the offset location on the Earth Surface', function () {
 	        it('should calculate the offset location in the North on the Earth surface', function () {
 	            var latlng1 = {lat: 45, lng: -77};
-	            var latlng2 = Util.computerOffset(latlng1, 100000, 0);
+	            var latlng2 = Util.computeOffset(latlng1, 100000, 0);
 			    expect(Math.abs(latlng2.lat - 45.8983153)).to.be.below(0.0001);
 			    expect(Math.abs(latlng2.lng - (-77))).to.be.below(0.0001);
 	        });
 	        it('should calculate the offset location in the East on the Earth surface', function () {
 	            var latlng1 = {lat: 45, lng: -77};
-	            var latlng2 = Util.computerOffset(latlng1, 100000, 270);
+	            var latlng2 = Util.computeOffset(latlng1, 100000, 270);
 			    expect(Math.abs(latlng2.lat - 44.992958432)).to.be.below(0.0001);
 			    expect(Math.abs(latlng2.lng - (-75.729694418))).to.be.below(0.0001);
 	        });
 	        it('should calculate the offset location in the South on the Earth surface', function () {
 	            var latlng1 = {lat: 45, lng: -77};
-	            var latlng2 = Util.computerOffset(latlng1, 100000, 180);
+	            var latlng2 = Util.computeOffset(latlng1, 100000, 180);
 			    expect(Math.abs(latlng2.lat - 44.101684716)).to.be.below(0.0001);
 			    expect(Math.abs(latlng2.lng - (-77))).to.be.below(0.0001);
 	        });
 	        it('should calculate the offset location in the West on the Earth surface', function () {
 	            var latlng1 = {lat: 45, lng: -77};
-	            var latlng2 = Util.computerOffset(latlng1, 100000, 90);
+	            var latlng2 = Util.computeOffset(latlng1, 100000, 90);
 				expect(Math.abs(latlng2.lat - 44.992958432)).to.be.below(0.0001);
 				expect(Math.abs(latlng2.lng - (-78.2703055823))).to.be.below(0.0001);
 	        });
 	        it('should calculate the offset location in any direction on the Earth surface', function () {
 	            var latlng1 = {lat: 45, lng: -77};
-	            var latlng2 = Util.computerOffset(latlng1, 100000, 330);
+	            var latlng2 = Util.computeOffset(latlng1, 100000, 330);
 				expect(Math.abs(latlng2.lat - 45.7761709351)).to.be.below(0.0001);
 				expect(Math.abs(latlng2.lng - (-76.35602524215))).to.be.below(0.0001);
 	        });
@@ -934,11 +959,29 @@ var Util = require('../../app/scripts/Util');
 	    describe('Util create a circle on the Earth with a center and radius in meter', function () {
 	        it('should create a circle on the Earth', function () {
 	            var latlng = {lat: 45.008284, lng: -77.184177};
-	            var circle = Util.computerCircle(latlng, 1000);
+	            var circle = Util.computeCircle(latlng, 1000);
 	            expect(circle).to.have.length(37);
 	            for (var i = 0; i <= 36; i++) {
-					expect(Math.abs(Util.computerDistance(latlng, circle[i]) - 1000)).to.be.below(0.01);
+					expect(Math.abs(Util.computeDistance(latlng, circle[i]) - 1000)).to.be.below(0.01);
 				}
+	        });
+	    });
+	    describe('Util compute the bound for an array of latlng', function () {
+	        it('should compute the bound', function () {
+	            var latlngs = [{lat: 45.008284, lng: -77.184177}, {lat: 44.008284, lng: -79.184177}, {lat: 46.008284, lng: -73.184177}];
+	            var bounds = Util.computePointsBounds(latlngs);
+				expect(Math.abs(bounds.southWest.lat - 44.008284)).to.be.below(0.0001);
+				expect(Math.abs(bounds.southWest.lng - (-79.184177))).to.be.below(0.0001);
+				expect(Math.abs(bounds.northEast.lat - 46.008284)).to.be.below(0.0001);
+				expect(Math.abs(bounds.northEast.lng - (-73.184177))).to.be.below(0.0001);
+	        });
+	    });
+	    describe('Util compute the clusters for an array of features', function () {
+	        it('should compute the clusters', function () {
+				var features = [{latlng: {lat: 45, lng: -77}, attributes: {attr: "test"}}, {latlng: {lat: 45, lng: -77}, attributes: {attr: "test"}}, {latlng: {lat: 45.008284, lng: -77.184177}, attributes: {attr: "test"}}, {latlng: {lat: 44.008284, lng: -79.184177}, attributes: {attr: "test"}}];
+	            var clusters = Util.computeClusters(features);
+				console.log(clusters);
+				expect(clusters).to.have.length(3);
 	        });
 	    });
     });
@@ -990,7 +1033,7 @@ var Util = require('../../app/scripts/Util');
 				var geocodePromise = geocoder.geocode(geocodeParams);
 				geocodePromise.then(function(result) {
 					if(result.status === 'OK'){
-						var geometry = Util.computerCircle(result.latlng, 100);
+						var geometry = Util.computeCircle(result.latlng, 100);
 						var queryParamsList = [{
 							mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/GeographicTownships/MapServer',
 							layerID: 0,
@@ -1060,7 +1103,7 @@ var Util = require('../../app/scripts/Util');
 							returnGeometry: true,
 							outFields: ['WATERBODYC', 'LOCNAME_EN', 'LATITUDE', 'LONGITUDE']
 						};
-						queryParams.geometry = Util.computerCircle(result.latlng, 100);
+						queryParams.geometry = Util.computeCircle(result.latlng, 100);
 						var queryPromise = agsQuery.query(queryParams);
 						queryPromise.done(function (fset) {
 							expect(fset.features).to.have.length(1);

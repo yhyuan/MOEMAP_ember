@@ -43,7 +43,7 @@ var Util = require('../../app/scripts/Util');
 				var geocodePromise = geocoder.geocode(geocodeParams);
 				geocodePromise.then(function(result) {
 					if(result.status === 'OK'){
-						var geometry = Util.computerCircle(result.latlng, 100);
+						var geometry = Util.computeCircle(result.latlng, 100);
 						var queryParamsList = [{
 							mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/GeographicTownships/MapServer',
 							layerID: 0,
@@ -113,7 +113,7 @@ var Util = require('../../app/scripts/Util');
 							returnGeometry: true,
 							outFields: ['WATERBODYC', 'LOCNAME_EN', 'LATITUDE', 'LONGITUDE']
 						};
-						queryParams.geometry = Util.computerCircle(result.latlng, 100);
+						queryParams.geometry = Util.computeCircle(result.latlng, 100);
 						var queryPromise = agsQuery.query(queryParams);
 						queryPromise.done(function (fset) {
 							expect(fset.features).to.have.length(1);
