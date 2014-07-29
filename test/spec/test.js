@@ -1,4 +1,138 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+/* global _, $ */
+'use strict';
+var geocoder = require('./geocoder');
+
+var geocode = function(input) {
+	if (input.hasOwnProperty('lat') && input.hasOwnProperty('lng')) {
+		var reverseGeocoder = function(params) {
+			var dfd = new $.Deferred();
+			var geocoder = new google.maps.Geocoder();
+			var latlng = new google.maps.LatLng(input.lat, input.lng);
+			geocoder.geocode({'latLng': latlng}, function(results, status) {
+				if (status == google.maps.GeocoderStatus.OK) {
+					if (results[1]) {
+						var result = {
+							address: results[1].formatted_address,
+							latlng: params.latlng,
+							status: 'OK'
+						};
+						dfd.resolve(result);
+					} else {
+						dfd.resolve({status: 'No_Result'});
+					}
+				} else {
+					dfd.resolve({status: 'No_Result'});
+				}
+			});
+			return dfd.promise();
+		};
+		var geocodeParams = {
+			latlng: input,
+			reverseGeocoder: reverseGeocoder
+		};
+	} else {
+		var defaultGeocoder = function(params) {
+			var dfd = new $.Deferred();			
+			if (params.address.toUpperCase() === "ONTARIO") {
+				var result = {
+					status: 'No_Result'
+				};
+				dfd.resolve(result);
+			} else {
+				//Private method: test whether the input ends with region names.
+				var regionAddressProcess = function(addressStr, defaultRegionNames){
+					var isAddressEndsWithRegionName = function(address, str) {
+						if (address.length > str.length + 1) {
+							var substr = address.substring(address.length - str.length - 1);
+							if (substr === (" " + str) || substr === ("," + str)) {
+								return true;
+							}
+						}
+						return false;
+					};					
+					var address = addressStr.toUpperCase();
+					var res = _.some(defaultRegionNames, function(regionName) {
+						return isAddressEndsWithRegionName(address, regionName);
+					});
+					if(!res){
+						return addressStr + " Ontario";
+					}
+					return addressStr;
+				};
+
+				var geocoder = new google.maps.Geocoder();
+				geocoder.geocode({
+					'address': regionAddressProcess(params.address, params.defaultRegionNames)
+				}, function (results, status) {
+					if (status === google.maps.GeocoderStatus.OK) {
+						var geocodeResult = _.find(results, function(result){
+							var point = result.geometry.location;
+							var failedPositions = _.filter(params.failedLocation.positions, function(position) {
+								return ((Math.abs(point.lat() - position[0]) + Math.abs(point.lng() - position[1])) < params.failedLocation.difference);
+							});
+							return (failedPositions.length === 0) && (params.validateLatLngInPolygon({lat: point.lat(), lng: point.lng()}, params.regionBoundary));
+						});
+						if (geocodeResult) {
+							var point = geocodeResult.geometry.location;
+							var result = {
+								latlng: {
+									lat: point.lat(),
+									lng: point.lng()
+								},
+								address: params.address,
+								geocodedAddress: geocodeResult.formatted_address.toString(),
+								status: 'OK'
+							};
+							dfd.resolve(result);
+						} else {
+							dfd.resolve({status: 'No_Result'});
+						}
+					} else {
+						dfd.resolve({status: 'No_Result'});
+					}
+				});
+			}
+			return dfd.promise();
+		};
+		var geocodeParams = {
+			address: input,
+			defaultRegionNames: ["ON", "ONT", "ONTARIO"], 
+			failedLocation: {
+				positions: [[51.253775,-85.32321389999998], [42.832714, -80.279923]],
+				difference: 0.00001
+			},
+			defaultGeocoder: defaultGeocoder
+		};
+	}
+	return geocoder.geocode(geocodeParams);
+};
+
+/*
+	Usage: Add the polylines overlays on the map. If the LOCATOR module return the result for Township with/without 
+	Lot and Concession, the related polygons will be add to Google Maps by this method. 
+	Called by: queryLayerWithPointBuffer 
+*/		
+var createPolylines = function (rings, strokeOptions){
+	return _.map(rings, function(ring) {
+		return new google.maps.Polyline({    
+			path: _.map(ring, function(pt) {
+				return new google.maps.LatLng(pt[1], pt[0])
+			}),
+			strokeColor: strokeOptions.color,    
+			strokeOpacity: strokeOptions.opacity,   
+			strokeWeight: strokeOptions.weight,
+			geodesic: false
+		});
+	});
+};
+var api = {
+    geocode: geocode,
+    createPolylines: createPolylines
+};
+
+module.exports = api;
+},{"./geocoder":4}],2:[function(require,module,exports){
 /* global _ */
 'use strict';
 
@@ -74,7 +208,7 @@ var api = {
 };
 
 module.exports = api;
-},{}],2:[function(require,module,exports){
+},{}],3:[function(require,module,exports){
 /* global _, $ */
 'use strict';
 var formatTimeString_ = function (time, endTime) {
@@ -267,7 +401,7 @@ var api = {
 };
 
 module.exports = api;
-},{}],3:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 /* global _, $ */
 
 'use strict';
@@ -808,6 +942,7 @@ function geocode(initParams) {
 	var defaultParams = {
 		//address: address, 
 		geocoderList: (!!initParams.geocoderList) ? _.defaults(initParams.geocoderList, geocoderList) : geocoderList,
+		validateLatLngInPolygon: validateLatLngInPolygon,
 		regionBoundary: [{x: -95.29920350, y: 48.77505703},
 			{x: -95.29920350, y: 53.07150598},
 			{x: -89.02502409, y: 56.95876930},
@@ -896,7 +1031,78 @@ var api = {
 };
 
 module.exports = api;
-},{"./agsQuery":2}],4:[function(require,module,exports){
+},{"./agsQuery":3}],5:[function(require,module,exports){
+/* global describe, it, expect */
+var googleMapsAdapter = require('../../app/scripts/GoogleMapsAdapter');
+var geocoder = require('../../app/scripts/geocoder');
+
+(function () {
+    'use strict';
+
+	describe('Google Maps Adapter', function () {
+		describe('Google Maps Geocoder can reverse a latitude, longitude to address', function () {
+			it('should reverse geocode a latitude, longitude to an address', function (done) {				
+				var geocodePromise = googleMapsAdapter.geocode({lat: 43.71091,lng: -79.54182});
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(result.address).to.equal('Etobicoke, ON M9P 3V6, Canada');
+					done();
+				});
+			});
+		});
+
+		describe('Google Maps Geocoder can geocode an address', function () {
+			it('should geocode an address', function (done) {
+				var geocodePromise = googleMapsAdapter.geocode('125 Resources Rd, Toronto, Ontario');
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 43.71091)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-79.54182))).to.be.below(0.001);
+					done();
+				});
+			});
+			it('should geocode an address without province name', function (done) {
+				var geocodePromise = googleMapsAdapter.geocode('125 Resources Rd, Toronto');
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 43.71091)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-79.54182))).to.be.below(0.001);
+					done();
+				});
+			});
+			it('should geocode an address without province name', function (done) {
+				var geocodePromise = googleMapsAdapter.geocode('M9P 3V6');
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 43.71091)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-79.54182))).to.be.below(0.001);
+					done();
+				});
+			});
+		});
+
+	    describe('Google Maps Adapter can create an array of Google Maps polylines with rings from ArcGIS server ', function () {
+	        this.timeout(150000);
+	        it('should create polylines', function (done) {
+				var geocodeParams = {address: 'Abinger TWP'};
+				var geocodePromise = geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					var strokeOptions = {
+						color: '#8583f3',
+						opacity: 1, 
+						weight: 4
+					};
+					var polylines = googleMapsAdapter.createPolylines(result.geometry[0].rings, strokeOptions);
+					expect(polylines).to.have.length(1);
+					done();
+				});
+	        });
+	    });
+	});
+})();
+
+},{"../../app/scripts/GoogleMapsAdapter":1,"../../app/scripts/geocoder":4}],6:[function(require,module,exports){
 /* global describe, it, expect */
 var Util = require('../../app/scripts/Util');
 
@@ -980,14 +1186,13 @@ var Util = require('../../app/scripts/Util');
 	        it('should compute the clusters', function () {
 				var features = [{latlng: {lat: 45, lng: -77}, attributes: {attr: "test"}}, {latlng: {lat: 45, lng: -77}, attributes: {attr: "test"}}, {latlng: {lat: 45.008284, lng: -77.184177}, attributes: {attr: "test"}}, {latlng: {lat: 44.008284, lng: -79.184177}, attributes: {attr: "test"}}];
 	            var clusters = Util.computeClusters(features);
-				console.log(clusters);
 				expect(clusters).to.have.length(3);
 	        });
 	    });
     });
 })();
 
-},{"../../app/scripts/Util":1}],5:[function(require,module,exports){
+},{"../../app/scripts/Util":2}],7:[function(require,module,exports){
 /* global describe, it, expect, _ */
 var agsQuery = require('../../app/scripts/agsQuery');
 var geocoder = require('../../app/scripts/geocoder');
@@ -1140,7 +1345,7 @@ var Util = require('../../app/scripts/Util');
     });
 })();
 
-},{"../../app/scripts/Util":1,"../../app/scripts/agsQuery":2,"../../app/scripts/geocoder":3}],6:[function(require,module,exports){
+},{"../../app/scripts/Util":2,"../../app/scripts/agsQuery":3,"../../app/scripts/geocoder":4}],8:[function(require,module,exports){
 /* global describe, it, expect */
 var geocoder = require('../../app/scripts/geocoder');
 
@@ -1531,4 +1736,4 @@ var geocoder = require('../../app/scripts/geocoder');
     });
 })();
 
-},{"../../app/scripts/geocoder":3}]},{},[4,5,6]);
+},{"../../app/scripts/geocoder":4}]},{},[5,6,7,8]);

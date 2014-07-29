@@ -538,6 +538,7 @@ function geocode(initParams) {
 	var defaultParams = {
 		//address: address, 
 		geocoderList: (!!initParams.geocoderList) ? _.defaults(initParams.geocoderList, geocoderList) : geocoderList,
+		validateLatLngInPolygon: validateLatLngInPolygon,
 		regionBoundary: [{x: -95.29920350, y: 48.77505703},
 			{x: -95.29920350, y: 53.07150598},
 			{x: -89.02502409, y: 56.95876930},
