@@ -76,9 +76,12 @@ ImageOverlay.prototype.onRemove = function() {
 	this.div_ = null;
 };
 
+var map;
 var arcGISMapServices = [];
 var previousBounds;
 var infoWindow;
+var	search,	entsub,	searchChange;
+
 var init = function(initParams) {
 	var defaultParams = {
 		searchControlDivId: 'searchControl',
@@ -94,6 +97,7 @@ var init = function(initParams) {
 		disallowMouseClick: false
 	};
 	var params = _.defaults(initParams, defaultParams);
+	search = params.search;
 	$("#" + params.searchControlDivId).html(params.searchControlHTML);
 	var center = new google.maps.LatLng(params.orgLatitude, params.orgLongitude);
 	var mapOptions = {
@@ -103,7 +107,7 @@ var init = function(initParams) {
 		streetViewControl: true,
 		mapTypeId: params.defaultMapTypeId
 	};
-	var map = new google.maps.Map($('#' + params.mapCanvasDivId)[0], mapOptions);
+	map = new google.maps.Map($('#' + params.mapCanvasDivId)[0], mapOptions);
 
 	/*bounds changed*/
 	var boundsChangedHandler = function() {
@@ -229,6 +233,22 @@ var init = function(initParams) {
 	}
 	/*mouse click*/
 };
+
+var getCurrentMapExtent = function () {
+	var b = map.getBounds();
+	var ne = b.getNorthEast();
+	var sw = b.getSouthWest();
+	var nLat = ne.lat();
+	var eLng = ne.lng();
+	var sLat = sw.lat();
+	var wLng = sw.lng();
+	var swLatLng = {lat: sLat, lng: wLng};
+	var seLatLng = {lat: sLat, lng: eLng};
+	var neLatLng = {lat: nLat, lng: eLng};
+	var nwLatLng = {lat: nLat, lng: wLng};
+	return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
+};
+
 var geocode = function(input) {
 	var geocodeParams = {};
 	if (input.hasOwnProperty('lat') && input.hasOwnProperty('lng')) {
@@ -399,11 +419,24 @@ var getIdentifyRadius = function(zoomLevel) {
 	};
 	return identifyRadiusZoomLevelList[zoomLevel] * 1000; // in meters
 };
+
+entsub = function(event){
+	if (event && event.which === 13){
+		search();
+	}else{
+		return true;
+	}
+};
+searchChange = function () {};
 var api = {
 	init: init,
     geocode: geocode,
     getIdentifyRadius: getIdentifyRadius, 
-    createPolylines: createPolylines
+    createPolylines: createPolylines,
+	search: search,
+	entsub: entsub,
+	searchChange: searchChange,
+	getCurrentMapExtent: getCurrentMapExtent
 };
 
 module.exports = api;

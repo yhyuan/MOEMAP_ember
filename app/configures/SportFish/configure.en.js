@@ -1,6 +1,10 @@
 /* global _, $, google */
 'use strict';
 var GoogleMapsAdapter = require('../../scripts/GoogleMapsAdapter');
+var ArcGISServerAdapter = require('../../scripts/ArcGISServerAdapter');
+var Util = require('../../scripts/Util');
+
+window.GoogleMapsAdapter = GoogleMapsAdapter;
 GoogleMapsAdapter.init({
 	/*English Begins*/
 	language: "EN",
@@ -19,7 +23,7 @@ GoogleMapsAdapter.init({
 	/*English Ends*/
 	/**/	
 	/*English Begins*/
-	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>		<label class="element-invisible" for="map_query">Search the map</label>		<input id="map_query" type="text" title="Search term" maxlength="100" size="50" onkeypress="return globalConfig.entsub(event)"></input>		<label class="element-invisible" for="search_submit">Search</label>		<input id="search_submit" type="submit" title="Search" onclick="globalConfig.search()" value="Search"></input>		<fieldset>			<input type="radio" id="searchMapLocation" name="searchGroup" checked="checked" title="Search Map Location" name="location" value="location" onclick="globalConfig.searchChange(this)"></input>			<span class="tooltip" title="Search Map Location: Enter the name of an Ontario lake/river, city/town/township or street address to find fish consumption advice">			<label class="option" for="searchMapLocation">Search Map Location</label>			</span>			<br/>			<input type="radio" id="searchFishSpecies" name="searchGroup" title="Search Fish Species" name="species" value="species" onclick="globalConfig.searchChange(this)"></input>			<span class="tooltip" title="Search Fish Species: Enter the name of a fish species to find lakes with fish consumption advice for the species">			<label class="option" for="searchFishSpecies">Search Fish Species</label>			</span>			<br/>			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Current Map Display" /> <label for="currentExtent" class=\'option\'>Search current map display only</label>		</fieldset>		<div id="information"></div>',
+	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>		<label class="element-invisible" for="map_query">Search the map</label>		<input id="map_query" type="text" title="Search term" maxlength="100" size="50" onkeypress="return GoogleMapsAdapter.entsub(event)"></input>		<label class="element-invisible" for="search_submit">Search</label>		<input id="search_submit" type="submit" title="Search" onclick="GoogleMapsAdapter.search()" value="Search"></input>		<fieldset>			<input type="radio" id="searchMapLocation" name="searchGroup" checked="checked" title="Search Map Location" name="location" value="location" onclick="GoogleMapsAdapter.searchChange(this)"></input>			<span class="tooltip" title="Search Map Location: Enter the name of an Ontario lake/river, city/town/township or street address to find fish consumption advice">			<label class="option" for="searchMapLocation">Search Map Location</label>			</span>			<br/>			<input type="radio" id="searchFishSpecies" name="searchGroup" title="Search Fish Species" name="species" value="species" onclick="GoogleMapsAdapter.searchChange(this)"></input>			<span class="tooltip" title="Search Fish Species: Enter the name of a fish species to find lakes with fish consumption advice for the species">			<label class="option" for="searchFishSpecies">Search Fish Species</label>			</span>			<br/>			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Current Map Display" /> <label for="currentExtent" class=\'option\'>Search current map display only</label>		</fieldset>		<div id="information"></div>',
 	/*English Ends*/
 	/**/
 	pointBufferTool: {available: false},
@@ -116,29 +120,53 @@ GoogleMapsAdapter.init({
 		return res + sym;
 	},
 	search: function(){
-		var searchString = document.getElementById(globalConfig.searchInputBoxDivId).value.trim();
+		var searchString = $('#map_query').val().trim();
 		if(searchString.length === 0){
 			return;
 		}
-		MOEMAP.clearOverlays();
-		var withinExtent = document.getElementById(globalConfig.currentMapExtentDivId).checked;
+		var withinExtent = $('#currentMapExtent')[0].checked
 		var queryParams = {
-			searchString: searchString,
-			withinExtent: withinExtent
-		};	
-		if(document.getElementById('searchMapLocation').checked){
-			var coorsArray = searchString.split(/\s+/);
-			var str = coorsArray.join(" ").toUpperCase();
-			str = globalConfig.replaceChar(str, "'", "''");
-			str = globalConfig.replaceChar(str, "\u2019", "''");
-			queryParams.where = "UPPER(LOCNAME_" + globalConfig.language + ") LIKE '%" + str + "%'";
-			queryParams.requireGeocode = true;
-			queryParams.address = searchString;
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
+			layerID: 0,
+			returnGeometry: true,
+			/*English Begins*/
+			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
+			/*English Ends*/
+			/**/
+		};
+
+		if (withinExtent) {
+			queryParams.geometry = GoogleMapsAdapter.getCurrentMapExtent();	
+		}
+
+		if($('#searchMapLocation')[0].checked){
+			var getLakeNameSearchCondition = function(searchString) {
+				var coorsArray = searchString.split(/\s+/);
+				var str = coorsArray.join(" ").toUpperCase();
+				str = Util.replaceChar(str, "'", "''");
+				str = Util.replaceChar(str, "\u2019", "''");
+				/*English Begins*/
+				return "UPPER(LOCNAME_EN) LIKE '%" + str + "%'";
+				/*English Ends*/
+				/**/
+			};
+			queryParams.where =  getLakeNameSearchCondition(searchString);
+			var queryPromise = ArcGISServerAdapter.query(queryParams);
+			queryPromise.done(function (fset) {
+				if(fset && fset.features.length > 0) {
+
+				} else {
+					var geocodePromise = GoogleMapsAdapter.geocode(searchString);
+					geocodePromise.done(function(result){
+
+					});
+				}
+			});
 		}else{
 			var getQueryCondition = function(name){
 				var str = name.toUpperCase();
-				str = globalConfig.replaceChar(str, '&', ', ');
-				str = globalConfig.replaceChar(str, ' AND ', ', '); 
+				str = Util.replaceChar(str, '&', ', ');
+				str = Util.replaceChar(str, ' AND ', ', '); 
 				str = str.trim();
 				var nameArray = str.split(',');
 				var max = nameArray.length;
@@ -169,10 +197,13 @@ GoogleMapsAdapter.init({
 						SPRING_SALMON:	["CHINOOK_SALMON"]
 					};
 					var alias = aliasList[fishname];
-					var fish = globalConfig.wordCapitalize(globalConfig.replaceChar(fishname, '_', ' '));
+					var fish = Util.wordCapitalize(Util.replaceChar(fishname, '_', ' '));
 					if (typeof(alias) === "undefined"){
 						var result = {
-							condition: "(SPECIES_" + globalConfig.language + " like '%" + fishname +"%')",
+							/*English Begins*/
+							condition: "(SPECIES_EN like '%" + fishname +"%')",
+							/*English Ends*/
+							/**/
 							information: fish
 						};
 						return result;
@@ -180,8 +211,11 @@ GoogleMapsAdapter.init({
 						var res = [];
 						var fishArray = [];
 						for (var i = 0; i < alias.length; i++){
-							res.push("(SPECIES_" + globalConfig.language + " like '%" + alias[i] +"%')");				
-							var str = globalConfig.wordCapitalize(globalConfig.replaceChar(alias[i], '_', ' '));
+							/*English Begins*/
+							res.push("(SPECIES_EN like '%" + alias[i] +"%')");
+							/*English Ends*/
+							/**/
+							var str = Util.wordCapitalize(Util.replaceChar(alias[i], '_', ' '));
 							fishArray.push(str.trim());
 						}
 						var result = {
@@ -206,12 +240,19 @@ GoogleMapsAdapter.init({
 					information: inform.join(", ")
 				};
 				return result;
-			};	
-			var temp = getQueryCondition(searchString);
-			queryParams.where = temp.condition;
-			queryParams.requireGeocode = false;
-		}	
-		MOEMAP.queryLayersWithConditionsExtent(queryParams);	
+			};
+			queryParams.where = getQueryCondition(searchString).condition;
+			console.log(queryParams);
+			var queryPromise = ArcGISServerAdapter.query(queryParams);
+			queryPromise.done(function (fset) {
+				console.log(fset);
+				if(fset && fset.features.length > 0) {
+
+				} else {
+
+				}
+			});
+		}
 	},
 	searchChange: function () {}
 });

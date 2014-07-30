@@ -110,13 +110,43 @@ var convertLatLngtoUTM = function(lat, lng) {
 	};
 	return res;
 };
+/**
+ * Replace the char A with char B in a String. 
+ *
+ * @param {str} The string to be processed.
+ * @param {charA} the char to be replaced.
+ * @param {charB} the char to replace.
+ * @return {String} An ojbect sendt to Geocoder.
+ **/
+var replaceChar = function (str, charA, charB) {
+	var temp = [];
+	temp = str.split(charA);
+	var result = temp[0];
+	if (temp.length >= 2) {
+		for (var i = 1; i < temp.length; i++) {
+			result = result + charB + temp[i];
+		}
+	}
+	return result;
+};
+
+var wordCapitalize = function (str){
+	var strArray = str.trim().split(' ');
+	for(var i=0; i < strArray.length; i++) {
+		strArray[i] = strArray[i].substring(0,1).toUpperCase() + strArray[i].substring(1,strArray[i].length).toLowerCase();
+	}
+	return strArray.join(' ');
+};
+
 var api = {
 	computeCircle: computeCircle,
 	computeOffset: computeOffset,
 	computeDistance: computeDistance,
 	computePointsBounds: computePointsBounds,
 	computeClusters: computeClusters,
-	convertLatLngtoUTM: convertLatLngtoUTM
+	convertLatLngtoUTM: convertLatLngtoUTM,
+	replaceChar: replaceChar,
+	wordCapitalize: wordCapitalize
 };
 
 module.exports = api;

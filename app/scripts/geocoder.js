@@ -2,27 +2,11 @@
 
 'use strict';
 var ArcGISServerAdapter = require('./ArcGISServerAdapter');
+var Util = require('./Util');
+var replaceChar = Util.replaceChar;
 
 var regIsFloat = /^(-?\d+)(\.\d+)?$/,
-/**
- * Replace the char A with char B in a String. 
- *
- * @param {str} The string to be processed.
- * @param {charA} the char to be replaced.
- * @param {charB} the char to replace.
- * @return {String} An ojbect sendt to Geocoder.
- **/
-	replaceChar = function (str, charA, charB) {
-		var temp = [];
-		temp = str.split(charA);
-		var result = temp[0];
-		if (temp.length >= 2) {
-			for (var i = 1; i < temp.length; i++) {
-				result = result + charB + temp[i];
-			}
-		}
-		return result;
-	},
+
 /**
  * Validate whether a latlng is inside a polygon or not. 
  * The algorithm is from http://appdelegateinc.com/blog/2010/05/16/point-in-polygon-checking/.
