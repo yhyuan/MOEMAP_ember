@@ -1,21 +1,13 @@
 /* global _, $, google */
 'use strict';
-var GoogleMapsAdapter = require('../../scripts/GoogleMapsAdapter');
+var GoogleMapsAdapter = require('../scripts/GoogleMapsAdapter');
 GoogleMapsAdapter.init({
-	/*English Begins*/
-	language: "EN",
-	/*English Ends*/
+	/**/
 	/*French Begins*/
-	language: "FR",
+	globalConfig.language: "FR",
 	/*French Ends*/
 	url: "http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer",
-	/*English Begins*/
-	otherInfoHTML: "<h2>Find a map error?</h2> \
-		<p>It is possible you may encounter inaccuracies with map locations.</p> \
-		<p>If you find an error in the location of a lake, river or stream, please contact us.  Use the <a href='mailto:sportfish.moe@ontario.ca?subject=Sport Fish Map Error'>Report an error</a> link within the map pop-up.</p> \
-		<h2>Comments</h2> \
-		<p>For comments and suggestions, email us at <a href='mailto:sportfish.moe@ontario.ca?subject=Sport Fish Map Feedback'>sportfish.moe@ontario.ca</a>.</p>",
-	/*English Ends*/
+	/**/
 	/*French Begins*/
 	otherInfoHTML: '<h2>Une erreur sur la carte?</h2> \
 		<p>Il est possible que des impr&eacute;cisions se soient gliss&eacute;es sur les emplacements.</p> \
@@ -23,39 +15,15 @@ GoogleMapsAdapter.init({
 		<h2>Commentaires</h2> \
 		<p>Veuillez formuler vos commentaires ou vos suggestions par courriel &agrave; <a href="mailto:sportfish.moe@ontario.ca">sportfish.moe@ontario.ca</a>.</p>',
 	/*French Ends*/
-	/*English Begins*/
-	report_URL: "fish-consumption-report",
-	/*English Ends*/
+	/**/
 	/*French Begins*/
 	report_URL: "rapport-de-consommation-de-poisson",
 	/*French Ends*/	
-	/*English Begins*/
-	tabsTemplateContent: "<strong>{LOCNAME_EN}</strong><br>{globalConfig.addBRtoLongText(GUIDELOC_EN)}<br><br><a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Consumption Advisory Table</a><br><br>Latitude <b>{globalConfig.deciToDegree(LATITUDE)}</b> Longitude <b>{globalConfig.deciToDegree(LONGITUDE)}</b><br><a href='mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission {LOCNAME_EN})'>Report an error for this location</a>.<br><br>",
-	/*English Ends*/
+	/**/
 	/*French Begins*/
-	tabsTemplateContent: "<strong>{LOCNAME_FR}</strong><br>{globalConfig.addBRtoLongText(GUIDELOC_FR)}<br><br><a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>Latitude <b>{globalConfig.deciToDegree(LATITUDE)}</b> Longitude <b>{globalConfig.deciToDegree(LONGITUDE)}</b><br><a href='mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission {LOCNAME_FR})'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>",
+	tabsTemplateContent: "<strong>{LOCNAME_FR}</strong><br>{globalConfig.addBRtoLongText(GUIDELOC_FR)}<br><br><a target='_blank' href='" + globalConfig.report_URL + "?id={WATERBODYC}'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>Latitude <b>{globalConfig.deciToDegree(LATITUDE)}</b> Longitude <b>{globalConfig.deciToDegree(LONGITUDE)}</b><br><a href='mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission {LOCNAME_FR})'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>"
 	/*French Ends*/	
-	/*English Begins*/
-	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
-		<label class="element-invisible" for="map_query">Search the map</label>\
-		<input id="map_query" type="text" title="Search term" maxlength="100" size="50" onkeypress="return globalConfig.entsub(event)"></input>\
-		<label class="element-invisible" for="search_submit">Search</label>\
-		<input id="search_submit" type="submit" title="Search" onclick="globalConfig.search()" value="Search"></input>\
-		<fieldset>\
-			<input type="radio" id="searchMapLocation" name="searchGroup" checked="checked" title="Search Map Location" name="location" value="location" onclick="globalConfig.searchChange(this)"></input>\
-			<span class="tooltip" title="Search Map Location: Enter the name of an Ontario lake/river, city/town/township or street address to find fish consumption advice">\
-			<label class="option" for="searchMapLocation">Search Map Location</label>\
-			</span>\
-			<br/>\
-			<input type="radio" id="searchFishSpecies" name="searchGroup" title="Search Fish Species" name="species" value="species" onclick="globalConfig.searchChange(this)"></input>\
-			<span class="tooltip" title="Search Fish Species: Enter the name of a fish species to find lakes with fish consumption advice for the species">\
-			<label class="option" for="searchFishSpecies">Search Fish Species</label>\
-			</span>\
-			<br/>\
-			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Current Map Display" /> <label for="currentExtent" class=\'option\'>Search current map display only</label>\
-		</fieldset>\
-		<div id="information"></div>',
-	/*English Ends*/
+	/**/
 	/*French Begins*/
 	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
 		<label class="element-invisible" for="map_query">Recherche carte interactive</label>\
@@ -89,34 +57,23 @@ GoogleMapsAdapter.init({
 	InformationLang: "Information",
 	postIdentifyCallbackName: "SportFish",
 	infoWindowWidth: '280px',
-	tableSimpleTemplateTitleLang: "",
-	/*English Begins*/
+	tableSimpleTemplateTitleLang = "",
 	tableFieldList: [
-		{name: "Waterbody", value: "{LOCNAME_EN}"}, 
-		{name: "Location", value: "{globalConfig.addBRtoLongText(GUIDELOC_EN)}"}, 
+		{name: globalConfig.chooseLang("Waterbody", "Plan d'eau"), value: "{LOCNAME_" + globalConfig.chooseLang("EN", "FR") + "}"}, 
+		{name: globalConfig.chooseLang("Location", "Lieu"), value: "{globalConfig.addBRtoLongText(GUIDELOC_" + globalConfig.chooseLang("EN", "FR") + ")}"}, 
 		{name: "Latitude", value: "{globalConfig.deciToDegree(LATITUDE)}"}, 
 		{name: "Longitude", value: "{globalConfig.deciToDegree(LONGITUDE)}"}, 	
-		{name: "Consumption Advisory Table", value: "<a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Consumption Advisory Table</a>"}
+		{name: globalConfig.chooseLang("Consumption Advisory Table", "Tableau des mises en garde en mati\u00e8re de consommation"), value: "<a target='_blank' href='" + globalConfig.report_URL + "?id={WATERBODYC}'>" + globalConfig.chooseLang("Consumption Advisory Table", "Tableau des mises en garde en mati\u00e8re de<br> consommation") + "</a>"}
 	],
-	/*English Ends*/
-	/*French Begins*/
-	tableFieldList: [
-		{name: "Plan d'eau", value: "{LOCNAME_FR}"}, 
-		{name: "Lieu", value: "{globalConfig.addBRtoLongText(GUIDELOC_FR)}"}, 
-		{name: "Latitude", value: "{globalConfig.deciToDegree(LATITUDE)}"}, 
-		{name: "Longitude", value: "{globalConfig.deciToDegree(LONGITUDE)}"}, 	
-		{name: "Tableau des mises en garde en mati\u00e8re de consommation", value: "<a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a>"}
-	],
-	/*French Ends*/
 	queryLayerList: [{
-		url: this.url + "/0",
+		url: globalConfig.url + "/0",
 		tabsTemplate: [{
-			label: this.InformationLang,
-			content:this.tabsTemplateContent
+			label: globalConfig.InformationLang,
+			content:globalConfig.tabsTemplateContent
 		}], 
 		tableSimpleTemplate: {
-			title: this.tableSimpleTemplateTitleLang, 
-			content: this.tableFieldList
+			title: globalConfig.tableSimpleTemplateTitleLang, 
+			content: globalConfig.tableFieldList
 		} 
 	}],
 	search: function(){
@@ -237,6 +194,3 @@ GoogleMapsAdapter.init({
 
 //globalConfig.tableSimpleTemplateTitleLang = globalConfig.chooseLang("Note: Data is in English only.", "\u00c0 noter : Les donn\u00e9es sont en anglais seulement.");
 //globalConfig.
-
-
-

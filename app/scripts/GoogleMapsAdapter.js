@@ -1,7 +1,42 @@
 /* global _, $, google */
 'use strict';
 var geocoder = require('./geocoder');
-
+var Util = require('./Util');
+var init = function(initParams) {
+	var defaultParams = {
+		searchControlDivId: 'searchControl',
+		orgLatitude: 49.764775,
+		orgLongitude: -85.323214,
+		orgzoomLevel: 5,
+		defaultMapTypeId: google.maps.MapTypeId.ROADMAP,
+		mapCanvasDivId: 'map_canvas',
+		isCoordinatesVisible: true,
+		coordinatesDivId: 'coordinates'
+	};
+	var params = _.defaults(initParams, defaultParams);
+	$("#" + params.searchControlDivId).html(params.searchControlHTML);
+	var mapOptions = {
+		zoom: params.orgzoomLevel,
+		center: new google.maps.LatLng(params.orgLatitude, params.orgLongitude),
+		scaleControl: true,
+		streetViewControl: true,
+		mapTypeId: params.defaultMapTypeId
+	};
+	var map = new google.maps.Map($('#' + params.mapCanvasDivId)[0], mapOptions);
+	var updateCoordinates = function(lat, lng){
+		var utm = Util.convertLatLngtoUTM(lat, lng);
+		console.log(utm);
+		//$("#" + params.coordinatesDivId).html("Latitude:" + lat.toFixed(5) + ", Longitude:" + lng.toFixed(5) + " (" + globalConfig.UTM_ZoneLang + ":" + utm.Zone + ", " + globalConfig.EastingLang + ":" + utm.Easting + ", " + globalConfig.NorthingLang +":" + utm.Northing + ")<br>");
+	};
+	updateCoordinates(params.orgLatitude, params.orgLongitude);
+	var	mouseMoveHandler = function(event) {
+		/*Update the Coordinates*/
+		if(params.isCoordinatesVisible){
+			updateCoordinates(event.latLng.lat(), event.latLng.lng());
+		}
+	};	
+	google.maps.event.addListener(map, 'mousemove', mouseMoveHandler);
+};
 var geocode = function(input) {
 	var geocodeParams = {};
 	if (input.hasOwnProperty('lat') && input.hasOwnProperty('lng')) {
@@ -173,6 +208,7 @@ var getIdentifyRadius = function(zoomLevel) {
 	return identifyRadiusZoomLevelList[zoomLevel] * 1000; // in meters
 };
 var api = {
+	init: init,
     geocode: geocode,
     getIdentifyRadius: getIdentifyRadius, 
     createPolylines: createPolylines
