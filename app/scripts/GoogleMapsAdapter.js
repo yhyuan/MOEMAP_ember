@@ -1,7 +1,84 @@
 /* global _, $, google */
 'use strict';
-var geocoder = require('./geocoder');
+var Geocoder = require('./Geocoder');
 var Util = require('./Util');
+var ArcGISServerAdapter = require('./ArcGISServerAdapter');
+
+
+/* this class is based on sample code USGSOverlay */
+/** @constructor */
+function ImageOverlay(bounds, image, map) {
+	// Initialize all properties.
+	this.bounds_ = bounds;
+	this.image_ = image;
+	this.map_ = map;
+
+	// Define a property to hold the image's div. We'll
+	// actually create this div upon receipt of the onAdd()
+	// method so we'll leave it null for now.
+	this.div_ = null;
+
+	// Explicitly call setMap on this overlay.
+	this.setMap(map);
+}
+ImageOverlay.prototype = new google.maps.OverlayView();
+/**
+ * onAdd is called when the map's panes are ready and the overlay has been
+ * added to the map.
+ */
+ImageOverlay.prototype.onAdd = function() {
+
+	var div = document.createElement('div');
+	div.style.borderStyle = 'none';
+	div.style.borderWidth = '0px';
+	div.style.position = 'absolute';
+
+	// Create the img element and attach it to the div.
+	var img = document.createElement('img');
+	img.src = this.image_;
+	img.style.width = '100%';
+	img.style.height = '100%';
+	img.style.position = 'absolute';
+	div.appendChild(img);
+
+	this.div_ = div;
+
+	// Add the element to the "overlayLayer" pane.
+	var panes = this.getPanes();
+	panes.overlayLayer.appendChild(div);
+};
+
+ImageOverlay.prototype.draw = function() {
+
+	// We use the south-west and north-east
+	// coordinates of the overlay to peg it to the correct position and size.
+	// To do this, we need to retrieve the projection from the overlay.
+	var overlayProjection = this.getProjection();
+
+	// Retrieve the south-west and north-east coordinates of this overlay
+	// in LatLngs and convert them to pixel coordinates.
+	// We'll use these coordinates to resize the div.
+	var sw = overlayProjection.fromLatLngToDivPixel(this.bounds_.getSouthWest());
+	var ne = overlayProjection.fromLatLngToDivPixel(this.bounds_.getNorthEast());
+
+	// Resize the image's div to fit the indicated dimensions.
+	var div = this.div_;
+	div.style.left = sw.x + 'px';
+	div.style.top = ne.y + 'px';
+	div.style.width = (ne.x - sw.x) + 'px';
+	div.style.height = (sw.y - ne.y) + 'px';
+};
+
+// The onRemove() method will be called automatically from the API if
+// we ever set the overlay's map property to 'null'.
+ImageOverlay.prototype.onRemove = function() {
+	this.div_.parentNode.removeChild(this.div_);
+	this.div_ = null;
+};
+
+var arcGISMapServices = [];
+var previousBounds;
+var infoWindow;
 var init = function(initParams) {
 	var defaultParams = {
 		searchControlDivId: 'searchControl',
@@ -11,40 +88,155 @@ var init = function(initParams) {
 		defaultMapTypeId: google.maps.MapTypeId.ROADMAP,
 		mapCanvasDivId: 'map_canvas',
 		isCoordinatesVisible: true,
-		coordinatesDivId: 'coordinates'
+		coordinatesDivId: 'coordinates',
+		minMapScale: 5,
+		maxMapScale: 21,
+		disallowMouseClick: false
 	};
 	var params = _.defaults(initParams, defaultParams);
 	$("#" + params.searchControlDivId).html(params.searchControlHTML);
+	var center = new google.maps.LatLng(params.orgLatitude, params.orgLongitude);
 	var mapOptions = {
 		zoom: params.orgzoomLevel,
-		center: new google.maps.LatLng(params.orgLatitude, params.orgLongitude),
+		center: center,
 		scaleControl: true,
 		streetViewControl: true,
 		mapTypeId: params.defaultMapTypeId
 	};
 	var map = new google.maps.Map($('#' + params.mapCanvasDivId)[0], mapOptions);
-	var updateCoordinates = function(lat, lng){
-		var utm = Util.convertLatLngtoUTM(lat, lng);
-		console.log(utm);
-		//$("#" + params.coordinatesDivId).html("Latitude:" + lat.toFixed(5) + ", Longitude:" + lng.toFixed(5) + " (" + globalConfig.UTM_ZoneLang + ":" + utm.Zone + ", " + globalConfig.EastingLang + ":" + utm.Easting + ", " + globalConfig.NorthingLang +":" + utm.Northing + ")<br>");
-	};
-	updateCoordinates(params.orgLatitude, params.orgLongitude);
-	var	mouseMoveHandler = function(event) {
-		/*Update the Coordinates*/
-		if(params.isCoordinatesVisible){
-			updateCoordinates(event.latLng.lat(), event.latLng.lng());
+
+	/*bounds changed*/
+	var boundsChangedHandler = function() {
+		if(previousBounds) {
+			var computeBoundsDifference = function(b1, b2) {
+				return Math.abs(b1.getNorthEast().lat() - b2.getNorthEast().lat()) + Math.abs(b1.getNorthEast().lng() - b2.getNorthEast().lng()) + Math.abs(b1.getSouthWest().lat() - b2.getSouthWest().lat()) + Math.abs(b1.getSouthWest().lng() - b2.getSouthWest().lng());
+			};
+			if (computeBoundsDifference(map.getBounds(), previousBounds) < 0.000000001) {
+				return;
+			}
 		}
-	};	
+		_.each(arcGISMapServices, function(arcGISMapService) {
+			arcGISMapService.setMap(null);
+		});
+		var convertBounds = function(latLngBounds) {
+			var latLngNE = latLngBounds.getNorthEast();
+			var latLngSW = latLngBounds.getSouthWest();
+			return {
+				southWest: {lat: latLngSW.lat(), lng: latLngSW.lng()},
+				northEast: {lat: latLngNE.lat(), lng: latLngNE.lng()}
+			};
+		};
+		var googleBounds = map.getBounds();
+		var bounds = convertBounds(googleBounds);
+		var div = map.getDiv();
+		var width = div.offsetWidth;
+		var height = div.offsetHeight;
+		var promises = _.map(params.mapServices, function(mapService) {
+			var exportParams =  {
+				bounds: bounds,
+				width: width,
+				height: height,
+				mapService: mapService.url,
+				visibleLayers: mapService.visibleLayers
+			};
+			return ArcGISServerAdapter.exportMap(exportParams);
+		});
+		$.when.apply($, promises).done(function() {
+			arcGISMapServices = _.map(arguments, function(argument) {
+				return new ImageOverlay(googleBounds, argument.href, map);
+			});
+		});
+		previousBounds = googleBounds;
+	};
+	/*Check bounds change every second.*/
+	setInterval(boundsChangedHandler,1000);
+	/*bounds changed*/
+	/*mouse move*/
+	var	mouseMoveHandler = function(event) {
+		if(params.isCoordinatesVisible){
+			var lat = event.latLng.lat();
+			var lng = event.latLng.lng();
+			var utm = Util.convertLatLngtoUTM(lat, lng);
+			var utmLang =  (params.language === "EN") ? {
+				UTM_ZoneLang: "UTM Zone",
+				EastingLang: "Easting",
+				NorthingLang: "Northing"
+			} : {
+				UTM_ZoneLang: "Zone UTM",
+				EastingLang: "abscisse",
+				NorthingLang: "ordonn\u00e9e"
+			};
+			$("#" + params.coordinatesDivId).html("Latitude:" + lat.toFixed(5) + ", Longitude:" + lng.toFixed(5) + " (" + utmLang.UTM_ZoneLang + ":" + utm.Zone + ", " + utmLang.EastingLang + ":" + utm.Easting + ", " + utmLang.NorthingLang +":" + utm.Northing + ")<br>");
+		}
+	};
 	google.maps.event.addListener(map, 'mousemove', mouseMoveHandler);
+	google.maps.event.trigger(map, 'mousemove', {latLng: center});
+	/*mouse move*/
+	/*zoom changed*/
+	var zoom_changedHandler = function () {
+		if (map.getZoom() > params.maxMapScale) {
+			map.setZoom(params.maxMapScale);
+		}
+		if (map.getZoom() < params.minMapScale) {
+			map.setZoom(params.minMapScale);
+		}
+	}	
+	google.maps.event.addListener(map, 'zoom_changed', zoom_changedHandler);
+	/*zoom changed*/
+	/*mouse click*/
+	var mouseClickHandler = function(event) {
+		if (infoWindow) {
+			infoWindow.setMap(null);
+		}
+		var gLatLng = event.latLng;
+		var latlng = {lat: gLatLng.lat(), lng: gLatLng.lng()};
+		var circle = Util.computeCircle(latlng, getIdentifyRadius(map.getZoom()));
+		var promises = _.map(params.identifyLayersList, function(layer) {
+			var queryParams = {
+				mapService: layer.mapService,
+				layerID: layer.layerID,
+				returnGeometry: false,
+				outFields: layer.outFields,
+				geometry: circle
+			};
+			return ArcGISServerAdapter.query(queryParams);
+		});
+		$.when.apply($, promises).done(function() {
+			var total = _.reduce(_.map(arguments, function(layer){
+				return layer.features.length;
+			}), function(memo, num){ return memo + num; }, 0);
+			if (total === 0) {
+				return;
+			}
+			var info = _.template(params.identifyTemplate, {result: arguments, params: params});
+			var openInfoWindow = function (latlng, container){
+				if (!infoWindow) {
+					infoWindow = new google.maps.InfoWindow({
+						content: container,
+						position: latlng
+					});
+				} else {
+					infoWindow.setContent(container);
+					infoWindow.setPosition(latlng);
+				}
+				infoWindow.open(map);
+			};
+			openInfoWindow(gLatLng, info);
+		});		
+	};	
+	if (!params.disallowMouseClick) {
+		google.maps.event.addListener(map, 'click', mouseClickHandler);
+	}
+	/*mouse click*/
 };
 var geocode = function(input) {
 	var geocodeParams = {};
 	if (input.hasOwnProperty('lat') && input.hasOwnProperty('lng')) {
 		var reverseGeocoder = function(params) {
 			var dfd = new $.Deferred();
-			var geocoder = new google.maps.Geocoder();
+			var Geocoder = new google.maps.Geocoder();
 			var latlng = new google.maps.LatLng(input.lat, input.lng);
-			geocoder.geocode({'latLng': latlng}, function(results, status) {
+			Geocoder.geocode({'latLng': latlng}, function(results, status) {
 				if (status === google.maps.GeocoderStatus.OK) {
 					if (results[1]) {
 						var result = {
@@ -96,8 +288,8 @@ var geocode = function(input) {
 					return addressStr;
 				};
 
-				var geocoder = new google.maps.Geocoder();
-				geocoder.geocode({
+				var Geocoder = new google.maps.Geocoder();
+				Geocoder.geocode({
 					'address': regionAddressProcess(params.address, params.defaultRegionNames)
 				}, function (results, status) {
 					if (status === google.maps.GeocoderStatus.OK) {
@@ -140,7 +332,7 @@ var geocode = function(input) {
 			defaultGeocoder: defaultGeocoder
 		};
 	}
-	return geocoder.geocode(geocodeParams);
+	return Geocoder.geocode(geocodeParams);
 };
 
 /*

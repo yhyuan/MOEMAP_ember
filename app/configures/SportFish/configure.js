@@ -8,7 +8,10 @@ GoogleMapsAdapter.init({
 	/*French Begins*/
 	language: "FR",
 	/*French Ends*/
-	url: "http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer",
+	mapServices: [{
+		url: "http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer",
+		visibleLayers: [0, 1, 2]
+	}],
 	/*English Begins*/
 	otherInfoHTML: "<h2>Find a map error?</h2> \
 		<p>It is possible you may encounter inaccuracies with map locations.</p> \
@@ -28,12 +31,6 @@ GoogleMapsAdapter.init({
 	/*English Ends*/
 	/*French Begins*/
 	report_URL: "rapport-de-consommation-de-poisson",
-	/*French Ends*/	
-	/*English Begins*/
-	tabsTemplateContent: "<strong>{LOCNAME_EN}</strong><br>{globalConfig.addBRtoLongText(GUIDELOC_EN)}<br><br><a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Consumption Advisory Table</a><br><br>Latitude <b>{globalConfig.deciToDegree(LATITUDE)}</b> Longitude <b>{globalConfig.deciToDegree(LONGITUDE)}</b><br><a href='mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission {LOCNAME_EN})'>Report an error for this location</a>.<br><br>",
-	/*English Ends*/
-	/*French Begins*/
-	tabsTemplateContent: "<strong>{LOCNAME_FR}</strong><br>{globalConfig.addBRtoLongText(GUIDELOC_FR)}<br><br><a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>Latitude <b>{globalConfig.deciToDegree(LATITUDE)}</b> Longitude <b>{globalConfig.deciToDegree(LONGITUDE)}</b><br><a href='mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission {LOCNAME_FR})'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>",
 	/*French Ends*/	
 	/*English Begins*/
 	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
@@ -108,6 +105,30 @@ GoogleMapsAdapter.init({
 		{name: "Tableau des mises en garde en mati\u00e8re de consommation", value: "<a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a>"}
 	],
 	/*French Ends*/
+	/*English Begins*/
+	identifyLayersList: [{
+		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
+		layerID: 0,
+		outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
+	}],
+	identifyTemplate: '<% var attr = result[0].features[0].attributes;%>\
+		<strong><%= attr.LOCNAME_EN %></strong><br><%= params.addBRtoLongText(attr.GUIDELOC_EN) %><br><br>\
+		<a target=\'_blank\' href=\'<%= params.report_URL %>?id=<%= attr.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>\
+		Latitude <b><%= params.deciToDegree(attr.LATITUDE) %></b> Longitude <b><%= params.deciToDegree(attr.LONGITUDE) %></b><br>\
+		<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attr.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>',
+	/*English Ends*/
+	/*French Begins*/
+	identifyLayersList: [{
+		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
+		layerID: 0,
+		outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
+	}],
+	identifyTemplate: '<% var attr = result[0].features[0].attributes;%>\
+		<strong><%= attr.LOCNAME_FR %></strong><br><%= params.addBRtoLongText(attr.GUIDELOC_FR) %><br><br>\
+		<a target=\'_blank\' href=\'<%= params.report_URL %>?id=<%= attr.WATERBODYC %>\'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>\
+		Latitude <b><%= params.deciToDegree(attr.LATITUDE) %></b> Longitude <b><%= params.deciToDegree(attr.LONGITUDE) %></b><br>\
+		<a href=\'mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission <%= attr.LOCNAME_FR %>)\'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>',	
+	/*French Ends*/
 	queryLayerList: [{
 		url: this.url + "/0",
 		tabsTemplate: [{
@@ -119,6 +140,56 @@ GoogleMapsAdapter.init({
 			content: this.tableFieldList
 		} 
 	}],
+	addBRtoLongText: function (text) {
+		var lineCount = 0;
+		var readyForBreak = false;
+		if (text.length <= 40) {
+			return text;
+		}
+		var textArray = text.split('');
+		var result = "";	
+		for (var i = 0; i < textArray.length; i++) {
+			if (lineCount > 40) {
+				readyForBreak = true;
+			}
+			result = result + textArray[i];
+			if ((readyForBreak) && (textArray[i] === " ")) {
+				lineCount = 0;
+				result = result + "<br>";
+				readyForBreak = false;
+			}
+			lineCount = lineCount + 1;
+		}
+		return result;
+	},
+	deciToDegree: function (degree){
+		if(Math.abs(degree) <= 0.1){
+			return "N/A";
+		}
+		var sym = "N";
+		if(degree<0){
+			degree = -degree;
+			if(this.language === "EN") {
+				sym = "W";
+			} else {
+				sym = "O";
+			}
+		}
+		var deg = Math.floor(degree);
+		var temp = (degree - deg)*60;
+		var minute = Math.floor(temp);
+		var second = Math.floor((temp- minute)*60);
+		var res = "";
+		var degreeSymbolLang = "&deg;";
+		if(second<1){
+			res ="" + deg + degreeSymbolLang + minute + "'";
+		}else if(second>58){
+			res ="" + deg + degreeSymbolLang + (minute+1) + "'";
+		}else{
+			res ="" + deg + degreeSymbolLang + minute + "'" + second + "\"";
+		}
+		return res + sym;
+	},
 	search: function(){
 		var searchString = document.getElementById(globalConfig.searchInputBoxDivId).value.trim();
 		if(searchString.length === 0){

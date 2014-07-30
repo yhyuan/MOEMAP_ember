@@ -1,262 +1,4 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-/* global _, $, google */
-'use strict';
-var geocoder = require('./geocoder');
-
-var geocode = function(input) {
-	var geocodeParams = {};
-	if (input.hasOwnProperty('lat') && input.hasOwnProperty('lng')) {
-		var reverseGeocoder = function(params) {
-			var dfd = new $.Deferred();
-			var geocoder = new google.maps.Geocoder();
-			var latlng = new google.maps.LatLng(input.lat, input.lng);
-			geocoder.geocode({'latLng': latlng}, function(results, status) {
-				if (status === google.maps.GeocoderStatus.OK) {
-					if (results[1]) {
-						var result = {
-							address: results[1].formatted_address,
-							latlng: params.latlng,
-							status: 'OK'
-						};
-						dfd.resolve(result);
-					} else {
-						dfd.resolve({status: 'No_Result'});
-					}
-				} else {
-					dfd.resolve({status: 'No_Result'});
-				}
-			});
-			return dfd.promise();
-		};
-		geocodeParams = {
-			latlng: input,
-			reverseGeocoder: reverseGeocoder
-		};
-	} else {
-		var defaultGeocoder = function(params) {
-			var dfd = new $.Deferred();			
-			if (params.address.toUpperCase() === "ONTARIO") {
-				var result = {
-					status: 'No_Result'
-				};
-				dfd.resolve(result);
-			} else {
-				//Private method: test whether the input ends with region names.
-				var regionAddressProcess = function(addressStr, defaultRegionNames){
-					var isAddressEndsWithRegionName = function(address, str) {
-						if (address.length > str.length + 1) {
-							var substr = address.substring(address.length - str.length - 1);
-							if (substr === (" " + str) || substr === ("," + str)) {
-								return true;
-							}
-						}
-						return false;
-					};					
-					var address = addressStr.toUpperCase();
-					var res = _.some(defaultRegionNames, function(regionName) {
-						return isAddressEndsWithRegionName(address, regionName);
-					});
-					if(!res){
-						return addressStr + " Ontario";
-					}
-					return addressStr;
-				};
-
-				var geocoder = new google.maps.Geocoder();
-				geocoder.geocode({
-					'address': regionAddressProcess(params.address, params.defaultRegionNames)
-				}, function (results, status) {
-					if (status === google.maps.GeocoderStatus.OK) {
-						var geocodeResult = _.find(results, function(result){
-							var point = result.geometry.location;
-							var failedPositions = _.filter(params.failedLocation.positions, function(position) {
-								return ((Math.abs(point.lat() - position[0]) + Math.abs(point.lng() - position[1])) < params.failedLocation.difference);
-							});
-							return (failedPositions.length === 0) && (params.validateLatLngInPolygon({lat: point.lat(), lng: point.lng()}, params.regionBoundary));
-						});
-						if (geocodeResult) {
-							var point = geocodeResult.geometry.location;
-							var result = {
-								latlng: {
-									lat: point.lat(),
-									lng: point.lng()
-								},
-								address: params.address,
-								geocodedAddress: geocodeResult.formatted_address.toString(),
-								status: 'OK'
-							};
-							dfd.resolve(result);
-						} else {
-							dfd.resolve({status: 'No_Result'});
-						}
-					} else {
-						dfd.resolve({status: 'No_Result'});
-					}
-				});
-			}
-			return dfd.promise();
-		};
-		geocodeParams = {
-			address: input,
-			defaultRegionNames: ["ON", "ONT", "ONTARIO"], 
-			failedLocation: {
-				positions: [[51.253775,-85.32321389999998], [42.832714, -80.279923]],
-				difference: 0.00001
-			},
-			defaultGeocoder: defaultGeocoder
-		};
-	}
-	return geocoder.geocode(geocodeParams);
-};
-
-/*
-	Usage: Add the polylines overlays on the map. If the LOCATOR module return the result for Township with/without 
-	Lot and Concession, the related polygons will be add to Google Maps by this method. 
-	Called by: queryLayerWithPointBuffer 
-*/		
-var createPolylines = function (rings, strokeOptions){
-	return _.map(rings, function(ring) {
-		return new google.maps.Polyline({    
-			path: _.map(ring, function(pt) {
-				return new google.maps.LatLng(pt[1], pt[0]);
-			}),
-			strokeColor: strokeOptions.color,    
-			strokeOpacity: strokeOptions.opacity,   
-			strokeWeight: strokeOptions.weight,
-			geodesic: false
-		});
-	});
-};
-
-/*
-	Usage: Create a marker on a location with pop up content and used icon. 
-	Called by: queryLayerWithPointBuffer.
-	Rely on: map, openInfoWindow function.  
-*/	
-/*var createMarker = function (latlng, popupContent, icon) {
-	var gLatLng = new google.maps.LatLng(latlng.lat, latlng.lng);
-	var marker = new google.maps.Marker({
-		position: gLatLng,
-		icon: icon
-	});
-	(function (popupContent, marker) {
-		google.maps.event.addListener(marker, 'click', function () {
-			MOEMAP.openInfoWindow(marker.getPosition(), popupContent);
-		});
-	})(popupContent, marker);
-	return marker;
-};*/
-
-var getIdentifyRadius = function(zoomLevel) {
-	var identifyRadiusZoomLevelList = {
-		21 : 0.001,
-		20 : 0.001,
-		19 : 0.002,
-		18 : 0.003,
-		17 : 0.005,
-		16 : 0.01,
-		15 : 0.02,
-		14 : 0.05,
-		13 : 0.08,
-		12 : 0.16,
-		11 : 0.3,
-		10 : 0.6,
-		9  : 1.2,
-		8  : 2.4,
-		7  : 4.8,
-		6  : 9.6,
-		5  : 20,
-		4  : 40,
-		3  : 80,
-		2  : 160,
-		1  : 320
-	};
-	return identifyRadiusZoomLevelList[zoomLevel] * 1000; // in meters
-};
-var api = {
-    geocode: geocode,
-    getIdentifyRadius: getIdentifyRadius, 
-    createPolylines: createPolylines
-};
-
-module.exports = api;
-},{"./geocoder":4}],2:[function(require,module,exports){
-/* global _ */
-'use strict';
-
-var EARTH_RADIUS = 6378137; // in meter
-
-var toRad = function (degree) {
-	return degree * Math.PI / 180;
-};
-
-var toDegree = function (rad) {
-	return rad * 180 / Math.PI;
-};
-
-var computeOffset = function(latlng, radius, heading) {
-	var distRad = radius/EARTH_RADIUS;
-	var headingRad = toRad(heading);
-	var latRad = toRad(latlng.lat);
-	var cosDist = Math.cos(distRad);
-	var sinDist = Math.sin(distRad);
-	var cosLat = Math.cos(latRad);
-	var sinLat = Math.sin(latRad);
-	var sc = cosDist * sinLat + sinDist * cosLat * Math.cos(headingRad);
-	var lat = toDegree(Math.asin(sc));
-	var dlng = Math.atan2(sinDist*cosLat*Math.sin(headingRad), cosDist - sinLat * sc);
-	var lng = toDegree(toRad(latlng.lng) - dlng);
-	return {lat: lat, lng: lng};
-};
-
-var computeCircle = function (latlng, radius) {
-	return _.map(_.range(0, 361, 10), function(heading) {
-		return computeOffset(latlng, radius, heading);
-	});
-};
-
-var computeDistance = function (fromLatlng, toLatlng) {
-	var lat1 = toRad(fromLatlng.lat);
-	var lng1 = toRad(fromLatlng.lng);
-	var lat2 = toRad(toLatlng.lat);
-	var lng2 = toRad(toLatlng.lng);
-	var d = EARTH_RADIUS*Math.acos(Math.sin(lat1)*Math.sin(lat2) + Math.cos(lat1)*Math.cos(lat2)*Math.cos(lng1 - lng2));
-	return d;
-};
-
-var computePointsBounds = function (latlngs){
-	var getLat = function(latlng){ return latlng.lat;};
-	var getLng = function(latlng){ return latlng.lng;};
-	return {
-		southWest: {lat: _.min(latlngs, getLat).lat, lng: _.min(latlngs, getLng).lng},
-		northEast: {lat: _.max(latlngs, getLat).lat, lng: _.max(latlngs, getLng).lng}
-	};
-};
-
-var computeClusters = function (features){
-	var size = features.length;
-	var groups = _.groupBy(features, function(feature) {
-		return '' + feature.latlng.lat.toFixed(6) + ':' + feature.latlng.lng.toFixed(6);
-	});
-	var keys = _.keys(groups);
-	var values = _.values(groups);	
-	return _.map(_.range(keys.length), function(index) {
-		var key = keys[index].split(':');
-		var latlng = {lat: parseFloat(key[0]), lng: parseFloat(key[1])};
-		return {latlng: latlng, list: values[index]};
-	});
-};
-
-var api = {
-	computeCircle: computeCircle,
-	computeOffset: computeOffset,
-	computeDistance: computeDistance,
-	computePointsBounds: computePointsBounds,
-	computeClusters: computeClusters
-};
-
-module.exports = api;
-},{}],3:[function(require,module,exports){
 /* global _, $, escape */
 'use strict';
 var formatTimeString_ = function (time, endTime) {
@@ -449,11 +191,11 @@ var api = {
 };
 
 module.exports = api;
-},{}],4:[function(require,module,exports){
+},{}],2:[function(require,module,exports){
 /* global _, $ */
 
 'use strict';
-var agsQuery = require('./agsQuery');
+var ArcGISServerAdapter = require('./ArcGISServerAdapter');
 
 var regIsFloat = /^(-?\d+)(\.\d+)?$/,
 /**
@@ -462,7 +204,7 @@ var regIsFloat = /^(-?\d+)(\.\d+)?$/,
  * @param {str} The string to be processed.
  * @param {charA} the char to be replaced.
  * @param {charB} the char to replace.
- * @return {String} An ojbect sendt to geocoder.
+ * @return {String} An ojbect sendt to Geocoder.
  **/
 	replaceChar = function (str, charA, charB) {
 		var temp = [];
@@ -777,9 +519,9 @@ var regIsFloat = /^(-?\d+)(\.\d+)?$/,
 			result.status = 'OK';
 			return result;
 		};
-		return agsQuery.query(queryParams).then(processResults);
+		return ArcGISServerAdapter.query(queryParams).then(processResults);
 	},
-	geocoderList = {
+	GeocoderList = {
 		'LatLngInDecimalDegree' : {
 			'match': function (params) {
 				var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
@@ -984,12 +726,12 @@ var regIsFloat = /^(-?\d+)(\.\d+)?$/,
  * called to convert it to geocoding params. 
  *
  * @param {string} d The address to be geocoded.
- * @return {object} An ojbect sendt to geocoder.
+ * @return {object} An ojbect sendt to Geocoder.
  */
 function geocode(initParams) {
 	var defaultParams = {
 		//address: address, 
-		geocoderList: (!!initParams.geocoderList) ? _.defaults(initParams.geocoderList, geocoderList) : geocoderList,
+		GeocoderList: (!!initParams.GeocoderList) ? _.defaults(initParams.GeocoderList, GeocoderList) : GeocoderList,
 		validateLatLngInPolygon: validateLatLngInPolygon,
 		regionBoundary: [{x: -95.29920350, y: 48.77505703},
 			{x: -95.29920350, y: 53.07150598},
@@ -1042,7 +784,7 @@ function geocode(initParams) {
 		 * this function has to be redefined. 
 		 *
 		 * @param {float, float} two floats.
-		 * @return {object} An ojbect sendt to geocoder.
+		 * @return {object} An ojbect sendt to Geocoder.
 		 */
 		generateLatLngFromFloats: function (v1, v2) {
 			var lat = Math.min(v1, v2);
@@ -1054,11 +796,11 @@ function geocode(initParams) {
 	if (!!params.latlng && !!params.latlng.lat && !!params.latlng.lng && !!params.reverseGeocoder) {
 		return params.reverseGeocoder(params);
 	} else {
-		var geocoder = _.find(_.values(params.geocoderList), function(geocoder){
-			return geocoder.match(params);
+		var Geocoder = _.find(_.values(params.GeocoderList), function(Geocoder){
+			return Geocoder.match(params);
 		});
-		if(!!geocoder) {
-			return geocoder.geocode(params);
+		if(!!Geocoder) {
+			return Geocoder.geocode(params);
 		} else {
 			if (!!params.defaultGeocoder) {
 				return params.defaultGeocoder(params);
@@ -1079,10 +821,895 @@ var api = {
 };
 
 module.exports = api;
-},{"./agsQuery":3}],5:[function(require,module,exports){
+},{"./ArcGISServerAdapter":1}],3:[function(require,module,exports){
+/* global _, $, google */
+'use strict';
+var Geocoder = require('./Geocoder');
+var Util = require('./Util');
+var init = function(initParams) {
+	var defaultParams = {
+		searchControlDivId: 'searchControl',
+		orgLatitude: 49.764775,
+		orgLongitude: -85.323214,
+		orgzoomLevel: 5,
+		defaultMapTypeId: google.maps.MapTypeId.ROADMAP,
+		mapCanvasDivId: 'map_canvas',
+		isCoordinatesVisible: true,
+		coordinatesDivId: 'coordinates'
+	};
+	var params = _.defaults(initParams, defaultParams);
+	$("#" + params.searchControlDivId).html(params.searchControlHTML);
+	var mapOptions = {
+		zoom: params.orgzoomLevel,
+		center: new google.maps.LatLng(params.orgLatitude, params.orgLongitude),
+		scaleControl: true,
+		streetViewControl: true,
+		mapTypeId: params.defaultMapTypeId
+	};
+	var map = new google.maps.Map($('#' + params.mapCanvasDivId)[0], mapOptions);
+	var updateCoordinates = function(lat, lng){
+		var utm = Util.convertLatLngtoUTM(lat, lng);
+		console.log(utm);
+		//$("#" + params.coordinatesDivId).html("Latitude:" + lat.toFixed(5) + ", Longitude:" + lng.toFixed(5) + " (" + globalConfig.UTM_ZoneLang + ":" + utm.Zone + ", " + globalConfig.EastingLang + ":" + utm.Easting + ", " + globalConfig.NorthingLang +":" + utm.Northing + ")<br>");
+	};
+	updateCoordinates(params.orgLatitude, params.orgLongitude);
+	var	mouseMoveHandler = function(event) {
+		/*Update the Coordinates*/
+		if(params.isCoordinatesVisible){
+			updateCoordinates(event.latLng.lat(), event.latLng.lng());
+		}
+	};	
+	google.maps.event.addListener(map, 'mousemove', mouseMoveHandler);
+};
+var geocode = function(input) {
+	var geocodeParams = {};
+	if (input.hasOwnProperty('lat') && input.hasOwnProperty('lng')) {
+		var reverseGeocoder = function(params) {
+			var dfd = new $.Deferred();
+			var Geocoder = new google.maps.Geocoder();
+			var latlng = new google.maps.LatLng(input.lat, input.lng);
+			Geocoder.geocode({'latLng': latlng}, function(results, status) {
+				if (status === google.maps.GeocoderStatus.OK) {
+					if (results[1]) {
+						var result = {
+							address: results[1].formatted_address,
+							latlng: params.latlng,
+							status: 'OK'
+						};
+						dfd.resolve(result);
+					} else {
+						dfd.resolve({status: 'No_Result'});
+					}
+				} else {
+					dfd.resolve({status: 'No_Result'});
+				}
+			});
+			return dfd.promise();
+		};
+		geocodeParams = {
+			latlng: input,
+			reverseGeocoder: reverseGeocoder
+		};
+	} else {
+		var defaultGeocoder = function(params) {
+			var dfd = new $.Deferred();			
+			if (params.address.toUpperCase() === "ONTARIO") {
+				var result = {
+					status: 'No_Result'
+				};
+				dfd.resolve(result);
+			} else {
+				//Private method: test whether the input ends with region names.
+				var regionAddressProcess = function(addressStr, defaultRegionNames){
+					var isAddressEndsWithRegionName = function(address, str) {
+						if (address.length > str.length + 1) {
+							var substr = address.substring(address.length - str.length - 1);
+							if (substr === (" " + str) || substr === ("," + str)) {
+								return true;
+							}
+						}
+						return false;
+					};					
+					var address = addressStr.toUpperCase();
+					var res = _.some(defaultRegionNames, function(regionName) {
+						return isAddressEndsWithRegionName(address, regionName);
+					});
+					if(!res){
+						return addressStr + " Ontario";
+					}
+					return addressStr;
+				};
+
+				var Geocoder = new google.maps.Geocoder();
+				Geocoder.geocode({
+					'address': regionAddressProcess(params.address, params.defaultRegionNames)
+				}, function (results, status) {
+					if (status === google.maps.GeocoderStatus.OK) {
+						var geocodeResult = _.find(results, function(result){
+							var point = result.geometry.location;
+							var failedPositions = _.filter(params.failedLocation.positions, function(position) {
+								return ((Math.abs(point.lat() - position[0]) + Math.abs(point.lng() - position[1])) < params.failedLocation.difference);
+							});
+							return (failedPositions.length === 0) && (params.validateLatLngInPolygon({lat: point.lat(), lng: point.lng()}, params.regionBoundary));
+						});
+						if (geocodeResult) {
+							var point = geocodeResult.geometry.location;
+							var result = {
+								latlng: {
+									lat: point.lat(),
+									lng: point.lng()
+								},
+								address: params.address,
+								geocodedAddress: geocodeResult.formatted_address.toString(),
+								status: 'OK'
+							};
+							dfd.resolve(result);
+						} else {
+							dfd.resolve({status: 'No_Result'});
+						}
+					} else {
+						dfd.resolve({status: 'No_Result'});
+					}
+				});
+			}
+			return dfd.promise();
+		};
+		geocodeParams = {
+			address: input,
+			defaultRegionNames: ["ON", "ONT", "ONTARIO"], 
+			failedLocation: {
+				positions: [[51.253775,-85.32321389999998], [42.832714, -80.279923]],
+				difference: 0.00001
+			},
+			defaultGeocoder: defaultGeocoder
+		};
+	}
+	return Geocoder.geocode(geocodeParams);
+};
+
+/*
+	Usage: Add the polylines overlays on the map. If the LOCATOR module return the result for Township with/without 
+	Lot and Concession, the related polygons will be add to Google Maps by this method. 
+	Called by: queryLayerWithPointBuffer 
+*/		
+var createPolylines = function (rings, strokeOptions){
+	return _.map(rings, function(ring) {
+		return new google.maps.Polyline({    
+			path: _.map(ring, function(pt) {
+				return new google.maps.LatLng(pt[1], pt[0]);
+			}),
+			strokeColor: strokeOptions.color,    
+			strokeOpacity: strokeOptions.opacity,   
+			strokeWeight: strokeOptions.weight,
+			geodesic: false
+		});
+	});
+};
+
+/*
+	Usage: Create a marker on a location with pop up content and used icon. 
+	Called by: queryLayerWithPointBuffer.
+	Rely on: map, openInfoWindow function.  
+*/	
+/*var createMarker = function (latlng, popupContent, icon) {
+	var gLatLng = new google.maps.LatLng(latlng.lat, latlng.lng);
+	var marker = new google.maps.Marker({
+		position: gLatLng,
+		icon: icon
+	});
+	(function (popupContent, marker) {
+		google.maps.event.addListener(marker, 'click', function () {
+			MOEMAP.openInfoWindow(marker.getPosition(), popupContent);
+		});
+	})(popupContent, marker);
+	return marker;
+};*/
+
+var getIdentifyRadius = function(zoomLevel) {
+	var identifyRadiusZoomLevelList = {
+		21 : 0.001,
+		20 : 0.001,
+		19 : 0.002,
+		18 : 0.003,
+		17 : 0.005,
+		16 : 0.01,
+		15 : 0.02,
+		14 : 0.05,
+		13 : 0.08,
+		12 : 0.16,
+		11 : 0.3,
+		10 : 0.6,
+		9  : 1.2,
+		8  : 2.4,
+		7  : 4.8,
+		6  : 9.6,
+		5  : 20,
+		4  : 40,
+		3  : 80,
+		2  : 160,
+		1  : 320
+	};
+	return identifyRadiusZoomLevelList[zoomLevel] * 1000; // in meters
+};
+var api = {
+	init: init,
+    geocode: geocode,
+    getIdentifyRadius: getIdentifyRadius, 
+    createPolylines: createPolylines
+};
+
+module.exports = api;
+},{"./Geocoder":2,"./Util":4}],4:[function(require,module,exports){
+/* global _ */
+'use strict';
+
+var EARTH_RADIUS = 6378137; // in meter
+
+var toRad = function (degree) {
+	return degree * Math.PI / 180;
+};
+
+var toDegree = function (rad) {
+	return rad * 180 / Math.PI;
+};
+
+var computeOffset = function(latlng, radius, heading) {
+	var distRad = radius/EARTH_RADIUS;
+	var headingRad = toRad(heading);
+	var latRad = toRad(latlng.lat);
+	var cosDist = Math.cos(distRad);
+	var sinDist = Math.sin(distRad);
+	var cosLat = Math.cos(latRad);
+	var sinLat = Math.sin(latRad);
+	var sc = cosDist * sinLat + sinDist * cosLat * Math.cos(headingRad);
+	var lat = toDegree(Math.asin(sc));
+	var dlng = Math.atan2(sinDist*cosLat*Math.sin(headingRad), cosDist - sinLat * sc);
+	var lng = toDegree(toRad(latlng.lng) - dlng);
+	return {lat: lat, lng: lng};
+};
+
+var computeCircle = function (latlng, radius) {
+	return _.map(_.range(0, 361, 10), function(heading) {
+		return computeOffset(latlng, radius, heading);
+	});
+};
+
+var computeDistance = function (fromLatlng, toLatlng) {
+	var lat1 = toRad(fromLatlng.lat);
+	var lng1 = toRad(fromLatlng.lng);
+	var lat2 = toRad(toLatlng.lat);
+	var lng2 = toRad(toLatlng.lng);
+	var d = EARTH_RADIUS*Math.acos(Math.sin(lat1)*Math.sin(lat2) + Math.cos(lat1)*Math.cos(lat2)*Math.cos(lng1 - lng2));
+	return d;
+};
+
+var computePointsBounds = function (latlngs){
+	var getLat = function(latlng){ return latlng.lat;};
+	var getLng = function(latlng){ return latlng.lng;};
+	return {
+		southWest: {lat: _.min(latlngs, getLat).lat, lng: _.min(latlngs, getLng).lng},
+		northEast: {lat: _.max(latlngs, getLat).lat, lng: _.max(latlngs, getLng).lng}
+	};
+};
+
+var computeClusters = function (features){
+	var size = features.length;
+	var groups = _.groupBy(features, function(feature) {
+		return '' + feature.latlng.lat.toFixed(6) + ':' + feature.latlng.lng.toFixed(6);
+	});
+	var keys = _.keys(groups);
+	var values = _.values(groups);	
+	return _.map(_.range(keys.length), function(index) {
+		var key = keys[index].split(':');
+		var latlng = {lat: parseFloat(key[0]), lng: parseFloat(key[1])};
+		return {latlng: latlng, list: values[index]};
+	});
+};
+
+var convertLatLngtoUTM = function(lat, lng) {
+	var pi = 3.14159265358979; //PI
+	var a = 6378137; //equatorial radius for WGS 84
+	var k0 = 0.9996; //scale factor
+	var e = 0.081819191; //eccentricity
+	var e_2 = 0.006694380015894481; //e'2
+	var A0 = 6367449.146;
+	var B0 = 16038.42955;
+	var C0 = 16.83261333;
+	var D0 = 0.021984404;
+	var E0 = 0.000312705;
+
+	var zone = 31 + Math.floor(lng / 6);
+	var lat_r = lat * pi / 180.0;
+	var t1 = Math.sin(lat_r); // SIN(LAT)
+	var t2 = e * t1 * e * t1;
+	var t3 = Math.cos(lat_r); // COS(LAT)
+	var t4 = Math.tan(lat_r); // TAN(LAT)
+	var nu = a / (Math.sqrt(1 - t2));
+	var S = A0 * lat_r - B0 * Math.sin(2 * lat_r) + C0 * Math.sin(4 * lat_r) - D0 * Math.sin(6 * lat_r) + E0 * Math.sin(8 * lat_r);
+	var k1 = S * k0;
+	var k2 = nu * t1 * t3 * k0 / 2.0;
+	var k3 = ((nu * t1 * t2 * t2 * t2) / 24) * (5 - t4 * t4 + 9 * e_2 * t3 * t3 + 4 * e_2 * e_2 * t3 * t3 * t3 * t3) * k0;
+	var k4 = nu * t3 * k0;
+	var k5 = t3 * t3 * t3 * (nu / 6) * (1 - t4 * t4 + e_2 * t3 * t3) * k0;
+
+	//var lng_r = lng*pi/180.0;
+	var lng_zone_cm = 6 * zone - 183;
+	var d1 = (lng - lng_zone_cm) * pi / 180.0;
+	var d2 = d1 * d1;
+	var d3 = d2 * d1;
+	var d4 = d3 * d1;
+
+	var x = 500000 + (k4 * d1 + k5 * d3);
+	var rawy = (k1 + k2 * d2 + k3 * d4);
+	var y = rawy;
+	if (y < 0) {
+		y = y + 10000000;
+	}
+	var res = {
+		Zone: zone,
+		Easting: x.toFixed(0),
+		Northing: y.toFixed(0)
+	};
+	return res;
+};
+var api = {
+	computeCircle: computeCircle,
+	computeOffset: computeOffset,
+	computeDistance: computeDistance,
+	computePointsBounds: computePointsBounds,
+	computeClusters: computeClusters,
+	convertLatLngtoUTM: convertLatLngtoUTM
+};
+
+module.exports = api;
+},{}],5:[function(require,module,exports){
+/* global describe, it, expect, _, $ */
+var ArcGISServerAdapter = require('../../app/scripts/ArcGISServerAdapter');
+var Geocoder = require('../../app/scripts/Geocoder');
+var Util = require('../../app/scripts/Util');
+
+(function () {
+    'use strict';
+
+    describe('ArcGISServerAdapter', function () {
+	    describe('ArcGISServerAdapter can query an ArcGIS Server layer', function () {
+	        this.timeout(150000);
+	        it('should query the Geographic Township layer', function (done) {
+	            var queryParams = {
+					mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/GeographicTownships/MapServer',
+					layerID: 0,
+					returnGeometry: true,
+					where: 'OFFICIAL_NAME_UPPER = \'ABINGER\'',
+					outFields: ['SHAPE_Area', 'CENX', 'CENY']
+				};
+				var queryPromise = ArcGISServerAdapter.query(queryParams);
+				queryPromise.done(function (fset) {
+					expect(fset.features).to.have.length(1);
+					done();
+				});
+	        });
+	        it('should query the Geographic Township layer with a polygon', function (done) {
+	            var queryParams = {
+					mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/GeographicTownships/MapServer',
+					layerID: 0,
+					returnGeometry: true,
+					geometry: [{lat: 45.011,lng: -77.203},{lat: 45.003,lng: -77.17},{lat: 44.967,lng: -77.194}],
+					outFields: ['SHAPE_Area', 'CENX', 'CENY', 'OFFICIAL_NAME_UPPER']
+				};
+				var queryPromise = ArcGISServerAdapter.query(queryParams);
+				queryPromise.done(function (fset) {
+					expect(fset.features[0].attributes.OFFICIAL_NAME_UPPER).to.equal('ABINGER');
+					expect(fset.features).to.have.length(1);
+					done();
+				});
+	        });
+	        it('should geocode an address and query two layers', function (done) {
+				var geocodeParams = {address: 'Abinger TWP'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.then(function(result) {
+					if(result.status === 'OK'){
+						var geometry = Util.computeCircle(result.latlng, 100);
+						var queryParamsList = [{
+							mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/GeographicTownships/MapServer',
+							layerID: 0,
+							returnGeometry: true,
+							geometry: geometry,
+							outFields: ['SHAPE_Area', 'CENX', 'CENY', 'OFFICIAL_NAME_UPPER']
+						},{
+							mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/GeographicTownships/MapServer',
+							layerID: 1,
+							returnGeometry: true,
+							geometry: geometry,
+							outFields: ['SHAPE_Area', 'CENX', 'CENY', 'GEOG_TWP', 'LOT_NUM', 'CONCESSION']
+						}];
+						var promises = _.map(queryParamsList, function(queryParams) {
+							return ArcGISServerAdapter.query(queryParams);
+						});
+						$.when.apply($, promises).done(function() {
+							expect(arguments[0].features[0].attributes.OFFICIAL_NAME_UPPER).to.equal('ABINGER');
+							expect(arguments[1].features[0].attributes.GEOG_TWP).to.equal('ABINGER');
+							done();
+						});
+					} else {
+						return result;
+					}
+				});
+	        });
+	    });
+	    describe('ArcGISServerAdapter can query the Sport Fish layer', function () {
+	        this.timeout(150000);
+			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer';
+	        it('should query the lake name for the sport fish layer', function (done) {
+				var queryParams = {
+					mapService: sportfishMapService,
+					layerID: 0,
+					returnGeometry: true,
+					outFields: ['WATERBODYC', 'LOCNAME_EN', 'LATITUDE', 'LONGITUDE']
+				};
+				queryParams.where = 'UPPER(LOCNAME_EN) LIKE \'%SIMCOE%\'';
+				var queryPromise = ArcGISServerAdapter.query(queryParams);
+				queryPromise.done(function (fset) {
+					expect(fset.features).to.have.length(1);
+					done();
+				});
+	        });
+	        it('should query the species name for the sport fish layer', function (done) {
+				var queryParams = {
+					mapService: sportfishMapService,
+					layerID: 0,
+					returnGeometry: true,
+					outFields: ['WATERBODYC', 'LOCNAME_EN', 'LATITUDE', 'LONGITUDE']
+				};
+				queryParams.where = 'SPECIES_EN LIKE \'%SALMON%\'';
+				var queryPromise = ArcGISServerAdapter.query(queryParams);
+				queryPromise.done(function (fset) {
+					expect(fset.features).to.have.length(49);
+					done();
+				});
+	        });
+	        it('should geocode an address and query the sport fish layers', function (done) {
+				var geocodeParams = {address: '45.42172, -80.60663'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.then(function(result) {
+					if(result.status === 'OK'){
+						var queryParams = {
+							mapService: sportfishMapService,
+							layerID: 0,
+							returnGeometry: true,
+							outFields: ['WATERBODYC', 'LOCNAME_EN', 'LATITUDE', 'LONGITUDE']
+						};
+						queryParams.geometry = Util.computeCircle(result.latlng, 100);
+						var queryPromise = ArcGISServerAdapter.query(queryParams);
+						queryPromise.done(function (fset) {
+							expect(fset.features).to.have.length(1);
+							done();
+						});
+					} else {
+						return result;
+					}
+				});
+	        });
+	    });
+	    describe('ArcGISServerAdapter can export the Sport Fish map', function () {
+	        this.timeout(150000);
+			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer';
+	        it('should query the lake name for the sport fish layer', function (done) {
+				var exportParams = {
+					bounds: {
+						southWest: {lat: 43.79307911819258,lng: -80.0613751},
+						northEast: {lat: 43.845099793116404,lng: -78.74301580346679}
+					},
+					width: 1920,
+					height: 105,
+					mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer',
+					visibleLayers: [0, 1, 2]
+				};
+				var exportMapPromise = ArcGISServerAdapter.exportMap(exportParams);
+				exportMapPromise.done(function (result) {
+					expect(result.width).to.equal(1920);
+					expect(result.height).to.equal(105);
+					done();
+				});
+	        });
+	    });
+    });
+})();
+
+},{"../../app/scripts/ArcGISServerAdapter":1,"../../app/scripts/Geocoder":2,"../../app/scripts/Util":4}],6:[function(require,module,exports){
+/* global describe, it, expect, $ */
+var Geocoder = require('../../app/scripts/Geocoder');
+
+(function () {
+    'use strict';
+
+    describe('Geocoder', function () {
+        describe('Geocoder can parse a string containing decimal latitude and longitude in Ontario', function () {
+			it('should parse the latitude and longitude in Ontario', function (done) {
+				var geocodeParams = {address: '43.71702, -79.54158'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 43.71702)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-79.54158))).to.be.below(0.001);
+					done();
+				});
+			});
+
+            it('should parse the latitude and longitude in Ontario with revese order', function (done) {
+				var geocodeParams = {address: '-79.54158, 43.71702'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 43.71702)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-79.54158))).to.be.below(0.001);
+					done();
+				});
+            });
+            it('should parse the latitude and longitude in Ontario with positive longitude', function (done) {
+				var geocodeParams = {address: '43.71702, 79.54158'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 43.71702)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-79.54158))).to.be.below(0.001);
+					done();
+				});
+            });
+            it('should not parse the latitude and longitude outside Ontario', function (done) {
+				var geocodeParams = {address: '43.19040, -77.57275'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('No_Result');
+					done();
+				});
+            });
+        });
+
+        describe('Geocoder can parse a string containing latitude and longitude using degree, minute, second symbols in Ontario', function () {
+            it('should parse the latitude and longitude in Ontario', function (done) {
+				var geocodeParams = {address: '43°42\'37.05", 79°32\'28.92"'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 43.71029)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-79.541366))).to.be.below(0.001);
+					done();
+				});
+            });
+            it('should parse the latitude and longitude in Ontario with revese order', function (done) {
+				var geocodeParams = {address: '43°42\'37.05", 79°32\'28.92"'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 43.71029)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-79.541366))).to.be.below(0.001);
+					done();
+				});
+            });
+            it('should not parse the latitude and longitude outside Ontario', function (done) {
+				var geocodeParams = {address: '40°42\'37.05", 79°32\'28.92"'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('No_Result');
+					done();
+				});
+            });
+        });
+
+        describe('Geocoder can parse a string containing latitude and longitude using DMS symbols in Ontario', function () {
+            it('should parse the latitude and longitude in Ontario', function (done) {
+				var geocodeParams = {address: '43d42m37.05s, 79d32m28.92s'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 43.71029)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-79.541366))).to.be.below(0.001);
+					done();
+				});
+            });
+            it('should parse the latitude and longitude in Ontario with revese order', function (done) {
+				var geocodeParams = {address: '79d32m28.92s, 43d42m37.05s'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 43.71029)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-79.541366))).to.be.below(0.001);
+					done();
+				});
+            });
+            it('should not parse the latitude and longitude outside Ontario', function (done) {
+				var geocodeParams = {address: '40d42m37.05s, 79d32m28.92s'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('No_Result');
+					done();
+				});
+            });
+        });
+        describe('Geocoder can parse a string containing UTM coordinates in Ontario', function () {
+            it('should parse the UTM coordinate within default zone: 17 in Ontario', function (done) {
+				var geocodeParams = {address: '617521.28, 4840730.67'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 43.710291)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-79.54126))).to.be.below(0.001);
+					done();
+				});
+            });
+            it('should parse the UTM coordinate with reverse order within default zone: 17 in Ontario', function (done) {
+				var geocodeParams = {address: '617521.28, 4840730.67'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 43.710291)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-79.54126))).to.be.below(0.001);
+					done();
+				});
+            });
+            it('should parse the UTM coordinate in Ontario', function (done) {
+				var geocodeParams = {address: '17, 4840730.67, 617521.28'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 43.710291)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-79.54126))).to.be.below(0.001);
+					done();
+				});
+            });
+            it('should parse the UTM coordinate in zone 18 in Ontario', function (done) {
+				var geocodeParams = {address: '18, 517468, 5019950'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 45.33284)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-74.77707))).to.be.below(0.0001);
+					done();
+				});
+            });
+            it('should parse the UTM coordinate in zone 15 in Ontario', function (done) {
+				var geocodeParams = {address: '15, 412541, 5503272'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 49.67563)).to.be.below(0.0001);
+					expect(Math.abs(result.latlng.lng - (-94.21223))).to.be.below(0.0001);
+					done();
+				});
+            });
+            it('should not parse the UTM coordinate outside Ontario', function (done) {
+				var geocodeParams = {address: '17, 333050, 4920558'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('No_Result');
+					done();
+				});
+            });
+        });
+	    describe('Geocoder can parse a string containing Geographic Township name in Ontario', function () {
+	        this.timeout(150000);
+	        it('should parse the Geographic Township in Ontario', function (done) {
+				var geocodeParams = {address: 'Abinger TWP'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 45.008284)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-77.184177))).to.be.below(0.001);
+					expect(result.geometry).to.have.length(1);
+					done();
+				});
+	        });
+	        it('should parse the Geographic Township with French keyword in Ontario', function (done) {
+				var geocodeParams = {address: 'Canton Abinger'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 45.008284)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-77.184177))).to.be.below(0.001);
+					expect(result.geometry).to.have.length(1);
+					done();
+				});
+	        });
+	        it('should parse the Geographic Township in Ontario', function (done) {
+				var geocodeParams = {address: 'ABinger TWP'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 45.008284)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-77.184177))).to.be.below(0.001);
+					expect(result.geometry).to.have.length(1);
+					done();
+				});
+	        });
+	        it('should parse the Geographic Township in Ontario', function (done) {
+				var geocodeParams = {address: 'ABinger Township'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 45.008284)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-77.184177))).to.be.below(0.001);
+					expect(result.geometry).to.have.length(1);
+					done();
+				});
+	        });
+	        it('should parse the Geographic Township with multiple polygons in Ontario', function (done) {
+				var geocodeParams = {address: 'Gibson Township'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 44.9980573)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-79.8036325))).to.be.below(0.001);
+					expect(result.geometry).to.have.length(11);
+					done();
+				});
+	        });
+	        it('should not parse the wrong Geographic Township in Ontario', function (done) {
+				var geocodeParams = {address: 'Apple Township'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('No_Result');
+					done();
+				});
+	        });
+	    });
+	    describe('Geocoder can parse a string containing Geographic Township name with Lot and Concession in Ontario', function () {
+	        this.timeout(150000);
+	        it('should parse the Geographic Township with Lot and Concession in Ontario', function (done) {
+				var geocodeParams = {address: 'Abinger TWP, Lot 8, Con 14'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 45.067567)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-77.16453))).to.be.below(0.001);
+					done();
+				});
+	        });
+	        it('should parse the Geographic Township with Lot and Concession with French keyword in Ontario', function (done) {
+				var geocodeParams = {address: 'Canton Abinger, Lot 8, Con 14'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 45.067567)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-77.16453))).to.be.below(0.001);
+					done();
+				});
+	        });
+	        it('should parse the Geographic Township with Concession and Lot in Ontario', function (done) {
+				var geocodeParams = {address: 'ABinger TWP, Con 14, Lot 8'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 45.067567)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-77.16453))).to.be.below(0.001);
+					done();
+				});
+	        });
+	        it('should parse the Geographic Township with Lot and Concession in Ontario', function (done) {
+				var geocodeParams = {address: 'Abinger Township, Lot 8, Con 14'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 45.067567)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-77.16453))).to.be.below(0.001);
+					done();
+				});
+	        });
+	        
+	        it('should parse the Geographic Township with multiple polygons in Ontario', function (done) {
+				var geocodeParams = {address: 'North Crosby Township, Lot 1, Con 9'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 44.610877)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-76.3844359))).to.be.below(0.001);
+					done();
+				});
+	        });
+	        
+	        it('should not parse the wrong Geographic Township with Lot and Concession in Ontario', function (done) {
+				var geocodeParams = {address: 'Apple Township, Lot 1, Con 2'};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('No_Result');
+					done();
+				});
+	        });
+	    });
+	    describe('Geocoder can parse a string with Geocoder provided by caller', function () {
+	        it('should parse the dummy address with the provided dummy Geocoder', function (done) {
+	            var GeocoderList = {
+					'DummyGeocoder' : {
+						'match': function (params) {
+							return params.address === 'Dummy address';
+						},
+						'geocode': function (params) {
+							var result = {
+								latlng: {lat: 45.067567,lng: -77.16453},
+								address: params.address,
+								status: 'OK'
+							};
+							var dfd = new $.Deferred();
+							setTimeout(function() {
+								dfd.resolve(result);
+							}, 1);
+							return dfd.promise();
+						}
+					}
+				};
+				var geocodeParams = {
+					address: 'Dummy address',
+					GeocoderList: GeocoderList
+				};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 45.067567)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-77.16453))).to.be.below(0.001);
+					done();
+				});
+	        });
+	    });
+	    describe('Geocoder can reverse a latitude, longitude to address with a reverse Geocoder provided by caller', function () {
+	        it('should reverse geocode a latitude, longitude to an address', function (done) {
+	            var reverseGeocoder = function(params) {
+					var result = {
+						address: 'Dummy address',
+						latlng: params.latlng,
+						status: 'OK'
+					};
+					var dfd = new $.Deferred();
+					setTimeout(function() {
+						dfd.resolve(result);
+					}, 1);
+					return dfd.promise();
+	            };
+				var geocodeParams = {
+					latlng:{lat: 45.067567,lng: -77.16453},
+					reverseGeocoder: reverseGeocoder
+				};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(result.address).to.equal('Dummy address');
+					done();
+				});
+	        });
+	    });
+
+	    describe('Geocoder can use default Geocoder provided by caller if no pattern match can be made', function () {
+	        it('should geocode an address with provided default Geocoder', function (done) {
+	            var defaultGeocoder = function(params) {
+					var result = {
+						latlng:{lat: 45.067567,lng: -77.16453},
+						address: params.address,
+						status: 'OK'
+					};
+					var dfd = new $.Deferred();
+					setTimeout(function() {
+						dfd.resolve(result);
+					}, 1);
+					return dfd.promise();
+	            };
+				var geocodeParams = {
+					address: 'Dummy address',
+					defaultGeocoder: defaultGeocoder
+				};
+				var geocodePromise = Geocoder.geocode(geocodeParams);
+				geocodePromise.done(function (result) {
+					expect(result.status).to.equal('OK');
+					expect(Math.abs(result.latlng.lat - 45.067567)).to.be.below(0.001);
+					expect(Math.abs(result.latlng.lng - (-77.16453))).to.be.below(0.001);
+					done();
+				});
+	        });
+	    });
+    });
+})();
+
+},{"../../app/scripts/Geocoder":2}],7:[function(require,module,exports){
 /* global describe, it, expect */
 var googleMapsAdapter = require('../../app/scripts/GoogleMapsAdapter');
-var geocoder = require('../../app/scripts/geocoder');
+var Geocoder = require('../../app/scripts/Geocoder');
 
 (function () {
     'use strict';
@@ -1133,7 +1760,7 @@ var geocoder = require('../../app/scripts/geocoder');
 	        this.timeout(150000);
 	        it('should create polylines', function (done) {
 				var geocodeParams = {address: 'Abinger TWP'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
+				var geocodePromise = Geocoder.geocode(geocodeParams);
 				geocodePromise.done(function (result) {
 					expect(result.status).to.equal('OK');
 					var strokeOptions = {
@@ -1150,7 +1777,7 @@ var geocoder = require('../../app/scripts/geocoder');
 	});
 })();
 
-},{"../../app/scripts/GoogleMapsAdapter":1,"../../app/scripts/geocoder":4}],6:[function(require,module,exports){
+},{"../../app/scripts/Geocoder":2,"../../app/scripts/GoogleMapsAdapter":3}],8:[function(require,module,exports){
 /* global describe, it, expect */
 var Util = require('../../app/scripts/Util');
 
@@ -1240,548 +1867,4 @@ var Util = require('../../app/scripts/Util');
     });
 })();
 
-},{"../../app/scripts/Util":2}],7:[function(require,module,exports){
-/* global describe, it, expect, _, $ */
-var agsQuery = require('../../app/scripts/agsQuery');
-var geocoder = require('../../app/scripts/geocoder');
-var Util = require('../../app/scripts/Util');
-
-(function () {
-    'use strict';
-
-    describe('agsQuery', function () {
-	    describe('agsQuery can query an ArcGIS Server layer', function () {
-	        this.timeout(150000);
-	        it('should query the Geographic Township layer', function (done) {
-	            var queryParams = {
-					mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/GeographicTownships/MapServer',
-					layerID: 0,
-					returnGeometry: true,
-					where: 'OFFICIAL_NAME_UPPER = \'ABINGER\'',
-					outFields: ['SHAPE_Area', 'CENX', 'CENY']
-				};
-				var queryPromise = agsQuery.query(queryParams);
-				queryPromise.done(function (fset) {
-					expect(fset.features).to.have.length(1);
-					done();
-				});
-	        });
-	        it('should query the Geographic Township layer with a polygon', function (done) {
-	            var queryParams = {
-					mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/GeographicTownships/MapServer',
-					layerID: 0,
-					returnGeometry: true,
-					geometry: [{lat: 45.011,lng: -77.203},{lat: 45.003,lng: -77.17},{lat: 44.967,lng: -77.194}],
-					outFields: ['SHAPE_Area', 'CENX', 'CENY', 'OFFICIAL_NAME_UPPER']
-				};
-				var queryPromise = agsQuery.query(queryParams);
-				queryPromise.done(function (fset) {
-					expect(fset.features[0].attributes.OFFICIAL_NAME_UPPER).to.equal('ABINGER');
-					expect(fset.features).to.have.length(1);
-					done();
-				});
-	        });
-	        it('should geocode an address and query two layers', function (done) {
-				var geocodeParams = {address: 'Abinger TWP'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.then(function(result) {
-					if(result.status === 'OK'){
-						var geometry = Util.computeCircle(result.latlng, 100);
-						var queryParamsList = [{
-							mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/GeographicTownships/MapServer',
-							layerID: 0,
-							returnGeometry: true,
-							geometry: geometry,
-							outFields: ['SHAPE_Area', 'CENX', 'CENY', 'OFFICIAL_NAME_UPPER']
-						},{
-							mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/GeographicTownships/MapServer',
-							layerID: 1,
-							returnGeometry: true,
-							geometry: geometry,
-							outFields: ['SHAPE_Area', 'CENX', 'CENY', 'GEOG_TWP', 'LOT_NUM', 'CONCESSION']
-						}];
-						var promises = _.map(queryParamsList, function(queryParams) {
-							return agsQuery.query(queryParams);
-						});
-						$.when.apply($, promises).done(function() {
-							expect(arguments[0].features[0].attributes.OFFICIAL_NAME_UPPER).to.equal('ABINGER');
-							expect(arguments[1].features[0].attributes.GEOG_TWP).to.equal('ABINGER');
-							done();
-						});
-					} else {
-						return result;
-					}
-				});
-	        });
-	    });
-	    describe('agsQuery can query the Sport Fish layer', function () {
-	        this.timeout(150000);
-			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer';
-	        it('should query the lake name for the sport fish layer', function (done) {
-				var queryParams = {
-					mapService: sportfishMapService,
-					layerID: 0,
-					returnGeometry: true,
-					outFields: ['WATERBODYC', 'LOCNAME_EN', 'LATITUDE', 'LONGITUDE']
-				};
-				queryParams.where = 'UPPER(LOCNAME_EN) LIKE \'%SIMCOE%\'';
-				var queryPromise = agsQuery.query(queryParams);
-				queryPromise.done(function (fset) {
-					expect(fset.features).to.have.length(1);
-					done();
-				});
-	        });
-	        it('should query the species name for the sport fish layer', function (done) {
-				var queryParams = {
-					mapService: sportfishMapService,
-					layerID: 0,
-					returnGeometry: true,
-					outFields: ['WATERBODYC', 'LOCNAME_EN', 'LATITUDE', 'LONGITUDE']
-				};
-				queryParams.where = 'SPECIES_EN LIKE \'%SALMON%\'';
-				var queryPromise = agsQuery.query(queryParams);
-				queryPromise.done(function (fset) {
-					expect(fset.features).to.have.length(49);
-					done();
-				});
-	        });
-	        it('should geocode an address and query the sport fish layers', function (done) {
-				var geocodeParams = {address: '45.42172, -80.60663'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.then(function(result) {
-					if(result.status === 'OK'){
-						var queryParams = {
-							mapService: sportfishMapService,
-							layerID: 0,
-							returnGeometry: true,
-							outFields: ['WATERBODYC', 'LOCNAME_EN', 'LATITUDE', 'LONGITUDE']
-						};
-						queryParams.geometry = Util.computeCircle(result.latlng, 100);
-						var queryPromise = agsQuery.query(queryParams);
-						queryPromise.done(function (fset) {
-							expect(fset.features).to.have.length(1);
-							done();
-						});
-					} else {
-						return result;
-					}
-				});
-	        });
-	    });
-	    describe('agsQuery can export the Sport Fish map', function () {
-	        this.timeout(150000);
-			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer';
-	        it('should query the lake name for the sport fish layer', function (done) {
-				var exportParams = {
-					bounds: {
-						southWest: {lat: 43.79307911819258,lng: -80.0613751},
-						northEast: {lat: 43.845099793116404,lng: -78.74301580346679}
-					},
-					width: 1920,
-					height: 105,
-					mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer',
-					visibleLayers: [0, 1, 2]
-				};
-				var exportMapPromise = agsQuery.exportMap(exportParams);
-				exportMapPromise.done(function (result) {
-					expect(result.width).to.equal(1920);
-					expect(result.height).to.equal(105);
-					done();
-				});
-	        });
-	    });
-    });
-})();
-
-},{"../../app/scripts/Util":2,"../../app/scripts/agsQuery":3,"../../app/scripts/geocoder":4}],8:[function(require,module,exports){
-/* global describe, it, expect, $ */
-var geocoder = require('../../app/scripts/geocoder');
-
-(function () {
-    'use strict';
-
-    describe('Geocoder', function () {
-        describe('Geocoder can parse a string containing decimal latitude and longitude in Ontario', function () {
-			it('should parse the latitude and longitude in Ontario', function (done) {
-				var geocodeParams = {address: '43.71702, -79.54158'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 43.71702)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-79.54158))).to.be.below(0.001);
-					done();
-				});
-			});
-
-            it('should parse the latitude and longitude in Ontario with revese order', function (done) {
-				var geocodeParams = {address: '-79.54158, 43.71702'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 43.71702)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-79.54158))).to.be.below(0.001);
-					done();
-				});
-            });
-            it('should parse the latitude and longitude in Ontario with positive longitude', function (done) {
-				var geocodeParams = {address: '43.71702, 79.54158'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 43.71702)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-79.54158))).to.be.below(0.001);
-					done();
-				});
-            });
-            it('should not parse the latitude and longitude outside Ontario', function (done) {
-				var geocodeParams = {address: '43.19040, -77.57275'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('No_Result');
-					done();
-				});
-            });
-        });
-
-        describe('Geocoder can parse a string containing latitude and longitude using degree, minute, second symbols in Ontario', function () {
-            it('should parse the latitude and longitude in Ontario', function (done) {
-				var geocodeParams = {address: '43°42\'37.05", 79°32\'28.92"'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 43.71029)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-79.541366))).to.be.below(0.001);
-					done();
-				});
-            });
-            it('should parse the latitude and longitude in Ontario with revese order', function (done) {
-				var geocodeParams = {address: '43°42\'37.05", 79°32\'28.92"'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 43.71029)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-79.541366))).to.be.below(0.001);
-					done();
-				});
-            });
-            it('should not parse the latitude and longitude outside Ontario', function (done) {
-				var geocodeParams = {address: '40°42\'37.05", 79°32\'28.92"'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('No_Result');
-					done();
-				});
-            });
-        });
-
-        describe('Geocoder can parse a string containing latitude and longitude using DMS symbols in Ontario', function () {
-            it('should parse the latitude and longitude in Ontario', function (done) {
-				var geocodeParams = {address: '43d42m37.05s, 79d32m28.92s'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 43.71029)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-79.541366))).to.be.below(0.001);
-					done();
-				});
-            });
-            it('should parse the latitude and longitude in Ontario with revese order', function (done) {
-				var geocodeParams = {address: '79d32m28.92s, 43d42m37.05s'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 43.71029)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-79.541366))).to.be.below(0.001);
-					done();
-				});
-            });
-            it('should not parse the latitude and longitude outside Ontario', function (done) {
-				var geocodeParams = {address: '40d42m37.05s, 79d32m28.92s'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('No_Result');
-					done();
-				});
-            });
-        });
-        describe('Geocoder can parse a string containing UTM coordinates in Ontario', function () {
-            it('should parse the UTM coordinate within default zone: 17 in Ontario', function (done) {
-				var geocodeParams = {address: '617521.28, 4840730.67'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 43.710291)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-79.54126))).to.be.below(0.001);
-					done();
-				});
-            });
-            it('should parse the UTM coordinate with reverse order within default zone: 17 in Ontario', function (done) {
-				var geocodeParams = {address: '617521.28, 4840730.67'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 43.710291)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-79.54126))).to.be.below(0.001);
-					done();
-				});
-            });
-            it('should parse the UTM coordinate in Ontario', function (done) {
-				var geocodeParams = {address: '17, 4840730.67, 617521.28'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 43.710291)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-79.54126))).to.be.below(0.001);
-					done();
-				});
-            });
-            it('should parse the UTM coordinate in zone 18 in Ontario', function (done) {
-				var geocodeParams = {address: '18, 517468, 5019950'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 45.33284)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-74.77707))).to.be.below(0.0001);
-					done();
-				});
-            });
-            it('should parse the UTM coordinate in zone 15 in Ontario', function (done) {
-				var geocodeParams = {address: '15, 412541, 5503272'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 49.67563)).to.be.below(0.0001);
-					expect(Math.abs(result.latlng.lng - (-94.21223))).to.be.below(0.0001);
-					done();
-				});
-            });
-            it('should not parse the UTM coordinate outside Ontario', function (done) {
-				var geocodeParams = {address: '17, 333050, 4920558'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('No_Result');
-					done();
-				});
-            });
-        });
-	    describe('Geocoder can parse a string containing Geographic Township name in Ontario', function () {
-	        this.timeout(150000);
-	        it('should parse the Geographic Township in Ontario', function (done) {
-				var geocodeParams = {address: 'Abinger TWP'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 45.008284)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-77.184177))).to.be.below(0.001);
-					expect(result.geometry).to.have.length(1);
-					done();
-				});
-	        });
-	        it('should parse the Geographic Township with French keyword in Ontario', function (done) {
-				var geocodeParams = {address: 'Canton Abinger'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 45.008284)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-77.184177))).to.be.below(0.001);
-					expect(result.geometry).to.have.length(1);
-					done();
-				});
-	        });
-	        it('should parse the Geographic Township in Ontario', function (done) {
-				var geocodeParams = {address: 'ABinger TWP'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 45.008284)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-77.184177))).to.be.below(0.001);
-					expect(result.geometry).to.have.length(1);
-					done();
-				});
-	        });
-	        it('should parse the Geographic Township in Ontario', function (done) {
-				var geocodeParams = {address: 'ABinger Township'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 45.008284)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-77.184177))).to.be.below(0.001);
-					expect(result.geometry).to.have.length(1);
-					done();
-				});
-	        });
-	        it('should parse the Geographic Township with multiple polygons in Ontario', function (done) {
-				var geocodeParams = {address: 'Gibson Township'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 44.9980573)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-79.8036325))).to.be.below(0.001);
-					expect(result.geometry).to.have.length(11);
-					done();
-				});
-	        });
-	        it('should not parse the wrong Geographic Township in Ontario', function (done) {
-				var geocodeParams = {address: 'Apple Township'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('No_Result');
-					done();
-				});
-	        });
-	    });
-	    describe('Geocoder can parse a string containing Geographic Township name with Lot and Concession in Ontario', function () {
-	        this.timeout(150000);
-	        it('should parse the Geographic Township with Lot and Concession in Ontario', function (done) {
-				var geocodeParams = {address: 'Abinger TWP, Lot 8, Con 14'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 45.067567)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-77.16453))).to.be.below(0.001);
-					done();
-				});
-	        });
-	        it('should parse the Geographic Township with Lot and Concession with French keyword in Ontario', function (done) {
-				var geocodeParams = {address: 'Canton Abinger, Lot 8, Con 14'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 45.067567)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-77.16453))).to.be.below(0.001);
-					done();
-				});
-	        });
-	        it('should parse the Geographic Township with Concession and Lot in Ontario', function (done) {
-				var geocodeParams = {address: 'ABinger TWP, Con 14, Lot 8'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 45.067567)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-77.16453))).to.be.below(0.001);
-					done();
-				});
-	        });
-	        it('should parse the Geographic Township with Lot and Concession in Ontario', function (done) {
-				var geocodeParams = {address: 'Abinger Township, Lot 8, Con 14'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 45.067567)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-77.16453))).to.be.below(0.001);
-					done();
-				});
-	        });
-	        
-	        it('should parse the Geographic Township with multiple polygons in Ontario', function (done) {
-				var geocodeParams = {address: 'North Crosby Township, Lot 1, Con 9'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 44.610877)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-76.3844359))).to.be.below(0.001);
-					done();
-				});
-	        });
-	        
-	        it('should not parse the wrong Geographic Township with Lot and Concession in Ontario', function (done) {
-				var geocodeParams = {address: 'Apple Township, Lot 1, Con 2'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('No_Result');
-					done();
-				});
-	        });
-	    });
-	    describe('Geocoder can parse a string with geocoder provided by caller', function () {
-	        it('should parse the dummy address with the provided dummy geocoder', function (done) {
-	            var geocoderList = {
-					'DummyGeocoder' : {
-						'match': function (params) {
-							return params.address === 'Dummy address';
-						},
-						'geocode': function (params) {
-							var result = {
-								latlng: {lat: 45.067567,lng: -77.16453},
-								address: params.address,
-								status: 'OK'
-							};
-							var dfd = new $.Deferred();
-							setTimeout(function() {
-								dfd.resolve(result);
-							}, 1);
-							return dfd.promise();
-						}
-					}
-				};
-				var geocodeParams = {
-					address: 'Dummy address',
-					geocoderList: geocoderList
-				};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 45.067567)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-77.16453))).to.be.below(0.001);
-					done();
-				});
-	        });
-	    });
-	    describe('Geocoder can reverse a latitude, longitude to address with a reverse geocoder provided by caller', function () {
-	        it('should reverse geocode a latitude, longitude to an address', function (done) {
-	            var reverseGeocoder = function(params) {
-					var result = {
-						address: 'Dummy address',
-						latlng: params.latlng,
-						status: 'OK'
-					};
-					var dfd = new $.Deferred();
-					setTimeout(function() {
-						dfd.resolve(result);
-					}, 1);
-					return dfd.promise();
-	            };
-				var geocodeParams = {
-					latlng:{lat: 45.067567,lng: -77.16453},
-					reverseGeocoder: reverseGeocoder
-				};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(result.address).to.equal('Dummy address');
-					done();
-				});
-	        });
-	    });
-
-	    describe('Geocoder can use default geocoder provided by caller if no pattern match can be made', function () {
-	        it('should geocode an address with provided default geocoder', function (done) {
-	            var defaultGeocoder = function(params) {
-					var result = {
-						latlng:{lat: 45.067567,lng: -77.16453},
-						address: params.address,
-						status: 'OK'
-					};
-					var dfd = new $.Deferred();
-					setTimeout(function() {
-						dfd.resolve(result);
-					}, 1);
-					return dfd.promise();
-	            };
-				var geocodeParams = {
-					address: 'Dummy address',
-					defaultGeocoder: defaultGeocoder
-				};
-				var geocodePromise = geocoder.geocode(geocodeParams);
-				geocodePromise.done(function (result) {
-					expect(result.status).to.equal('OK');
-					expect(Math.abs(result.latlng.lat - 45.067567)).to.be.below(0.001);
-					expect(Math.abs(result.latlng.lng - (-77.16453))).to.be.below(0.001);
-					done();
-				});
-	        });
-	    });
-    });
-})();
-
-},{"../../app/scripts/geocoder":4}]},{},[5,6,7,8]);
+},{"../../app/scripts/Util":4}]},{},[5,6,7,8]);

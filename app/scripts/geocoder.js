@@ -1,7 +1,7 @@
 /* global _, $ */
 
 'use strict';
-var agsQuery = require('./agsQuery');
+var ArcGISServerAdapter = require('./ArcGISServerAdapter');
 
 var regIsFloat = /^(-?\d+)(\.\d+)?$/,
 /**
@@ -10,7 +10,7 @@ var regIsFloat = /^(-?\d+)(\.\d+)?$/,
  * @param {str} The string to be processed.
  * @param {charA} the char to be replaced.
  * @param {charB} the char to replace.
- * @return {String} An ojbect sendt to geocoder.
+ * @return {String} An ojbect sendt to Geocoder.
  **/
 	replaceChar = function (str, charA, charB) {
 		var temp = [];
@@ -325,9 +325,9 @@ var regIsFloat = /^(-?\d+)(\.\d+)?$/,
 			result.status = 'OK';
 			return result;
 		};
-		return agsQuery.query(queryParams).then(processResults);
+		return ArcGISServerAdapter.query(queryParams).then(processResults);
 	},
-	geocoderList = {
+	GeocoderList = {
 		'LatLngInDecimalDegree' : {
 			'match': function (params) {
 				var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
@@ -532,12 +532,12 @@ var regIsFloat = /^(-?\d+)(\.\d+)?$/,
  * called to convert it to geocoding params. 
  *
  * @param {string} d The address to be geocoded.
- * @return {object} An ojbect sendt to geocoder.
+ * @return {object} An ojbect sendt to Geocoder.
  */
 function geocode(initParams) {
 	var defaultParams = {
 		//address: address, 
-		geocoderList: (!!initParams.geocoderList) ? _.defaults(initParams.geocoderList, geocoderList) : geocoderList,
+		GeocoderList: (!!initParams.GeocoderList) ? _.defaults(initParams.GeocoderList, GeocoderList) : GeocoderList,
 		validateLatLngInPolygon: validateLatLngInPolygon,
 		regionBoundary: [{x: -95.29920350, y: 48.77505703},
 			{x: -95.29920350, y: 53.07150598},
@@ -590,7 +590,7 @@ function geocode(initParams) {
 		 * this function has to be redefined. 
 		 *
 		 * @param {float, float} two floats.
-		 * @return {object} An ojbect sendt to geocoder.
+		 * @return {object} An ojbect sendt to Geocoder.
 		 */
 		generateLatLngFromFloats: function (v1, v2) {
 			var lat = Math.min(v1, v2);
@@ -602,11 +602,11 @@ function geocode(initParams) {
 	if (!!params.latlng && !!params.latlng.lat && !!params.latlng.lng && !!params.reverseGeocoder) {
 		return params.reverseGeocoder(params);
 	} else {
-		var geocoder = _.find(_.values(params.geocoderList), function(geocoder){
-			return geocoder.match(params);
+		var Geocoder = _.find(_.values(params.GeocoderList), function(Geocoder){
+			return Geocoder.match(params);
 		});
-		if(!!geocoder) {
-			return geocoder.geocode(params);
+		if(!!Geocoder) {
+			return Geocoder.geocode(params);
 		} else {
 			if (!!params.defaultGeocoder) {
 				return params.defaultGeocoder(params);

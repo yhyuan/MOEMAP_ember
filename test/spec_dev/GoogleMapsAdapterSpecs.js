@@ -1,6 +1,6 @@
 /* global describe, it, expect */
 var googleMapsAdapter = require('../../app/scripts/GoogleMapsAdapter');
-var geocoder = require('../../app/scripts/geocoder');
+var Geocoder = require('../../app/scripts/Geocoder');
 
 (function () {
     'use strict';
@@ -51,7 +51,7 @@ var geocoder = require('../../app/scripts/geocoder');
 	        this.timeout(150000);
 	        it('should create polylines', function (done) {
 				var geocodeParams = {address: 'Abinger TWP'};
-				var geocodePromise = geocoder.geocode(geocodeParams);
+				var geocodePromise = Geocoder.geocode(geocodeParams);
 				geocodePromise.done(function (result) {
 					expect(result.status).to.equal('OK');
 					var strokeOptions = {
