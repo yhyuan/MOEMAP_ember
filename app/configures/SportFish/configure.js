@@ -114,11 +114,10 @@ GoogleMapsAdapter.init({
 		layerID: 0,
 		outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
 	}],
-	identifyTemplate: '<% var attr = result[0].features[0].attributes;%>\
-		<strong><%= attr.LOCNAME_EN %></strong><br><%= params.addBRtoLongText(attr.GUIDELOC_EN) %><br><br>\
-		<a target=\'_blank\' href=\'<%= params.report_URL %>?id=<%= attr.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>\
-		Latitude <b><%= params.deciToDegree(attr.LATITUDE) %></b> Longitude <b><%= params.deciToDegree(attr.LONGITUDE) %></b><br>\
-		<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attr.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>',
+	identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= params.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>\
+		<a target=\'_blank\' href=\'<%= params.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>\
+		Latitude <b><%= params.deciToDegree(attrs.LATITUDE) %></b> Longitude <b><%= params.deciToDegree(attrs.LONGITUDE) %></b><br>\
+		<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>',
 	/*English Ends*/
 	/*French Begins*/
 	identifyLayersList: [{
@@ -126,11 +125,10 @@ GoogleMapsAdapter.init({
 		layerID: 0,
 		outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
 	}],
-	identifyTemplate: '<% var attr = result[0].features[0].attributes;%>\
-		<strong><%= attr.LOCNAME_FR %></strong><br><%= params.addBRtoLongText(attr.GUIDELOC_FR) %><br><br>\
-		<a target=\'_blank\' href=\'<%= params.report_URL %>?id=<%= attr.WATERBODYC %>\'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>\
-		Latitude <b><%= params.deciToDegree(attr.LATITUDE) %></b> Longitude <b><%= params.deciToDegree(attr.LONGITUDE) %></b><br>\
-		<a href=\'mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission <%= attr.LOCNAME_FR %>)\'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>',	
+	identifyTemplate: '<strong><%= attrs.LOCNAME_FR %></strong><br><%= params.addBRtoLongText(s.GUIDELOC_FR) %><br><br>\
+		<a target=\'_blank\' href=\'<%= params.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>\
+		Latitude <b><%= params.deciToDegree(attrs.LATITUDE) %></b> Longitude <b><%= params.deciToDegree(attrs.LONGITUDE) %></b><br>\
+		<a href=\'mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission <%= s.LOCNAME_FR %>)\'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>',	
 	/*French Ends*/
 	queryLayerList: [{
 		url: this.url + "/0",
@@ -193,11 +191,7 @@ GoogleMapsAdapter.init({
 		}
 		return res + sym;
 	},
-	search: function(){
-		var searchString = $('#map_query').val().trim();
-		if(searchString.length === 0){
-			return;
-		}
+	search: function(searchString, globalConfigure){
 		var getLakeNameSearchCondition = function(searchString) {
 			var coorsArray = searchString.split(/\s+/);
 			var str = coorsArray.join(" ").toUpperCase();
@@ -293,13 +287,12 @@ GoogleMapsAdapter.init({
 			return result;
 		};
 		var queryParamsList = [{
-			searchString: searchString,
 			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
 			layerID: 0,
 			returnGeometry: true,
 			withinExtent: $('#currentMapExtent')[0].checked,
 			where: ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition,
-			geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
+			infoWindowTemplate: globalConfigure.identifyTemplate,
 			/*English Begins*/
 			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
 			/*English Ends*/
@@ -307,7 +300,8 @@ GoogleMapsAdapter.init({
 			outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
 			/*French Ends*/
 		}];
-		GoogleMapsAdapter.queryLayers(queryParamsList);
+		var geocodeWhenQueryFail = ($('#searchMapLocation')[0].checked) ? true : false;
+		GoogleMapsAdapter.queryLayers(queryParamsList, geocodeWhenQueryFail, searchString);
 	},
 	searchChange: function () {}
 });

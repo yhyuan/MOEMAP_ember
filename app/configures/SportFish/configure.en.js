@@ -1,7 +1,6 @@
 /* global _, $, google */
 'use strict';
 var GoogleMapsAdapter = require('../../scripts/GoogleMapsAdapter');
-var ArcGISServerAdapter = require('../../scripts/ArcGISServerAdapter');
 var Util = require('../../scripts/Util');
 
 window.GoogleMapsAdapter = GoogleMapsAdapter;
@@ -55,7 +54,7 @@ GoogleMapsAdapter.init({
 		layerID: 0,
 		outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
 	}],
-	identifyTemplate: '<% var attr = result[0].features[0].attributes;%>		<strong><%= attr.LOCNAME_EN %></strong><br><%= params.addBRtoLongText(attr.GUIDELOC_EN) %><br><br>		<a target=\'_blank\' href=\'<%= params.report_URL %>?id=<%= attr.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>		Latitude <b><%= params.deciToDegree(attr.LATITUDE) %></b> Longitude <b><%= params.deciToDegree(attr.LONGITUDE) %></b><br>		<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attr.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>',
+	identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= params.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>		<a target=\'_blank\' href=\'<%= params.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>		Latitude <b><%= params.deciToDegree(attrs.LATITUDE) %></b> Longitude <b><%= params.deciToDegree(attrs.LONGITUDE) %></b><br>		<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>',
 	/*English Ends*/
 	/**/
 	queryLayerList: [{
@@ -119,140 +118,109 @@ GoogleMapsAdapter.init({
 		}
 		return res + sym;
 	},
-	search: function(){
-		var searchString = $('#map_query').val().trim();
-		if(searchString.length === 0){
-			return;
-		}
-		var withinExtent = $('#currentMapExtent')[0].checked
-		var queryParams = {
+	search: function(searchString, globalConfigure){
+		var getLakeNameSearchCondition = function(searchString) {
+			var coorsArray = searchString.split(/\s+/);
+			var str = coorsArray.join(" ").toUpperCase();
+			str = Util.replaceChar(str, "'", "''");
+			str = Util.replaceChar(str, "\u2019", "''");
+			/*English Begins*/
+			return "UPPER(LOCNAME_EN) LIKE '%" + str + "%'";
+			/*English Ends*/
+			/**/
+		};
+		var getQueryCondition = function(name){
+			var str = name.toUpperCase();
+			str = Util.replaceChar(str, '&', ', ');
+			str = Util.replaceChar(str, ' AND ', ', '); 
+			str = str.trim();
+			var nameArray = str.split(',');
+			var max = nameArray.length;
+			var res = [];
+			var inform = [];
+			var processAliasFishName = function(fishname){
+				var aliasList = {
+					GERMAN_TROUT: ["BROWN_TROUT"],
+					SHEEPHEAD:	["FRESHWATER_DRUM"],
+					STEELHEAD:	["RAINBOW_TROUT"],
+					SUNFISH:	["PUMPKINSEED"],
+					BARBOTTE:	["BROWN_BULLHEAD"],
+					BLACK_BASS:	["LARGEMOUTH_BASS","SMALLMOUTH_BASS"],
+					CALICO_BASS:	["BLACK_CRAPPIE"],
+					CRAWPIE:	["BLACK_CRAPPIE","WHITE_CRAPPIE"],
+					GREY_TROUT:	["LAKE_TROUT"],
+					HUMPBACK_SALMON:	["PINK_SALMON"],
+					KING_SALMON:	["CHINOOK_SALMON"],
+					LAKER:	["LAKE_TROUT"],
+					MENOMINEE:	["ROUND_WHITEFISH"],
+					MUDCAT:	["BROWN_BULLHEAD"],
+					MULLET:	["WHITE_SUCKER"],
+					PANFISH:	["BLUEGILL","ROCK_BASS","PUMPKINSEED"],
+					PICKEREL:	["WALLEYE"],
+					SILVER_BASS:	["WHITE_BASS"],
+					SILVER_SALMON:	["COHO_SALMON"],
+					SPECKLED_TROUT:	["BROOK_TROUT"],
+					SPRING_SALMON:	["CHINOOK_SALMON"]
+				};
+				var alias = aliasList[fishname];
+				var fish = Util.wordCapitalize(Util.replaceChar(fishname, '_', ' '));
+				if (typeof(alias) === "undefined"){
+					var result = {
+						/*English Begins*/
+						condition: "(SPECIES_EN like '%" + fishname +"%')",
+						/*English Ends*/
+						/**/
+						information: fish
+					};
+					return result;
+				}else{
+					var res = [];
+					var fishArray = [];
+					for (var i = 0; i < alias.length; i++){
+						/*English Begins*/
+						res.push("(SPECIES_EN like '%" + alias[i] +"%')");
+						/*English Ends*/
+						/**/
+						var str = Util.wordCapitalize(Util.replaceChar(alias[i], '_', ' '));
+						fishArray.push(str.trim());
+					}
+					var result = {
+						condition: "(" + res.join(" OR ") + ")",
+						information: fish + " ("  + fishArray.join(", ") + ")"
+					};
+					return result;
+				}
+			}
+			for (var i = 0; i < max; i++){
+				var str1 = (nameArray[i]).trim();
+				if(str1.length > 0){
+					var coorsArray = str1.split(/\s+/);
+					str1 = coorsArray.join("_");
+					var temp = processAliasFishName(str1);
+					res.push(temp.condition);
+					inform.push(temp.information);
+				}
+			}		
+			var result = {
+				condition: res.join(" AND "),
+				information: inform.join(", ")
+			};
+			return result;
+		};
+		var queryParamsList = [{
 			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
 			layerID: 0,
 			returnGeometry: true,
+			withinExtent: $('#currentMapExtent')[0].checked,
+			where: ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition,
+			infoWindowTemplate: globalConfigure.identifyTemplate,
 			/*English Begins*/
 			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
 			/*English Ends*/
 			/**/
-		};
-
-		if (withinExtent) {
-			queryParams.geometry = GoogleMapsAdapter.getCurrentMapExtent();	
-		}
-
-		if($('#searchMapLocation')[0].checked){
-			var getLakeNameSearchCondition = function(searchString) {
-				var coorsArray = searchString.split(/\s+/);
-				var str = coorsArray.join(" ").toUpperCase();
-				str = Util.replaceChar(str, "'", "''");
-				str = Util.replaceChar(str, "\u2019", "''");
-				/*English Begins*/
-				return "UPPER(LOCNAME_EN) LIKE '%" + str + "%'";
-				/*English Ends*/
-				/**/
-			};
-			queryParams.where =  getLakeNameSearchCondition(searchString);
-			var queryPromise = ArcGISServerAdapter.query(queryParams);
-			queryPromise.done(function (fset) {
-				if(fset && fset.features.length > 0) {
-
-				} else {
-					var geocodePromise = GoogleMapsAdapter.geocode(searchString);
-					geocodePromise.done(function(result){
-
-					});
-				}
-			});
-		}else{
-			var getQueryCondition = function(name){
-				var str = name.toUpperCase();
-				str = Util.replaceChar(str, '&', ', ');
-				str = Util.replaceChar(str, ' AND ', ', '); 
-				str = str.trim();
-				var nameArray = str.split(',');
-				var max = nameArray.length;
-				var res = [];
-				var inform = [];
-				var processAliasFishName = function(fishname){
-					var aliasList = {
-						GERMAN_TROUT: ["BROWN_TROUT"],
-						SHEEPHEAD:	["FRESHWATER_DRUM"],
-						STEELHEAD:	["RAINBOW_TROUT"],
-						SUNFISH:	["PUMPKINSEED"],
-						BARBOTTE:	["BROWN_BULLHEAD"],
-						BLACK_BASS:	["LARGEMOUTH_BASS","SMALLMOUTH_BASS"],
-						CALICO_BASS:	["BLACK_CRAPPIE"],
-						CRAWPIE:	["BLACK_CRAPPIE","WHITE_CRAPPIE"],
-						GREY_TROUT:	["LAKE_TROUT"],
-						HUMPBACK_SALMON:	["PINK_SALMON"],
-						KING_SALMON:	["CHINOOK_SALMON"],
-						LAKER:	["LAKE_TROUT"],
-						MENOMINEE:	["ROUND_WHITEFISH"],
-						MUDCAT:	["BROWN_BULLHEAD"],
-						MULLET:	["WHITE_SUCKER"],
-						PANFISH:	["BLUEGILL","ROCK_BASS","PUMPKINSEED"],
-						PICKEREL:	["WALLEYE"],
-						SILVER_BASS:	["WHITE_BASS"],
-						SILVER_SALMON:	["COHO_SALMON"],
-						SPECKLED_TROUT:	["BROOK_TROUT"],
-						SPRING_SALMON:	["CHINOOK_SALMON"]
-					};
-					var alias = aliasList[fishname];
-					var fish = Util.wordCapitalize(Util.replaceChar(fishname, '_', ' '));
-					if (typeof(alias) === "undefined"){
-						var result = {
-							/*English Begins*/
-							condition: "(SPECIES_EN like '%" + fishname +"%')",
-							/*English Ends*/
-							/**/
-							information: fish
-						};
-						return result;
-					}else{
-						var res = [];
-						var fishArray = [];
-						for (var i = 0; i < alias.length; i++){
-							/*English Begins*/
-							res.push("(SPECIES_EN like '%" + alias[i] +"%')");
-							/*English Ends*/
-							/**/
-							var str = Util.wordCapitalize(Util.replaceChar(alias[i], '_', ' '));
-							fishArray.push(str.trim());
-						}
-						var result = {
-							condition: "(" + res.join(" OR ") + ")",
-							information: fish + " ("  + fishArray.join(", ") + ")"
-						};
-						return result;
-					}
-				}
-				for (var i = 0; i < max; i++){
-					var str1 = (nameArray[i]).trim();
-					if(str1.length > 0){
-						var coorsArray = str1.split(/\s+/);
-						str1 = coorsArray.join("_");
-						var temp = processAliasFishName(str1);
-						res.push(temp.condition);
-						inform.push(temp.information);
-					}
-				}		
-				var result = {
-					condition: res.join(" AND "),
-					information: inform.join(", ")
-				};
-				return result;
-			};
-			queryParams.where = getQueryCondition(searchString).condition;
-			console.log(queryParams);
-			var queryPromise = ArcGISServerAdapter.query(queryParams);
-			queryPromise.done(function (fset) {
-				console.log(fset);
-				if(fset && fset.features.length > 0) {
-
-				} else {
-
-				}
-			});
-		}
+		}];
+		var geocodeWhenQueryFail = ($('#searchMapLocation')[0].checked) ? true : false;
+		GoogleMapsAdapter.queryLayers(queryParamsList, geocodeWhenQueryFail, searchString);
 	},
 	searchChange: function () {}
 });

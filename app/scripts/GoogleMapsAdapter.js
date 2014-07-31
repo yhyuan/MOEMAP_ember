@@ -77,10 +77,19 @@ ImageOverlay.prototype.onRemove = function() {
 };
 
 var map;
+var globalConfigure;
 var arcGISMapServices = [];
 var previousBounds;
 var infoWindow;
-var	search,	entsub,	searchChange;
+var	entsub,	searchChange;
+
+var search = function() {
+	var searchString = $('#' + globalConfigure.searchInputBoxDivId).val().trim();
+	if(searchString.length === 0){
+		return;
+	}
+	globalConfigure.search(searchString, globalConfigure);
+};
 
 var init = function(initParams) {
 	var defaultParams = {
@@ -94,10 +103,12 @@ var init = function(initParams) {
 		coordinatesDivId: 'coordinates',
 		minMapScale: 5,
 		maxMapScale: 21,
-		disallowMouseClick: false
+		disallowMouseClick: false,
+		searchInputBoxDivId: "map_query"
 	};
 	var params = _.defaults(initParams, defaultParams);
-	search = params.search;
+	globalConfigure = params;
+	//search = params.search;
 	$("#" + params.searchControlDivId).html(params.searchControlHTML);
 	var center = new google.maps.LatLng(params.orgLatitude, params.orgLongitude);
 	var mapOptions = {
@@ -212,7 +223,8 @@ var init = function(initParams) {
 			if (total === 0) {
 				return;
 			}
-			var info = _.template(params.identifyTemplate, {result: arguments, params: params});
+			var attrs = arguments[0].features[0].attributes;
+			var info = _.template(params.identifyTemplate, {attrs: attrs, params: globalConfigure});
 			var openInfoWindow = function (latlng, container){
 				if (!infoWindow) {
 					infoWindow = new google.maps.InfoWindow({
@@ -233,7 +245,7 @@ var init = function(initParams) {
 	}
 	/*mouse click*/
 };
-var queryLayers = function (queryParamsList) {
+var queryLayers = function (queryParamsList, geocodeWhenQueryFail, searchString) {
 	var getCurrentMapExtent = function () {
 		var b = map.getBounds();
 		var ne = b.getNorthEast();
@@ -262,15 +274,32 @@ var queryLayers = function (queryParamsList) {
 		return ArcGISServerAdapter.query(queryParams);
 	});
 	$.when.apply($, promises).done(function() {
-		_.each(_.range(queryParamsList.length), function(i) {
-			//arguments[i], queryParamsList
-			if ((arguments[i].features.length === 0) && queryParamsList[i].geocodeWhenQueryFail) {
-				var geocodePromise = geocode(queryParamsList[i].searchString);
-				geocodePromise.done(function(result){
-
+		var results = arguments;
+		var infoWindows = _.reduce(_.map(_.range(queryParamsList.length), function(i) {
+			var features = results[i].features;
+			var infoWindows = _.map(features, function(feature){
+				var attrs = feature.attributes;
+				var latlng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
+				var info = _.template(queryParamsList[i].infoWindowTemplate, {attrs: attrs, params: globalConfigure});
+				return new google.maps.InfoWindow({
+					content: info,
+					position: latlng
 				});
-			}
-		});
+			});
+			return infoWindows;
+		}), function(memo, num){ return memo.concat(num); }, []);
+
+		/*_.each(infoWindows, function(infoWindow) {
+			infoWindow.setMap(map);
+		});*/
+	
+		if ((infoWindows.length === 0) && geocodeWhenQueryFail) {
+			var geocodePromise = geocode(searchString);
+			geocodePromise.done(function(result){
+				console.log(result);
+			});
+		}
+
 	});	
 	
 };
