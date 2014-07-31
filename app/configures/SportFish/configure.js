@@ -108,6 +108,9 @@ GoogleMapsAdapter.init({
 		{name: "Tableau des mises en garde en mati\u00e8re de consommation", value: "<a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a>"}
 	],
 	/*French Ends*/
+	computeIdentifyInfoWindows: function(results, globalConfigure) {
+		return _.template(globalConfigure.identifyTemplate, {attrs: results[0].features[0].attributes, params: globalConfigure});
+	},
 	/*English Begins*/
 	identifyLayersList: [{
 		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',

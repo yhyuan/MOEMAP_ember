@@ -218,14 +218,20 @@ var init = function(initParams) {
 			return ArcGISServerAdapter.query(queryParams);
 		});
 		$.when.apply($, promises).done(function() {
-			var total = _.reduce(_.map(arguments, function(layer){
-				return layer.features.length;
-			}), function(memo, num){ return memo + num; }, 0);
-			if (total === 0) {
+			var features = _.reduce(arguments, function(total, layer) {
+				if (layer.hasOwnProperty('features')) {
+					return total.concat(layer.features);
+				} else {
+					return total;
+				}
+			}, []);
+
+			if (features.length === 0) {
 				return;
 			}
-			var attrs = arguments[0].features[0].attributes;
-			var info = _.template(params.identifyTemplate, {attrs: attrs, params: globalConfigure});
+
+			var info = params.computeIdentifyInfoWindows(arguments, globalConfigure);
+
 			var openInfoWindow = function (latlng, container){
 				if (!infoWindow) {
 					infoWindow = new google.maps.InfoWindow({

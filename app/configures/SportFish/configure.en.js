@@ -48,6 +48,10 @@ GoogleMapsAdapter.init({
 	],
 	/*English Ends*/
 	/**/
+	computeIdentifyInfoWindows: function(results, globalConfigure) {
+		var attrs = results[0].features[0].attributes;
+		return _.template(globalConfigure.identifyTemplate, {attrs: attrs, params: globalConfigure});
+	},
 	/*English Begins*/
 	identifyLayersList: [{
 		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
