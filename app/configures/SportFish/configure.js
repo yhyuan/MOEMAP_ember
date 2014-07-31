@@ -293,9 +293,8 @@ GoogleMapsAdapter.init({
 			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
 			layerID: 0,
 			returnGeometry: true,
-			withinExtent: $('#currentMapExtent')[0].checked,
 			where: ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition,
-			infoWindowTemplate: globalConfigure.identifyTemplate,
+			//infoWindowTemplate: globalConfigure.identifyTemplate,
 			/*English Begins*/
 			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
 			/*English Ends*/
@@ -303,9 +302,38 @@ GoogleMapsAdapter.init({
 			outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
 			/*French Ends*/
 		}];
-		var geocodeWhenQueryFail = ($('#searchMapLocation')[0].checked) ? true : false;
-		GoogleMapsAdapter.queryLayers(queryParamsList, geocodeWhenQueryFail, searchString);
+		var options = {
+			searchString: searchString,
+			geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
+			withinExtent: $('#currentMapExtent')[0].checked
+		};
+		GoogleMapsAdapter.queryLayers(queryParamsList, options);
 	},
+	generateSearchResultsMarkers: function(results, globalConfigure) {
+		var features = _.reduce(results, function(total, layer) {
+			if (layer.hasOwnProperty('features')) {
+				return total.concat(layer.features);
+			} else {
+				return total;
+			}
+		}, []);	
+		return _.map(features, function(feature) {
+			var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
+			var container = document.createElement('div');
+			container.style.width = globalConfigure.infoWindowWidth;
+			container.style.height = globalConfigure.infoWindowHeight;
+			container.innerHTML = _.template(globalConfigure.identifyTemplate, {attrs: feature.attributes, params: globalConfigure});
+			var marker = new google.maps.Marker({
+				position: gLatLng
+			});		
+			(function (container, marker) {
+				google.maps.event.addListener(marker, 'click', function () {
+					GoogleMapsAdapter.openInfoWindow(marker.getPosition(), container);
+				});
+			})(container, marker);
+			return marker;			
+		});
+	},	
 	searchChange: function () {}
 });
 

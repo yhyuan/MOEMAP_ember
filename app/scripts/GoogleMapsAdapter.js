@@ -77,6 +77,7 @@ ImageOverlay.prototype.onRemove = function() {
 };
 
 var map;
+var overlays = [];
 var globalConfigure;
 var arcGISMapServices = [];
 var previousBounds;
@@ -104,7 +105,8 @@ var init = function(initParams) {
 		minMapScale: 5,
 		maxMapScale: 21,
 		disallowMouseClick: false,
-		searchInputBoxDivId: "map_query"
+		searchInputBoxDivId: "map_query",
+		maxQueryZoomLevel: 17
 	};
 	var params = _.defaults(initParams, defaultParams);
 	globalConfigure = params;
@@ -218,32 +220,12 @@ var init = function(initParams) {
 			return ArcGISServerAdapter.query(queryParams);
 		});
 		$.when.apply($, promises).done(function() {
-			var features = _.reduce(arguments, function(total, layer) {
-				if (layer.hasOwnProperty('features')) {
-					return total.concat(layer.features);
-				} else {
-					return total;
-				}
-			}, []);
-
-			if (features.length === 0) {
+			var featuresLength = computerFeaturesNumber (arguments);
+			if (featuresLength === 0) {
+				infoWindow.setMap(null);
 				return;
 			}
-
 			var info = params.computeIdentifyInfoWindows(arguments, globalConfigure);
-
-			var openInfoWindow = function (latlng, container){
-				if (!infoWindow) {
-					infoWindow = new google.maps.InfoWindow({
-						content: container,
-						position: latlng
-					});
-				} else {
-					infoWindow.setContent(container);
-					infoWindow.setPosition(latlng);
-				}
-				infoWindow.open(map);
-			};
 			openInfoWindow(gLatLng, info);
 		});		
 	};	
@@ -252,21 +234,47 @@ var init = function(initParams) {
 	}
 	/*mouse click*/
 };
-var queryLayers = function (queryParamsList, geocodeWhenQueryFail, searchString) {
-	var getCurrentMapExtent = function () {
-		var b = map.getBounds();
-		var ne = b.getNorthEast();
-		var sw = b.getSouthWest();
-		var nLat = ne.lat();
-		var eLng = ne.lng();
-		var sLat = sw.lat();
-		var wLng = sw.lng();
-		var swLatLng = {lat: sLat, lng: wLng};
-		var seLatLng = {lat: sLat, lng: eLng};
-		var neLatLng = {lat: nLat, lng: eLng};
-		var nwLatLng = {lat: nLat, lng: wLng};
-		return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
-	};
+
+var openInfoWindow = function (latlng, container){
+	if (!infoWindow) {
+		infoWindow = new google.maps.InfoWindow({
+			content: container,
+			position: latlng
+		});
+	} else {
+		infoWindow.setContent(container);
+		infoWindow.setPosition(latlng);
+	}
+	infoWindow.open(map);
+};
+
+
+var computerFeaturesNumber = function(results) {
+	return _.reduce(results, function(total, layer) {
+		if (layer.hasOwnProperty('features')) {
+			return total = total + layer.features.length;
+		} else {
+			return total;
+		}
+	}, 0);
+};
+
+var combineFeatures = function(results) {
+	return _.reduce(results, function(total, layer) {
+		if (layer.hasOwnProperty('features')) {
+			return total = total.concat (layer.features);
+		} else {
+			return total;
+		}
+	}, []);
+};
+
+
+var queryLayers = function (queryParamsList, options) {
+	_.each(overlays, function(overlay){
+		overlay.setMap(null);
+	});
+	overlays = [];
 	var promises = _.map(queryParamsList, function(queryParams) {
 		var result = {
 			mapService: queryParams.mapService,
@@ -275,41 +283,54 @@ var queryLayers = function (queryParamsList, geocodeWhenQueryFail, searchString)
 			where: queryParams.where,
 			outFields: queryParams.outFields		
 		};
-		if(queryParams.withinExtent) {
-			result.geometry = getCurrentMapExtent();	
+		if(options.withinExtent) {
+			var getCurrentMapExtent = function () {
+				var b = map.getBounds();
+				var ne = b.getNorthEast();
+				var sw = b.getSouthWest();
+				var nLat = ne.lat();
+				var eLng = ne.lng();
+				var sLat = sw.lat();
+				var wLng = sw.lng();
+				var swLatLng = {lat: sLat, lng: wLng};
+				var seLatLng = {lat: sLat, lng: eLng};
+				var neLatLng = {lat: nLat, lng: eLng};
+				var nwLatLng = {lat: nLat, lng: wLng};
+				return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
+			};
+			result.geometry = getCurrentMapExtent();
 		}
 		return ArcGISServerAdapter.query(queryParams);
 	});
 	$.when.apply($, promises).done(function() {
-		var features = _.reduce(arguments, function(total, layer) {
-			if (layer.hasOwnProperty('features')) {
-				return total.concat(layer.features);
-			} else {
-				return total;
-			}
-		}, []);
-		var infoWindows = _.map(features, function(feature){
-			var attrs = feature.attributes;
-			var latlng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
-			var info = _.template(queryParamsList[i].infoWindowTemplate, {attrs: attrs, params: globalConfigure});
-			return new google.maps.InfoWindow({
-				content: info,
-				position: latlng
-			});
-		});
-
-
-		/*_.each(infoWindows, function(infoWindow) {
-			infoWindow.setMap(map);
-		});*/
-
-		if ((features.length === 0) && geocodeWhenQueryFail) {
-			var geocodePromise = geocode(searchString);
+		var featuresLength = computerFeaturesNumber (arguments);
+		if ((featuresLength === 0) && options.geocodeWhenQueryFail) {
+			var geocodePromise = geocode(options.searchString);
 			geocodePromise.done(function(result){
 				console.log(result);
 			});
+			return;
 		}
 
+		var markers = globalConfigure.generateSearchResultsMarkers(arguments, globalConfigure);
+		_.each(markers, function(marker){
+			marker.setMap(map);
+			overlays.push(marker);
+		});
+
+		if(!options.withinExtent) {	
+			var b = Util.computePointsBounds(_.map(combineFeatures(arguments), function(feature) {
+				return {lng: feature.geometry.x, lat: feature.geometry.y};
+			}));
+			var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
+			var ne = new google.maps.LatLng(b.northEast.lat, b.northEast.lng);			 
+			var bounds = new google.maps.LatLngBounds(sw, ne);
+			map.fitBounds(bounds);
+			var maxQueryZoomLevel = globalConfigure.maxQueryZoomLevel;
+			if (map.getZoom() > maxQueryZoomLevel) {
+				map.setZoom(maxQueryZoomLevel);
+			}
+		}
 	});	
 	
 };
@@ -476,7 +497,8 @@ var api = {
 	search: search,
 	entsub: entsub,
 	searchChange: searchChange,
-	queryLayers: queryLayers
+	queryLayers: queryLayers,
+	openInfoWindow: openInfoWindow
 };
 
 module.exports = api;

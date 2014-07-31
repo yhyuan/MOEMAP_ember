@@ -50,8 +50,7 @@ GoogleMapsAdapter.init({
 	/*English Ends*/
 	/**/
 	computeIdentifyInfoWindows: function(results, globalConfigure) {
-		var attrs = results[0].features[0].attributes;
-		return _.template(globalConfigure.identifyTemplate, {attrs: attrs, params: globalConfigure});
+		return _.template(globalConfigure.identifyTemplate, {attrs: results[0].features[0].attributes, params: globalConfigure});
 	},
 	/*English Begins*/
 	identifyLayersList: [{
@@ -216,17 +215,45 @@ GoogleMapsAdapter.init({
 			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
 			layerID: 0,
 			returnGeometry: true,
-			withinExtent: $('#currentMapExtent')[0].checked,
 			where: ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition,
-			infoWindowTemplate: globalConfigure.identifyTemplate,
+			//infoWindowTemplate: globalConfigure.identifyTemplate,
 			/*English Begins*/
 			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
 			/*English Ends*/
 			/**/
 		}];
-		var geocodeWhenQueryFail = ($('#searchMapLocation')[0].checked) ? true : false;
-		GoogleMapsAdapter.queryLayers(queryParamsList, geocodeWhenQueryFail, searchString);
+		var options = {
+			searchString: searchString,
+			geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
+			withinExtent: $('#currentMapExtent')[0].checked
+		};
+		GoogleMapsAdapter.queryLayers(queryParamsList, options);
 	},
+	generateSearchResultsMarkers: function(results, globalConfigure) {
+		var features = _.reduce(results, function(total, layer) {
+			if (layer.hasOwnProperty('features')) {
+				return total.concat(layer.features);
+			} else {
+				return total;
+			}
+		}, []);	
+		return _.map(features, function(feature) {
+			var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
+			var container = document.createElement('div');
+			container.style.width = globalConfigure.infoWindowWidth;
+			container.style.height = globalConfigure.infoWindowHeight;
+			container.innerHTML = _.template(globalConfigure.identifyTemplate, {attrs: feature.attributes, params: globalConfigure});
+			var marker = new google.maps.Marker({
+				position: gLatLng
+			});		
+			(function (container, marker) {
+				google.maps.event.addListener(marker, 'click', function () {
+					GoogleMapsAdapter.openInfoWindow(marker.getPosition(), container);
+				});
+			})(container, marker);
+			return marker;			
+		});
+	},	
 	searchChange: function () {}
 });
 
@@ -1134,6 +1161,7 @@ ImageOverlay.prototype.onRemove = function() {
 };
 
 var map;
+var overlays = [];
 var globalConfigure;
 var arcGISMapServices = [];
 var previousBounds;
@@ -1161,7 +1189,8 @@ var init = function(initParams) {
 		minMapScale: 5,
 		maxMapScale: 21,
 		disallowMouseClick: false,
-		searchInputBoxDivId: "map_query"
+		searchInputBoxDivId: "map_query",
+		maxQueryZoomLevel: 17
 	};
 	var params = _.defaults(initParams, defaultParams);
 	globalConfigure = params;
@@ -1275,29 +1304,12 @@ var init = function(initParams) {
 			return ArcGISServerAdapter.query(queryParams);
 		});
 		$.when.apply($, promises).done(function() {
-			var total = _.reduce(_.map(arguments, function(layer){
-				return layer.features.length;
-			}), function(memo, num){ return memo + num; }, 0);
-			if (total === 0) {
+			var featuresLength = computerFeaturesNumber (arguments);
+			if (featuresLength === 0) {
+				infoWindow.setMap(null);
 				return;
 			}
-
 			var info = params.computeIdentifyInfoWindows(arguments, globalConfigure);
-			//var attrs = arguments[0].features[0].attributes;
-			//var info = _.template(params.identifyTemplate, {attrs: attrs, params: globalConfigure});
-
-			var openInfoWindow = function (latlng, container){
-				if (!infoWindow) {
-					infoWindow = new google.maps.InfoWindow({
-						content: container,
-						position: latlng
-					});
-				} else {
-					infoWindow.setContent(container);
-					infoWindow.setPosition(latlng);
-				}
-				infoWindow.open(map);
-			};
 			openInfoWindow(gLatLng, info);
 		});		
 	};	
@@ -1306,21 +1318,47 @@ var init = function(initParams) {
 	}
 	/*mouse click*/
 };
-var queryLayers = function (queryParamsList, geocodeWhenQueryFail, searchString) {
-	var getCurrentMapExtent = function () {
-		var b = map.getBounds();
-		var ne = b.getNorthEast();
-		var sw = b.getSouthWest();
-		var nLat = ne.lat();
-		var eLng = ne.lng();
-		var sLat = sw.lat();
-		var wLng = sw.lng();
-		var swLatLng = {lat: sLat, lng: wLng};
-		var seLatLng = {lat: sLat, lng: eLng};
-		var neLatLng = {lat: nLat, lng: eLng};
-		var nwLatLng = {lat: nLat, lng: wLng};
-		return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
-	};
+
+var openInfoWindow = function (latlng, container){
+	if (!infoWindow) {
+		infoWindow = new google.maps.InfoWindow({
+			content: container,
+			position: latlng
+		});
+	} else {
+		infoWindow.setContent(container);
+		infoWindow.setPosition(latlng);
+	}
+	infoWindow.open(map);
+};
+
+
+var computerFeaturesNumber = function(results) {
+	return _.reduce(results, function(total, layer) {
+		if (layer.hasOwnProperty('features')) {
+			return total = total + layer.features.length;
+		} else {
+			return total;
+		}
+	}, 0);
+};
+
+var combineFeatures = function(results) {
+	return _.reduce(results, function(total, layer) {
+		if (layer.hasOwnProperty('features')) {
+			return total = total.concat (layer.features);
+		} else {
+			return total;
+		}
+	}, []);
+};
+
+
+var queryLayers = function (queryParamsList, options) {
+	_.each(overlays, function(overlay){
+		overlay.setMap(null);
+	});
+	overlays = [];
 	var promises = _.map(queryParamsList, function(queryParams) {
 		var result = {
 			mapService: queryParams.mapService,
@@ -1329,41 +1367,54 @@ var queryLayers = function (queryParamsList, geocodeWhenQueryFail, searchString)
 			where: queryParams.where,
 			outFields: queryParams.outFields		
 		};
-		if(queryParams.withinExtent) {
-			result.geometry = getCurrentMapExtent();	
+		if(options.withinExtent) {
+			var getCurrentMapExtent = function () {
+				var b = map.getBounds();
+				var ne = b.getNorthEast();
+				var sw = b.getSouthWest();
+				var nLat = ne.lat();
+				var eLng = ne.lng();
+				var sLat = sw.lat();
+				var wLng = sw.lng();
+				var swLatLng = {lat: sLat, lng: wLng};
+				var seLatLng = {lat: sLat, lng: eLng};
+				var neLatLng = {lat: nLat, lng: eLng};
+				var nwLatLng = {lat: nLat, lng: wLng};
+				return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
+			};
+			result.geometry = getCurrentMapExtent();
 		}
 		return ArcGISServerAdapter.query(queryParams);
 	});
 	$.when.apply($, promises).done(function() {
-		var features = _.reduce(arguments, function(total, layer) {
-			if (layer.hasOwnProperty('features')) {
-				return total.concat(layer.features);
-			} else {
-				return total;
-			}
-		}, []);
-		var infoWindows = _.map(features, function(feature){
-			var attrs = feature.attributes;
-			var latlng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
-			var info = _.template(queryParamsList[i].infoWindowTemplate, {attrs: attrs, params: globalConfigure});
-			return new google.maps.InfoWindow({
-				content: info,
-				position: latlng
-			});
-		});
-
-
-		/*_.each(infoWindows, function(infoWindow) {
-			infoWindow.setMap(map);
-		});*/
-
-		if ((features.length === 0) && geocodeWhenQueryFail) {
-			var geocodePromise = geocode(searchString);
+		var featuresLength = computerFeaturesNumber (arguments);
+		if ((featuresLength === 0) && options.geocodeWhenQueryFail) {
+			var geocodePromise = geocode(options.searchString);
 			geocodePromise.done(function(result){
 				console.log(result);
 			});
+			return;
 		}
 
+		var markers = globalConfigure.generateSearchResultsMarkers(arguments, globalConfigure);
+		_.each(markers, function(marker){
+			marker.setMap(map);
+			overlays.push(marker);
+		});
+
+		if(!options.withinExtent) {	
+			var b = Util.computePointsBounds(_.map(combineFeatures(arguments), function(feature) {
+				return {lng: feature.geometry.x, lat: feature.geometry.y};
+			}));
+			var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
+			var ne = new google.maps.LatLng(b.northEast.lat, b.northEast.lng);			 
+			var bounds = new google.maps.LatLngBounds(sw, ne);
+			map.fitBounds(bounds);
+			var maxQueryZoomLevel = globalConfigure.maxQueryZoomLevel;
+			if (map.getZoom() > maxQueryZoomLevel) {
+				map.setZoom(maxQueryZoomLevel);
+			}
+		}
 	});	
 	
 };
@@ -1530,7 +1581,8 @@ var api = {
 	search: search,
 	entsub: entsub,
 	searchChange: searchChange,
-	queryLayers: queryLayers
+	queryLayers: queryLayers,
+	openInfoWindow: openInfoWindow
 };
 
 module.exports = api;
