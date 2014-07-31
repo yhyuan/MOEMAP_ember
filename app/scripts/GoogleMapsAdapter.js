@@ -205,7 +205,8 @@ var init = function(initParams) {
 		}
 		var gLatLng = event.latLng;
 		var latlng = {lat: gLatLng.lat(), lng: gLatLng.lng()};
-		var circle = Util.computeCircle(latlng, getIdentifyRadius(map.getZoom()));
+		var identifyRadiusZoomLevels = [-1, 320000, 160000, 80000, 40000, 20000, 9600, 4800, 2400, 1200, 600, 300, 160, 80, 50, 20, 10, 5, 3, 2, 1, 1];
+		var circle = Util.computeCircle(latlng, identifyRadiusZoomLevels[map.getZoom()]);
 		var promises = _.map(params.identifyLayersList, function(layer) {
 			var queryParams = {
 				mapService: layer.mapService,
@@ -274,26 +275,29 @@ var queryLayers = function (queryParamsList, geocodeWhenQueryFail, searchString)
 		return ArcGISServerAdapter.query(queryParams);
 	});
 	$.when.apply($, promises).done(function() {
-		var results = arguments;
-		var infoWindows = _.reduce(_.map(_.range(queryParamsList.length), function(i) {
-			var features = results[i].features;
-			var infoWindows = _.map(features, function(feature){
-				var attrs = feature.attributes;
-				var latlng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
-				var info = _.template(queryParamsList[i].infoWindowTemplate, {attrs: attrs, params: globalConfigure});
-				return new google.maps.InfoWindow({
-					content: info,
-					position: latlng
-				});
+		var features = _.reduce(arguments, function(total, layer) {
+			if (layer.hasOwnProperty('features')) {
+				return total.concat(layer.features);
+			} else {
+				return total;
+			}
+		}, []);
+		var infoWindows = _.map(features, function(feature){
+			var attrs = feature.attributes;
+			var latlng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
+			var info = _.template(queryParamsList[i].infoWindowTemplate, {attrs: attrs, params: globalConfigure});
+			return new google.maps.InfoWindow({
+				content: info,
+				position: latlng
 			});
-			return infoWindows;
-		}), function(memo, num){ return memo.concat(num); }, []);
+		});
+
 
 		/*_.each(infoWindows, function(infoWindow) {
 			infoWindow.setMap(map);
 		});*/
-	
-		if ((infoWindows.length === 0) && geocodeWhenQueryFail) {
+
+		if ((features.length === 0) && geocodeWhenQueryFail) {
 			var geocodePromise = geocode(searchString);
 			geocodePromise.done(function(result){
 				console.log(result);
@@ -449,32 +453,7 @@ var createPolylines = function (rings, strokeOptions){
 	return marker;
 };*/
 
-var getIdentifyRadius = function(zoomLevel) {
-	var identifyRadiusZoomLevelList = {
-		21 : 0.001,
-		20 : 0.001,
-		19 : 0.002,
-		18 : 0.003,
-		17 : 0.005,
-		16 : 0.01,
-		15 : 0.02,
-		14 : 0.05,
-		13 : 0.08,
-		12 : 0.16,
-		11 : 0.3,
-		10 : 0.6,
-		9  : 1.2,
-		8  : 2.4,
-		7  : 4.8,
-		6  : 9.6,
-		5  : 20,
-		4  : 40,
-		3  : 80,
-		2  : 160,
-		1  : 320
-	};
-	return identifyRadiusZoomLevelList[zoomLevel] * 1000; // in meters
-};
+
 
 entsub = function(event){
 	if (event && event.which === 13){
