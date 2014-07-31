@@ -466,7 +466,6 @@ searchChange = function () {};
 var api = {
 	init: init,
     geocode: geocode,
-    getIdentifyRadius: getIdentifyRadius, 
     createPolylines: createPolylines,
 	search: search,
 	entsub: entsub,
