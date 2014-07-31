@@ -233,21 +233,48 @@ var init = function(initParams) {
 	}
 	/*mouse click*/
 };
+var queryLayers = function (queryParamsList) {
+	var getCurrentMapExtent = function () {
+		var b = map.getBounds();
+		var ne = b.getNorthEast();
+		var sw = b.getSouthWest();
+		var nLat = ne.lat();
+		var eLng = ne.lng();
+		var sLat = sw.lat();
+		var wLng = sw.lng();
+		var swLatLng = {lat: sLat, lng: wLng};
+		var seLatLng = {lat: sLat, lng: eLng};
+		var neLatLng = {lat: nLat, lng: eLng};
+		var nwLatLng = {lat: nLat, lng: wLng};
+		return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
+	};
+	var promises = _.map(queryParamsList, function(queryParams) {
+		var result = {
+			mapService: queryParams.mapService,
+			layerID: queryParams.layerID,
+			returnGeometry: queryParams.returnGeometry,
+			where: queryParams.where,
+			outFields: queryParams.outFields		
+		};
+		if(queryParams.withinExtent) {
+			result.geometry = getCurrentMapExtent();	
+		}
+		return ArcGISServerAdapter.query(queryParams);
+	});
+	$.when.apply($, promises).done(function() {
+		_.each(_.range(queryParamsList.length), function(i) {
+			//arguments[i], queryParamsList
+			if ((arguments[i].features.length === 0) && queryParamsList[i].geocodeWhenQueryFail) {
+				var geocodePromise = geocode(queryParamsList[i].searchString);
+				geocodePromise.done(function(result){
 
-var getCurrentMapExtent = function () {
-	var b = map.getBounds();
-	var ne = b.getNorthEast();
-	var sw = b.getSouthWest();
-	var nLat = ne.lat();
-	var eLng = ne.lng();
-	var sLat = sw.lat();
-	var wLng = sw.lng();
-	var swLatLng = {lat: sLat, lng: wLng};
-	var seLatLng = {lat: sLat, lng: eLng};
-	var neLatLng = {lat: nLat, lng: eLng};
-	var nwLatLng = {lat: nLat, lng: wLng};
-	return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
+				});
+			}
+		});
+	});	
+	
 };
+
 
 var geocode = function(input) {
 	var geocodeParams = {};
@@ -436,7 +463,7 @@ var api = {
 	search: search,
 	entsub: entsub,
 	searchChange: searchChange,
-	getCurrentMapExtent: getCurrentMapExtent
+	queryLayers: queryLayers
 };
 
 module.exports = api;
