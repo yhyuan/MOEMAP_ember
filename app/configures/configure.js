@@ -232,14 +232,14 @@ GoogleMapsAdapter.init({
 			options: options
 		}
 	},
+	computeValidResultsTable: function(results, globalConfigure) {
+		var features = Util.combineFeatures(results);
+		var template = '<table id=\"<%= params.tableID %>\" class=\"<%= params.tableClassName %>\" width=\"<%= params.tableWidth %>\" border=\"0\" cellpadding=\"0\" cellspacing=\"1\"><thead>			<tr><th><center><%= (["Waterbody", "Location", "Latitude", "Longitude","Consumption Advisory Table" ]).join("</center></th><th><center>") %></center></th></tr></thead><tbody>			<% _.each(features, function(feature) {				var attrs = feature.attributes;				<tr><td><%= ([attrs.LOCNAME_EN, params.addBRtoLongText(attrs.GUIDELOC_EN), params.deciToDegree(attrs.LATITUDE), params.deciToDegree(attrs.LONGITUDE), "<a target=\'_blank\' href=\'" + params.report_URL + "?id=" + attrs.WATERBODYC + "\'>Consumption Advisory Table</a>" ]).join("</td><td>"") %></td></tr>			<% }); %>			</tbody></table>';
+		return _.template(template, {features: features, params: globalConfigure});
+	},
+	computeInvalidResultsTable: globalConfigure.computeValidResultsTable,	
 	generateSearchResultsMarkers: function(results, globalConfigure) {
-		var features = _.reduce(results, function(total, layer) {
-			if (layer.hasOwnProperty('features')) {
-				return total.concat(layer.features);
-			} else {
-				return total;
-			}
-		}, []);	
+		var features = Util.combineFeatures(results);
 		return _.map(features, function(feature) {
 			var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
 			var container = document.createElement('div');
@@ -1190,7 +1190,11 @@ var init = function(initParams) {
 			lat: 0,
 			lng: 0,
 			differnce: 0.0001
-		}]
+		}],
+		tableID: "myTable",
+		tableWidth: 650, //The total width of the table below the map
+		tableClassName: "tablesorter"
+
 	};
 	var params = _.defaults(initParams, defaultParams);
 	globalConfigure = params;
@@ -1340,11 +1344,14 @@ var search = function() {
 		return;
 	}
 	var searchParams = globalConfigure.getSearchParams(searchString, globalConfigure);
-	var queryLayers = function (queryParamsList, options) {
+	var queryLayers = function (searchParams) {
 		_.each(overlays, function(overlay){
 			overlay.setMap(null);
 		});
 		overlays = [];
+
+		var queryParamsList = searchParams.queryParamsList;
+		var options = searchParams.options;
 		var promises = _.map(queryParamsList, function(queryParams) {
 			var result = {
 				mapService: queryParams.mapService,
@@ -1388,29 +1395,32 @@ var search = function() {
 				});
 				return;
 			}
-			var filterResults = function (results, invalidFeatureLocations, f) {
-				var returnedResults = [];
-				_.each(results, function(result) {
-					var clone = _.clone(result);
-					clone.features = _.filter(result.features, function (feature) {
-						return f(_.some(invalidFeatureLocations, function(location) {
-							return Math.abs(location.lng - feature.geometry.x) + Math.abs(location.lat - feature.geometry.y) > location.difference;
-						}));
+			var splitResults = function(results, invalidFeatureLocations) {
+				var filterResults = function (results, invalidFeatureLocations, f) {
+					var returnedResults = [];
+					_.each(results, function(result) {
+						var clone = _.clone(result);
+						clone.features = _.filter(result.features, function (feature) {
+							return f(_.some(invalidFeatureLocations, function(location) {
+								return Math.abs(location.lng - feature.geometry.x) + Math.abs(location.lat - feature.geometry.y) > location.difference;
+							}));
+						});
+						returnedResults.push(clone);
 					});
-					returnedResults.push(clone);
-				});
-				return returnedResults;
+					return returnedResults;
+				};
+				return {validResults: filterResults(results, invalidFeatureLocations, function(input) {return !input;}),
+						invalidResults: filterResults(results, invalidFeatureLocations, function(input) {return input;})};
 			};
-			var validResults = filterResults(arguments, globalConfigure.invalidFeatureLocations, function(input) {
-				return !input;
-			});
-			//console.log(validResults);
-			console.log(Util.computerFeaturesNumber (validResults));
-			var invalidResults = filterResults(arguments, globalConfigure.invalidFeatureLocations, function(input) {
-				return input;
-			});
-			//console.log(invalidResults);
-			console.log(Util.computerFeaturesNumber (invalidResults));
+			var splittedResults = splitResults(arguments, globalConfigure.invalidFeatureLocations);
+			var validResults = splittedResults.validResults;
+			var invalidResults = splittedResults.invalidResults;
+			var validFeaturesLength = Util.computerFeaturesNumber(validResults);
+			var invalidFeaturesLength = Util.computerFeaturesNumber(invalidResults);
+			var validTable = globalConfigure.computeValidResultsTable(validResults, globalConfigure);
+			var invalidTable = globalConfigure.computeInvalidResultsTable(invalidResults, globalConfigure);
+			console.log(validTable);
+
 			var markers = globalConfigure.generateSearchResultsMarkers(validResults, globalConfigure);
 			_.each(markers, function(marker){
 				marker.setMap(map);
@@ -1438,7 +1448,7 @@ var search = function() {
 			}
 		});	
 	};	
-	queryLayers(searchParams.queryParamsList, searchParams.options);
+	queryLayers(searchParams);
 };
 
 

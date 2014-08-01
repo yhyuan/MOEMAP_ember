@@ -103,7 +103,11 @@ var init = function(initParams) {
 			lat: 0,
 			lng: 0,
 			differnce: 0.0001
-		}]
+		}],
+		tableID: "myTable",
+		tableWidth: 650, //The total width of the table below the map
+		tableClassName: "tablesorter"
+
 	};
 	var params = _.defaults(initParams, defaultParams);
 	globalConfigure = params;
@@ -253,11 +257,14 @@ var search = function() {
 		return;
 	}
 	var searchParams = globalConfigure.getSearchParams(searchString, globalConfigure);
-	var queryLayers = function (queryParamsList, options) {
+	var queryLayers = function (searchParams) {
 		_.each(overlays, function(overlay){
 			overlay.setMap(null);
 		});
 		overlays = [];
+
+		var queryParamsList = searchParams.queryParamsList;
+		var options = searchParams.options;
 		var promises = _.map(queryParamsList, function(queryParams) {
 			var result = {
 				mapService: queryParams.mapService,
@@ -301,28 +308,31 @@ var search = function() {
 				});
 				return;
 			}
-			
-			var filterResults = function (results, invalidFeatureLocations, f) {
-				var returnedResults = [];
-				_.each(results, function(result) {
-					var clone = _.clone(result);
-					clone.features = _.filter(result.features, function (feature) {
-						return f(_.some(invalidFeatureLocations, function(location) {
-							return Math.abs(location.lng - feature.geometry.x) + Math.abs(location.lat - feature.geometry.y) > location.difference;
-						}));
+			var splitResults = function(results, invalidFeatureLocations) {
+				var filterResults = function (results, invalidFeatureLocations, f) {
+					var returnedResults = [];
+					_.each(results, function(result) {
+						var clone = _.clone(result);
+						clone.features = _.filter(result.features, function (feature) {
+							return f(_.some(invalidFeatureLocations, function(location) {
+								return Math.abs(location.lng - feature.geometry.x) + Math.abs(location.lat - feature.geometry.y) > location.difference;
+							}));
+						});
+						returnedResults.push(clone);
 					});
-					returnedResults.push(clone);
-				});
-				return returnedResults;
+					return returnedResults;
+				};
+				return {validResults: filterResults(results, invalidFeatureLocations, function(input) {return !input;}),
+						invalidResults: filterResults(results, invalidFeatureLocations, function(input) {return input;})};
 			};
-			var validResults = filterResults(arguments, globalConfigure.invalidFeatureLocations, function(input) {
-				return !input;
-			});
+			var splittedResults = splitResults(arguments, globalConfigure.invalidFeatureLocations);
+			var validResults = splittedResults.validResults;
+			var invalidResults = splittedResults.invalidResults;
 			var validFeaturesLength = Util.computerFeaturesNumber(validResults);
-			var invalidResults = filterResults(arguments, globalConfigure.invalidFeatureLocations, function(input) {
-				return input;
-			});
 			var invalidFeaturesLength = Util.computerFeaturesNumber(invalidResults);
+			var validTable = globalConfigure.computeValidResultsTable(validResults, globalConfigure);
+			var invalidTable = globalConfigure.computeInvalidResultsTable(invalidResults, globalConfigure);
+			console.log(validTable);
 
 			var markers = globalConfigure.generateSearchResultsMarkers(validResults, globalConfigure);
 			_.each(markers, function(marker){
@@ -351,7 +361,7 @@ var search = function() {
 			}
 		});	
 	};	
-	queryLayers(searchParams.queryParamsList, searchParams.options);
+	queryLayers(searchParams);
 };
 
 

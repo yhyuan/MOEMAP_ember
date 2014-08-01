@@ -231,14 +231,14 @@ GoogleMapsAdapter.init({
 			options: options
 		}
 	},
+	computeValidResultsTable: function(results, globalConfigure) {
+		var features = Util.combineFeatures(results);
+		var template = '<table id=\"<%= params.tableID %>\" class=\"<%= params.tableClassName %>\" width=\"<%= params.tableWidth %>\" border=\"0\" cellpadding=\"0\" cellspacing=\"1\"><thead>			<tr><th><center><%= (["Waterbody", "Location", "Latitude", "Longitude","Consumption Advisory Table" ]).join("</center></th><th><center>") %></center></th></tr></thead><tbody>			<% _.each(features, function(feature) {				var attrs = feature.attributes;				<tr><td><%= ([attrs.LOCNAME_EN, params.addBRtoLongText(attrs.GUIDELOC_EN), params.deciToDegree(attrs.LATITUDE), params.deciToDegree(attrs.LONGITUDE), "<a target=\'_blank\' href=\'" + params.report_URL + "?id=" + attrs.WATERBODYC + "\'>Consumption Advisory Table</a>" ]).join("</td><td>"") %></td></tr>			<% }); %>			</tbody></table>';
+		return _.template(template, {features: features, params: globalConfigure});
+	},
+	computeInvalidResultsTable: globalConfigure.computeValidResultsTable,	
 	generateSearchResultsMarkers: function(results, globalConfigure) {
-		var features = _.reduce(results, function(total, layer) {
-			if (layer.hasOwnProperty('features')) {
-				return total.concat(layer.features);
-			} else {
-				return total;
-			}
-		}, []);	
+		var features = Util.combineFeatures(results);
 		return _.map(features, function(feature) {
 			var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
 			var container = document.createElement('div');
