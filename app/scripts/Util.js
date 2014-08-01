@@ -138,6 +138,27 @@ var wordCapitalize = function (str){
 	return strArray.join(' ');
 };
 
+var computerFeaturesNumber = function(results) {
+	return _.reduce(results, function(total, layer) {
+		if (layer.hasOwnProperty('features')) {
+			return total = total + layer.features.length;
+		} else {
+			return total;
+		}
+	}, 0);
+};
+
+var combineFeatures = function(results) {
+	return _.reduce(results, function(total, layer) {
+		if (layer.hasOwnProperty('features')) {
+			return total = total.concat (layer.features);
+		} else {
+			return total;
+		}
+	}, []);
+};
+
+
 var api = {
 	computeCircle: computeCircle,
 	computeOffset: computeOffset,
@@ -146,7 +167,9 @@ var api = {
 	computeClusters: computeClusters,
 	convertLatLngtoUTM: convertLatLngtoUTM,
 	replaceChar: replaceChar,
-	wordCapitalize: wordCapitalize
+	wordCapitalize: wordCapitalize,
+	computerFeaturesNumber: computerFeaturesNumber,
+	combineFeatures: combineFeatures
 };
 
 module.exports = api;

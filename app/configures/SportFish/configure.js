@@ -194,7 +194,7 @@ GoogleMapsAdapter.init({
 		}
 		return res + sym;
 	},
-	search: function(searchString, globalConfigure){
+	getSearchParams: function(searchString, globalConfigure){
 		var getLakeNameSearchCondition = function(searchString) {
 			var coorsArray = searchString.split(/\s+/);
 			var str = coorsArray.join(" ").toUpperCase();
@@ -307,7 +307,10 @@ GoogleMapsAdapter.init({
 			geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
 			withinExtent: $('#currentMapExtent')[0].checked
 		};
-		GoogleMapsAdapter.queryLayers(queryParamsList, options);
+		return {
+			queryParamsList: queryParamsList,
+			options: options
+		}
 	},
 	generateSearchResultsMarkers: function(results, globalConfigure) {
 		var features = _.reduce(results, function(total, layer) {
