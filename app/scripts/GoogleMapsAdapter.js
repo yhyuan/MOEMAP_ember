@@ -105,8 +105,8 @@ var init = function(initParams) {
 		}],
 		tableID: "myTable",
 		tableWidth: 650, //The total width of the table below the map
-		tableClassName: "tablesorter"
-
+		tableClassName: "tablesorter",
+		queryTableDivId: 'query_table'
 	};
 	var params = _.defaults(initParams, defaultParams);
 	globalConfigure = params;
@@ -211,7 +211,7 @@ var init = function(initParams) {
 		var identifyRadiusZoomLevels = [-1, 320000, 160000, 80000, 40000, 20000, 9600, 4800, 2400, 1200, 600, 300, 160, 80, 50, 20, 10, 5, 3, 2, 1, 1];
 		var radius = identifyRadiusZoomLevels[map.getZoom()];
 		var circle = Util.computeCircle(latlng, radius);
-		var queryParamsList = _.map(params.identifyLayersList, function(layer) {
+		var queryParamsList = _.map(params.identifySettings.identifyLayersList, function(layer) {
 			return {
 				mapService: layer.mapService,
 				layerID: layer.layerID,
@@ -227,7 +227,7 @@ var init = function(initParams) {
 				infoWindow.setMap(null);
 				return;
 			}
-			var info = params.computeIdentifyInfoWindows(arguments, globalConfigure);
+			var info = params.identifySettings.computeIdentifyInfoWindows(arguments, globalConfigure);
 			openInfoWindow(gLatLng, info);
 		});
 	};	
@@ -322,7 +322,7 @@ var search = function() {
 		var validResults = arguments;
 		if (options.hasOwnProperty('containsInvalidCoordinates') && options.containsInvalidCoordinates) {
 			var splittedResults = Util.splitResults(arguments, globalConfigure.invalidFeatureLocations);
-			var validResults = splittedResults.validResults;
+			validResults = splittedResults.validResults;
 			var invalidResults = splittedResults.invalidResults;
 			var validFeaturesLength = Util.computeFeaturesNumber(validResults);
 			var invalidFeaturesLength = Util.computeFeaturesNumber(invalidResults);
@@ -330,14 +330,16 @@ var search = function() {
 			var invalidTable = globalConfigure.computeInvalidResultsTable(invalidResults, globalConfigure);
 			console.log(validTable);			
 		}
-
+		var validTable = globalConfigure.computeValidResultsTable(validResults, globalConfigure);
+		$("#" + globalConfigure.queryTableDivId).html(validTable);
+		
 		var markers = globalConfigure.generateSearchResultsMarkers(validResults, globalConfigure);
 		_.each(markers, function(marker){
 			marker.setMap(map);
 			overlays.push(marker);
 		});
 
-		if(!options.withinExtent) {
+		if(options.hasOwnProperty('withinExtent') && !options.withinExtent) {
 			var convertToGBounds = function(b) {
 				var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
 				var ne = new google.maps.LatLng(b.northEast.lat, b.northEast.lng);			 

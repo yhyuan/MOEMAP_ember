@@ -48,16 +48,18 @@ GoogleMapsAdapter.init({
 	],
 	/*English Ends*/
 	/**/
-	computeIdentifyInfoWindows: function(results, globalConfigure) {
-		return _.template(globalConfigure.identifyTemplate, {attrs: results[0].features[0].attributes, Util: Util, globalConfigure: globalConfigure});
-	},
 	/*English Begins*/
-	identifyLayersList: [{
-		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
-		layerID: 0,
-		outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
-	}],
-	identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>		<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>		Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></b><br>		<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>',
+	identifySettings: {
+		computeIdentifyInfoWindows: function(results, globalConfigure) {
+			return _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: results[0].features[0].attributes, Util: Util, globalConfigure: globalConfigure});
+		},
+		identifyLayersList: [{
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
+			layerID: 0,
+			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
+		}],
+		identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>			<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></b><br>			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>'
+	},
 	/*English Ends*/
 	/**/
 	queryLayerList: [{
@@ -184,8 +186,8 @@ GoogleMapsAdapter.init({
 	},
 	computeValidResultsTable: function(results, globalConfigure) {
 		var features = Util.combineFeatures(results);
-		var template = '<table id=\"<%= params.tableID %>\" class=\"<%= params.tableClassName %>\" width=\"<%= params.tableWidth %>\" border=\"0\" cellpadding=\"0\" cellspacing=\"1\"><thead>			<tr><th><center><%= (["Waterbody", "Location", "Latitude", "Longitude","Consumption Advisory Table" ]).join("</center></th><th><center>") %></center></th></tr></thead><tbody>			<% _.each(features, function(feature) {				var attrs = feature.attributes;				<tr><td><%= ([attrs.LOCNAME_EN, Util.addBRtoLongText(attrs.GUIDELOC_EN), Util.deciToDegree(attrs.LATITUDE, "EN"), Util.deciToDegree(attrs.LONGITUDE, "EN"), "<a target=\'_blank\' href=\'" + params.report_URL + "?id=" + attrs.WATERBODYC + "\'>Consumption Advisory Table</a>" ]).join("</td><td>"") %></td></tr>			<% }); %>			</tbody></table>';
-		return _.template(template, {features: features, params: globalConfigure});
+		var template = '<table id=\"<%= globalConfigure.tableID %>\" class=\"<%= globalConfigure.tableClassName %>\" width=\"<%= globalConfigure.tableWidth %>\" border=\"0\" cellpadding=\"0\" cellspacing=\"1\"><thead>			<tr><th><center>Waterbody</center></th><th><center>Location</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Consumption Advisory Table</center></th></tr></thead><tbody>			<% _.each(features, function(feature) {				var attrs = feature.attributes; %> 				<tr><td><%= attrs.LOCNAME_EN %></td><td><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td><td><a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>			<% }); %>			</tbody></table>';
+		return _.template(template, {features: features, globalConfigure: globalConfigure, Util: Util});
 	},
 	computeInvalidResultsTable: function () {
 		return globalConfigure.computeValidResultsTable;
@@ -197,7 +199,8 @@ GoogleMapsAdapter.init({
 			var container = document.createElement('div');
 			container.style.width = globalConfigure.infoWindowWidth;
 			container.style.height = globalConfigure.infoWindowHeight;
-			container.innerHTML = _.template(globalConfigure.identifyTemplate, {attrs: feature.attributes, globalConfigure: globalConfigure, Util: Util});
+			container.innerHTML = _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: feature.attributes, globalConfigure: globalConfigure, Util: Util});
+			//console.log(container.innerHTML);
 			var marker = new google.maps.Marker({
 				position: gLatLng
 			});		

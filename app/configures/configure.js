@@ -49,16 +49,18 @@ GoogleMapsAdapter.init({
 	],
 	/*English Ends*/
 	/**/
-	computeIdentifyInfoWindows: function(results, globalConfigure) {
-		return _.template(globalConfigure.identifyTemplate, {attrs: results[0].features[0].attributes, Util: Util, globalConfigure: globalConfigure});
-	},
 	/*English Begins*/
-	identifyLayersList: [{
-		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
-		layerID: 0,
-		outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
-	}],
-	identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>		<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>		Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></b><br>		<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>',
+	identifySettings: {
+		computeIdentifyInfoWindows: function(results, globalConfigure) {
+			return _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: results[0].features[0].attributes, Util: Util, globalConfigure: globalConfigure});
+		},
+		identifyLayersList: [{
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
+			layerID: 0,
+			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
+		}],
+		identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>			<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></b><br>			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>'
+	},
 	/*English Ends*/
 	/**/
 	queryLayerList: [{
@@ -185,8 +187,8 @@ GoogleMapsAdapter.init({
 	},
 	computeValidResultsTable: function(results, globalConfigure) {
 		var features = Util.combineFeatures(results);
-		var template = '<table id=\"<%= params.tableID %>\" class=\"<%= params.tableClassName %>\" width=\"<%= params.tableWidth %>\" border=\"0\" cellpadding=\"0\" cellspacing=\"1\"><thead>			<tr><th><center><%= (["Waterbody", "Location", "Latitude", "Longitude","Consumption Advisory Table" ]).join("</center></th><th><center>") %></center></th></tr></thead><tbody>			<% _.each(features, function(feature) {				var attrs = feature.attributes;				<tr><td><%= ([attrs.LOCNAME_EN, Util.addBRtoLongText(attrs.GUIDELOC_EN), Util.deciToDegree(attrs.LATITUDE, "EN"), Util.deciToDegree(attrs.LONGITUDE, "EN"), "<a target=\'_blank\' href=\'" + params.report_URL + "?id=" + attrs.WATERBODYC + "\'>Consumption Advisory Table</a>" ]).join("</td><td>"") %></td></tr>			<% }); %>			</tbody></table>';
-		return _.template(template, {features: features, params: globalConfigure});
+		var template = '<table id=\"<%= globalConfigure.tableID %>\" class=\"<%= globalConfigure.tableClassName %>\" width=\"<%= globalConfigure.tableWidth %>\" border=\"0\" cellpadding=\"0\" cellspacing=\"1\"><thead>			<tr><th><center>Waterbody</center></th><th><center>Location</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Consumption Advisory Table</center></th></tr></thead><tbody>			<% _.each(features, function(feature) {				var attrs = feature.attributes; %> 				<tr><td><%= attrs.LOCNAME_EN %></td><td><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td><td><a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>			<% }); %>			</tbody></table>';
+		return _.template(template, {features: features, globalConfigure: globalConfigure, Util: Util});
 	},
 	computeInvalidResultsTable: function () {
 		return globalConfigure.computeValidResultsTable;
@@ -198,7 +200,8 @@ GoogleMapsAdapter.init({
 			var container = document.createElement('div');
 			container.style.width = globalConfigure.infoWindowWidth;
 			container.style.height = globalConfigure.infoWindowHeight;
-			container.innerHTML = _.template(globalConfigure.identifyTemplate, {attrs: feature.attributes, globalConfigure: globalConfigure, Util: Util});
+			container.innerHTML = _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: feature.attributes, globalConfigure: globalConfigure, Util: Util});
+			//console.log(container.innerHTML);
 			var marker = new google.maps.Marker({
 				position: gLatLng
 			});		
@@ -1145,8 +1148,8 @@ var init = function(initParams) {
 		}],
 		tableID: "myTable",
 		tableWidth: 650, //The total width of the table below the map
-		tableClassName: "tablesorter"
-
+		tableClassName: "tablesorter",
+		queryTableDivId: 'query_table'
 	};
 	var params = _.defaults(initParams, defaultParams);
 	globalConfigure = params;
@@ -1251,7 +1254,7 @@ var init = function(initParams) {
 		var identifyRadiusZoomLevels = [-1, 320000, 160000, 80000, 40000, 20000, 9600, 4800, 2400, 1200, 600, 300, 160, 80, 50, 20, 10, 5, 3, 2, 1, 1];
 		var radius = identifyRadiusZoomLevels[map.getZoom()];
 		var circle = Util.computeCircle(latlng, radius);
-		var queryParamsList = _.map(params.identifyLayersList, function(layer) {
+		var queryParamsList = _.map(params.identifySettings.identifyLayersList, function(layer) {
 			return {
 				mapService: layer.mapService,
 				layerID: layer.layerID,
@@ -1267,7 +1270,7 @@ var init = function(initParams) {
 				infoWindow.setMap(null);
 				return;
 			}
-			var info = params.computeIdentifyInfoWindows(arguments, globalConfigure);
+			var info = params.identifySettings.computeIdentifyInfoWindows(arguments, globalConfigure);
 			openInfoWindow(gLatLng, info);
 		});
 	};	
@@ -1362,7 +1365,7 @@ var search = function() {
 		var validResults = arguments;
 		if (options.hasOwnProperty('containsInvalidCoordinates') && options.containsInvalidCoordinates) {
 			var splittedResults = Util.splitResults(arguments, globalConfigure.invalidFeatureLocations);
-			var validResults = splittedResults.validResults;
+			validResults = splittedResults.validResults;
 			var invalidResults = splittedResults.invalidResults;
 			var validFeaturesLength = Util.computeFeaturesNumber(validResults);
 			var invalidFeaturesLength = Util.computeFeaturesNumber(invalidResults);
@@ -1370,6 +1373,9 @@ var search = function() {
 			var invalidTable = globalConfigure.computeInvalidResultsTable(invalidResults, globalConfigure);
 			console.log(validTable);			
 		}
+		var validTable = globalConfigure.computeValidResultsTable(validResults, globalConfigure);
+		console.log(validTable);
+		$("#" + globalConfigure.queryTableDivId).html(validTable);
 
 		var markers = globalConfigure.generateSearchResultsMarkers(validResults, globalConfigure);
 		_.each(markers, function(marker){
@@ -1377,7 +1383,7 @@ var search = function() {
 			overlays.push(marker);
 		});
 
-		if(!options.withinExtent) {
+		if(options.hasOwnProperty('withinExtent') && !options.withinExtent) {
 			var convertToGBounds = function(b) {
 				var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
 				var ne = new google.maps.LatLng(b.northEast.lat, b.northEast.lng);			 
