@@ -77,12 +77,116 @@ var Util = require('../../app/scripts/Util');
 				expect(Math.abs(bounds.northEast.lng - (-73.184177))).to.be.below(0.0001);
 	        });
 	    });
-	    describe('Util compute the clusters for an array of features', function () {
-	        it('should compute the clusters', function () {
+		describe('Util compute the clusters for an array of features', function () {
+			it('should compute the clusters', function () {
 				var features = [{latlng: {lat: 45, lng: -77}, attributes: {attr: "test"}}, {latlng: {lat: 45, lng: -77}, attributes: {attr: "test"}}, {latlng: {lat: 45.008284, lng: -77.184177}, attributes: {attr: "test"}}, {latlng: {lat: 44.008284, lng: -79.184177}, attributes: {attr: "test"}}];
-	            var clusters = Util.computeClusters(features);
+				var clusters = Util.computeClusters(features);
 				expect(clusters).to.have.length(3);
-	        });
-	    });
-    });
+			});
+		});
+		describe('Util convert a latitude & longitude to a UTM coordinate', function () {
+			it('should convert a latitude & longitude to a UTM coordinate', function () {
+				var UTM = Util.convertLatLngtoUTM(44.51848, -81.11352);
+				expect(Math.abs(UTM.Zone - 17)).to.be.below(0.0001);
+				expect(Math.abs(UTM.Easting - 490978)).to.be.below(0.0001);
+				expect(Math.abs(UTM.Northing - 4929468)).to.be.below(0.0001);
+			});
+		});
+		describe('Util replace a char in a string with another char', function () {
+			it('should replace a char in a string with another char', function () {
+				var str = Util.replaceChar('Apple', 'p', 'b');
+				expect(str).to.equal('Abble');
+			});
+		});
+		describe('Util word capitalize a string', function () {
+			it('should word capitalize a string with all letters in upper case', function () {
+				var str = Util.wordCapitalize('APPLE JUICE');
+				expect(str).to.equal('Apple Juice');
+			});
+			it('should word capitalize a string with all letters in lower case', function () {
+				var str = Util.wordCapitalize('apple juice');
+				expect(str).to.equal('Apple Juice');
+			});
+			it('should word capitalize a string with some letters in lower case and some letters in upper case', function () {
+				var str = Util.wordCapitalize('aPPle juIce');
+				expect(str).to.equal('Apple Juice');
+			});
+		});
+		describe('Util compute the number of features in different layers in the query result from ArcGIS Server', function () {
+			it('should compute the number of features in different layers in the query result from ArcGIS Server', function () {
+				var results = [
+					{
+						features: [{
+							geometry: {x: 0, y: 0}
+						}, {
+							geometry: {x: -81.11352, y: 44.008284}
+						}]
+					},
+					{
+						features: [{
+							geometry: {x: 0, y: 0}
+						}, {
+							geometry: {x: -82.11352, y: 45.008284}
+						}]
+					},
+				];
+				var total = Util.computeFeaturesNumber(results);
+				expect(total).to.equal(4);
+			});
+		});
+		describe('Util combine the features in different layers in the query result from ArcGIS Server', function () {
+			it('should combine the features in different layers in the query result from ArcGIS Server', function () {
+				var results = [
+					{
+						features: [{
+							geometry: {x: 0, y: 0}
+						}, {
+							geometry: {x: -81.11352, y: 44.008284}
+						}]
+					},
+					{
+						features: [{
+							geometry: {x: 0, y: 0}
+						}, {
+							geometry: {x: -82.11352, y: 45.008284}
+						}]
+					},
+				];
+				var totalFeatures = Util.combineFeatures(results);
+				expect(totalFeatures).to.have.length(4);
+			});
+		});
+		describe('Util split the query results from different layers from ArcGIS Server into valid features and invalid features with the provided invalid locations', function () {
+			it('should split the query results into valid features and invalid features with the provided invalid locations', function () {
+				var invalidFeatureLocations = [{
+					lat: 0,
+					lng: 0,
+					difference: 0.0001
+				}];
+				var results = [
+					{
+						features: [{
+							geometry: {x: 0, y: 0}
+						}, {
+							geometry: {x: -81.11352, y: 44.008284}
+						}]
+					},
+					{
+						features: [{
+							geometry: {x: 0, y: 0}
+						}, {
+							geometry: {x: -82.11352, y: 45.008284}
+						}]
+					},
+				];
+				var splittedResults = Util.splitResults(results, invalidFeatureLocations);
+				expect(splittedResults.validResults).to.have.length(2);
+				expect(splittedResults.validResults[0].features).to.have.length(1);
+				expect(splittedResults.validResults[1].features).to.have.length(1);
+				expect(splittedResults.invalidResults).to.have.length(2);
+				expect(splittedResults.invalidResults[0].features).to.have.length(1);
+				expect(splittedResults.invalidResults[1].features).to.have.length(1);				
+			});
+		});
+	});
 })();

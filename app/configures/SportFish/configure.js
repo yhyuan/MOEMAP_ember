@@ -109,7 +109,7 @@ GoogleMapsAdapter.init({
 	],
 	/*French Ends*/
 	computeIdentifyInfoWindows: function(results, globalConfigure) {
-		return _.template(globalConfigure.identifyTemplate, {attrs: results[0].features[0].attributes, params: globalConfigure});
+		return _.template(globalConfigure.identifyTemplate, {attrs: results[0].features[0].attributes, Util: Util, globalConfigure: globalConfigure});
 	},
 	/*English Begins*/
 	identifyLayersList: [{
@@ -117,9 +117,9 @@ GoogleMapsAdapter.init({
 		layerID: 0,
 		outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
 	}],
-	identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= params.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>\
-		<a target=\'_blank\' href=\'<%= params.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>\
-		Latitude <b><%= params.deciToDegree(attrs.LATITUDE) %></b> Longitude <b><%= params.deciToDegree(attrs.LONGITUDE) %></b><br>\
+	identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>\
+		<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>\
+		Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></b><br>\
 		<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>',
 	/*English Ends*/
 	/*French Begins*/
@@ -128,9 +128,9 @@ GoogleMapsAdapter.init({
 		layerID: 0,
 		outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
 	}],
-	identifyTemplate: '<strong><%= attrs.LOCNAME_FR %></strong><br><%= params.addBRtoLongText(s.GUIDELOC_FR) %><br><br>\
-		<a target=\'_blank\' href=\'<%= params.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>\
-		Latitude <b><%= params.deciToDegree(attrs.LATITUDE) %></b> Longitude <b><%= params.deciToDegree(attrs.LONGITUDE) %></b><br>\
+	identifyTemplate: '<strong><%= attrs.LOCNAME_FR %></strong><br><%= Util.addBRtoLongText(s.GUIDELOC_FR) %><br><br>\
+		<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>\
+		Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "FR") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "FR") %></b><br>\
 		<a href=\'mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission <%= s.LOCNAME_FR %>)\'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>',	
 	/*French Ends*/
 	queryLayerList: [{
@@ -144,56 +144,6 @@ GoogleMapsAdapter.init({
 			content: this.tableFieldList
 		} 
 	}],
-	addBRtoLongText: function (text) {
-		var lineCount = 0;
-		var readyForBreak = false;
-		if (text.length <= 40) {
-			return text;
-		}
-		var textArray = text.split('');
-		var result = "";	
-		for (var i = 0; i < textArray.length; i++) {
-			if (lineCount > 40) {
-				readyForBreak = true;
-			}
-			result = result + textArray[i];
-			if ((readyForBreak) && (textArray[i] === " ")) {
-				lineCount = 0;
-				result = result + "<br>";
-				readyForBreak = false;
-			}
-			lineCount = lineCount + 1;
-		}
-		return result;
-	},
-	deciToDegree: function (degree){
-		if(Math.abs(degree) <= 0.1){
-			return "N/A";
-		}
-		var sym = "N";
-		if(degree<0){
-			degree = -degree;
-			if(this.language === "EN") {
-				sym = "W";
-			} else {
-				sym = "O";
-			}
-		}
-		var deg = Math.floor(degree);
-		var temp = (degree - deg)*60;
-		var minute = Math.floor(temp);
-		var second = Math.floor((temp- minute)*60);
-		var res = "";
-		var degreeSymbolLang = "&deg;";
-		if(second<1){
-			res ="" + deg + degreeSymbolLang + minute + "'";
-		}else if(second>58){
-			res ="" + deg + degreeSymbolLang + (minute+1) + "'";
-		}else{
-			res ="" + deg + degreeSymbolLang + minute + "'" + second + "\"";
-		}
-		return res + sym;
-	},
 	getSearchParams: function(searchString, globalConfigure){
 		var getLakeNameSearchCondition = function(searchString) {
 			var coorsArray = searchString.split(/\s+/);
@@ -305,7 +255,8 @@ GoogleMapsAdapter.init({
 		var options = {
 			searchString: searchString,
 			geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
-			withinExtent: $('#currentMapExtent')[0].checked
+			withinExtent: $('#currentMapExtent')[0].checked,
+			containsInvalidCoordinates: false
 		};
 		return {
 			queryParamsList: queryParamsList,
@@ -318,12 +269,14 @@ GoogleMapsAdapter.init({
 			<tr><th><center><%= (["Waterbody", "Location", "Latitude", "Longitude","Consumption Advisory Table" ]).join("</center></th><th><center>") %></center></th></tr></thead><tbody>\
 			<% _.each(features, function(feature) {\
 				var attrs = feature.attributes;\
-				<tr><td><%= ([attrs.LOCNAME_EN, params.addBRtoLongText(attrs.GUIDELOC_EN), params.deciToDegree(attrs.LATITUDE), params.deciToDegree(attrs.LONGITUDE), "<a target=\'_blank\' href=\'" + params.report_URL + "?id=" + attrs.WATERBODYC + "\'>Consumption Advisory Table</a>" ]).join("</td><td>"") %></td></tr>\
+				<tr><td><%= ([attrs.LOCNAME_EN, Util.addBRtoLongText(attrs.GUIDELOC_EN), Util.deciToDegree(attrs.LATITUDE, "EN"), Util.deciToDegree(attrs.LONGITUDE, "EN"), "<a target=\'_blank\' href=\'" + params.report_URL + "?id=" + attrs.WATERBODYC + "\'>Consumption Advisory Table</a>" ]).join("</td><td>"") %></td></tr>\
 			<% }); %>\
 			</tbody></table>';
 		return _.template(template, {features: features, params: globalConfigure});
 	},
-	computeInvalidResultsTable: globalConfigure.computeValidResultsTable,	
+	computeInvalidResultsTable: function () {
+		return globalConfigure.computeValidResultsTable;
+	}, 	
 	generateSearchResultsMarkers: function(results, globalConfigure) {
 		var features = Util.combineFeatures(results);
 		return _.map(features, function(feature) {
@@ -331,7 +284,7 @@ GoogleMapsAdapter.init({
 			var container = document.createElement('div');
 			container.style.width = globalConfigure.infoWindowWidth;
 			container.style.height = globalConfigure.infoWindowHeight;
-			container.innerHTML = _.template(globalConfigure.identifyTemplate, {attrs: feature.attributes, params: globalConfigure});
+			container.innerHTML = _.template(globalConfigure.identifyTemplate, {attrs: feature.attributes, globalConfigure: globalConfigure, Util: Util});
 			var marker = new google.maps.Marker({
 				position: gLatLng
 			});		

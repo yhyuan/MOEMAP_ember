@@ -138,7 +138,7 @@ var wordCapitalize = function (str){
 	return strArray.join(' ');
 };
 
-var computerFeaturesNumber = function(results) {
+var computeFeaturesNumber = function(results) {
 	return _.reduce(results, function(total, layer) {
 		if (layer.hasOwnProperty('features')) {
 			return total = total + layer.features.length;
@@ -158,6 +158,73 @@ var combineFeatures = function(results) {
 	}, []);
 };
 
+var splitResults = function(results, invalidFeatureLocations) {
+	var filterResults = function (results, invalidFeatureLocations, f) {
+		return _.map(results, function(result) {
+			var clone = _.clone(result);
+			clone.features = _.filter(result.features, function (feature) {
+				return f(_.some(invalidFeatureLocations, function(location) {
+					return Math.abs(location.lng - feature.geometry.x) + Math.abs(location.lat - feature.geometry.y) < location.difference;
+				}));
+			});
+			return clone;
+		});
+	};
+	return {validResults: filterResults(results, invalidFeatureLocations, function(input) {return !input;}),
+			invalidResults: filterResults(results, invalidFeatureLocations, function(input) {return input;})};
+};
+
+var deciToDegree = function (degree, language){
+	if(Math.abs(degree) <= 0.1){
+		return "N/A";
+	}
+	var sym = "N";
+	if(degree<0){
+		degree = -degree;
+		if(language === "EN") {
+			sym = "W";
+		} else {
+			sym = "O";
+		}
+	}
+	var deg = Math.floor(degree);
+	var temp = (degree - deg)*60;
+	var minute = Math.floor(temp);
+	var second = Math.floor((temp- minute)*60);
+	var res = "";
+	var degreeSymbolLang = "&deg;";
+	if(second<1){
+		res ="" + deg + degreeSymbolLang + minute + "'";
+	}else if(second>58){
+		res ="" + deg + degreeSymbolLang + (minute+1) + "'";
+	}else{
+		res ="" + deg + degreeSymbolLang + minute + "'" + second + "\"";
+	}
+	return res + sym;
+};
+
+var addBRtoLongText = function (text) {
+	var lineCount = 0;
+	var readyForBreak = false;
+	if (text.length <= 40) {
+		return text;
+	}
+	var textArray = text.split('');
+	var result = "";	
+	for (var i = 0; i < textArray.length; i++) {
+		if (lineCount > 40) {
+			readyForBreak = true;
+		}
+		result = result + textArray[i];
+		if ((readyForBreak) && (textArray[i] === " ")) {
+			lineCount = 0;
+			result = result + "<br>";
+			readyForBreak = false;
+		}
+		lineCount = lineCount + 1;
+	}
+	return result;
+};
 
 var api = {
 	computeCircle: computeCircle,
@@ -168,8 +235,11 @@ var api = {
 	convertLatLngtoUTM: convertLatLngtoUTM,
 	replaceChar: replaceChar,
 	wordCapitalize: wordCapitalize,
-	computerFeaturesNumber: computerFeaturesNumber,
-	combineFeatures: combineFeatures
+	computeFeaturesNumber: computeFeaturesNumber,
+	combineFeatures: combineFeatures,
+	splitResults: splitResults,
+	deciToDegree: deciToDegree,
+	addBRtoLongText: addBRtoLongText
 };
 
 module.exports = api;

@@ -50,7 +50,7 @@ GoogleMapsAdapter.init({
 	/*English Ends*/
 	/**/
 	computeIdentifyInfoWindows: function(results, globalConfigure) {
-		return _.template(globalConfigure.identifyTemplate, {attrs: results[0].features[0].attributes, params: globalConfigure});
+		return _.template(globalConfigure.identifyTemplate, {attrs: results[0].features[0].attributes, Util: Util, globalConfigure: globalConfigure});
 	},
 	/*English Begins*/
 	identifyLayersList: [{
@@ -58,7 +58,7 @@ GoogleMapsAdapter.init({
 		layerID: 0,
 		outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
 	}],
-	identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= params.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>		<a target=\'_blank\' href=\'<%= params.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>		Latitude <b><%= params.deciToDegree(attrs.LATITUDE) %></b> Longitude <b><%= params.deciToDegree(attrs.LONGITUDE) %></b><br>		<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>',
+	identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>		<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>		Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></b><br>		<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>',
 	/*English Ends*/
 	/**/
 	queryLayerList: [{
@@ -72,56 +72,6 @@ GoogleMapsAdapter.init({
 			content: this.tableFieldList
 		} 
 	}],
-	addBRtoLongText: function (text) {
-		var lineCount = 0;
-		var readyForBreak = false;
-		if (text.length <= 40) {
-			return text;
-		}
-		var textArray = text.split('');
-		var result = "";	
-		for (var i = 0; i < textArray.length; i++) {
-			if (lineCount > 40) {
-				readyForBreak = true;
-			}
-			result = result + textArray[i];
-			if ((readyForBreak) && (textArray[i] === " ")) {
-				lineCount = 0;
-				result = result + "<br>";
-				readyForBreak = false;
-			}
-			lineCount = lineCount + 1;
-		}
-		return result;
-	},
-	deciToDegree: function (degree){
-		if(Math.abs(degree) <= 0.1){
-			return "N/A";
-		}
-		var sym = "N";
-		if(degree<0){
-			degree = -degree;
-			if(this.language === "EN") {
-				sym = "W";
-			} else {
-				sym = "O";
-			}
-		}
-		var deg = Math.floor(degree);
-		var temp = (degree - deg)*60;
-		var minute = Math.floor(temp);
-		var second = Math.floor((temp- minute)*60);
-		var res = "";
-		var degreeSymbolLang = "&deg;";
-		if(second<1){
-			res ="" + deg + degreeSymbolLang + minute + "'";
-		}else if(second>58){
-			res ="" + deg + degreeSymbolLang + (minute+1) + "'";
-		}else{
-			res ="" + deg + degreeSymbolLang + minute + "'" + second + "\"";
-		}
-		return res + sym;
-	},
 	getSearchParams: function(searchString, globalConfigure){
 		var getLakeNameSearchCondition = function(searchString) {
 			var coorsArray = searchString.split(/\s+/);
@@ -225,7 +175,8 @@ GoogleMapsAdapter.init({
 		var options = {
 			searchString: searchString,
 			geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
-			withinExtent: $('#currentMapExtent')[0].checked
+			withinExtent: $('#currentMapExtent')[0].checked,
+			containsInvalidCoordinates: false
 		};
 		return {
 			queryParamsList: queryParamsList,
@@ -234,10 +185,12 @@ GoogleMapsAdapter.init({
 	},
 	computeValidResultsTable: function(results, globalConfigure) {
 		var features = Util.combineFeatures(results);
-		var template = '<table id=\"<%= params.tableID %>\" class=\"<%= params.tableClassName %>\" width=\"<%= params.tableWidth %>\" border=\"0\" cellpadding=\"0\" cellspacing=\"1\"><thead>			<tr><th><center><%= (["Waterbody", "Location", "Latitude", "Longitude","Consumption Advisory Table" ]).join("</center></th><th><center>") %></center></th></tr></thead><tbody>			<% _.each(features, function(feature) {				var attrs = feature.attributes;				<tr><td><%= ([attrs.LOCNAME_EN, params.addBRtoLongText(attrs.GUIDELOC_EN), params.deciToDegree(attrs.LATITUDE), params.deciToDegree(attrs.LONGITUDE), "<a target=\'_blank\' href=\'" + params.report_URL + "?id=" + attrs.WATERBODYC + "\'>Consumption Advisory Table</a>" ]).join("</td><td>"") %></td></tr>			<% }); %>			</tbody></table>';
+		var template = '<table id=\"<%= params.tableID %>\" class=\"<%= params.tableClassName %>\" width=\"<%= params.tableWidth %>\" border=\"0\" cellpadding=\"0\" cellspacing=\"1\"><thead>			<tr><th><center><%= (["Waterbody", "Location", "Latitude", "Longitude","Consumption Advisory Table" ]).join("</center></th><th><center>") %></center></th></tr></thead><tbody>			<% _.each(features, function(feature) {				var attrs = feature.attributes;				<tr><td><%= ([attrs.LOCNAME_EN, Util.addBRtoLongText(attrs.GUIDELOC_EN), Util.deciToDegree(attrs.LATITUDE, "EN"), Util.deciToDegree(attrs.LONGITUDE, "EN"), "<a target=\'_blank\' href=\'" + params.report_URL + "?id=" + attrs.WATERBODYC + "\'>Consumption Advisory Table</a>" ]).join("</td><td>"") %></td></tr>			<% }); %>			</tbody></table>';
 		return _.template(template, {features: features, params: globalConfigure});
 	},
-	computeInvalidResultsTable: globalConfigure.computeValidResultsTable,	
+	computeInvalidResultsTable: function () {
+		return globalConfigure.computeValidResultsTable;
+	}, 	
 	generateSearchResultsMarkers: function(results, globalConfigure) {
 		var features = Util.combineFeatures(results);
 		return _.map(features, function(feature) {
@@ -245,7 +198,7 @@ GoogleMapsAdapter.init({
 			var container = document.createElement('div');
 			container.style.width = globalConfigure.infoWindowWidth;
 			container.style.height = globalConfigure.infoWindowHeight;
-			container.innerHTML = _.template(globalConfigure.identifyTemplate, {attrs: feature.attributes, params: globalConfigure});
+			container.innerHTML = _.template(globalConfigure.identifyTemplate, {attrs: feature.attributes, globalConfigure: globalConfigure, Util: Util});
 			var marker = new google.maps.Marker({
 				position: gLatLng
 			});		
@@ -1170,7 +1123,6 @@ var arcGISMapServices = [];
 var previousBounds;
 var infoWindow;
 
-
 var init = function(initParams) {
 	var defaultParams = {
 		searchControlDivId: 'searchControl',
@@ -1189,7 +1141,7 @@ var init = function(initParams) {
 		invalidFeatureLocations: [{
 			lat: 0,
 			lng: 0,
-			differnce: 0.0001
+			difference: 0.0001
 		}],
 		tableID: "myTable",
 		tableWidth: 650, //The total width of the table below the map
@@ -1210,7 +1162,7 @@ var init = function(initParams) {
 	};
 	map = new google.maps.Map($('#' + params.mapCanvasDivId)[0], mapOptions);
 
-	/*bounds changed*/
+	/*bounds changed*/	
 	var boundsChangedHandler = function() {
 		if(previousBounds) {
 			var computeBoundsDifference = function(b1, b2) {
@@ -1220,6 +1172,7 @@ var init = function(initParams) {
 				return;
 			}
 		}
+
 		_.each(arcGISMapServices, function(arcGISMapService) {
 			arcGISMapService.setMap(null);
 		});
@@ -1296,26 +1249,27 @@ var init = function(initParams) {
 		var gLatLng = event.latLng;
 		var latlng = {lat: gLatLng.lat(), lng: gLatLng.lng()};
 		var identifyRadiusZoomLevels = [-1, 320000, 160000, 80000, 40000, 20000, 9600, 4800, 2400, 1200, 600, 300, 160, 80, 50, 20, 10, 5, 3, 2, 1, 1];
-		var circle = Util.computeCircle(latlng, identifyRadiusZoomLevels[map.getZoom()]);
-		var promises = _.map(params.identifyLayersList, function(layer) {
-			var queryParams = {
+		var radius = identifyRadiusZoomLevels[map.getZoom()];
+		var circle = Util.computeCircle(latlng, radius);
+		var queryParamsList = _.map(params.identifyLayersList, function(layer) {
+			return {
 				mapService: layer.mapService,
 				layerID: layer.layerID,
 				returnGeometry: false,
 				outFields: layer.outFields,
 				geometry: circle
 			};
-			return ArcGISServerAdapter.query(queryParams);
 		});
-		$.when.apply($, promises).done(function() {
-			var featuresLength = Util.computerFeaturesNumber (arguments);
+		var promise = queryLayers({queryParamsList: queryParamsList});  // without options
+		promise.done(function() {
+			var featuresLength = Util.computeFeaturesNumber (arguments);
 			if (featuresLength === 0) {
 				infoWindow.setMap(null);
 				return;
 			}
 			var info = params.computeIdentifyInfoWindows(arguments, globalConfigure);
 			openInfoWindow(gLatLng, info);
-		});		
+		});
 	};	
 	if (!params.disallowMouseClick) {
 		google.maps.event.addListener(map, 'click', mouseClickHandler);
@@ -1336,119 +1290,113 @@ var openInfoWindow = function (latlng, container){
 	infoWindow.open(map);
 };
 
-
+var queryLayers = function (searchParams) {
+	var queryParamsList = searchParams.queryParamsList;
+	var options = searchParams.options;
+	var promises = _.map(queryParamsList, function(queryParams) {
+		var result = {
+			mapService: queryParams.mapService,
+			layerID: queryParams.layerID,
+			returnGeometry: queryParams.returnGeometry,
+			where: queryParams.where,
+			outFields: queryParams.outFields		
+		};
+		if (queryParams.hasOwnProperty('geometry')) {
+			result.geometry = queryParams.geometry;
+		} else if(!!options && options.withinExtent) {
+			var getCurrentMapExtent = function () {
+				var b = map.getBounds();
+				var ne = b.getNorthEast();
+				var sw = b.getSouthWest();
+				var nLat = ne.lat();
+				var eLng = ne.lng();
+				var sLat = sw.lat();
+				var wLng = sw.lng();
+				var swLatLng = {lat: sLat, lng: wLng};
+				var seLatLng = {lat: sLat, lng: eLng};
+				var neLatLng = {lat: nLat, lng: eLng};
+				var nwLatLng = {lat: nLat, lng: wLng};
+				return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
+			};
+			result.geometry = getCurrentMapExtent();
+		}
+		return ArcGISServerAdapter.query(result);
+	});
+	return $.when.apply($, promises);
+};
 
 var search = function() {
 	var searchString = $('#' + globalConfigure.searchInputBoxDivId).val().trim();
 	if(searchString.length === 0){
 		return;
 	}
-	var searchParams = globalConfigure.getSearchParams(searchString, globalConfigure);
-	var queryLayers = function (searchParams) {
-		_.each(overlays, function(overlay){
-			overlay.setMap(null);
-		});
-		overlays = [];
+	_.each(overlays, function(overlay){
+		overlay.setMap(null);
+	});
+	overlays = [];
 
-		var queryParamsList = searchParams.queryParamsList;
+	var searchParams = globalConfigure.getSearchParams(searchString, globalConfigure);	
+	var promise = queryLayers(searchParams);
+
+	promise.done(function() {
+		var featuresLength = Util.computeFeaturesNumber (arguments);
 		var options = searchParams.options;
-		var promises = _.map(queryParamsList, function(queryParams) {
-			var result = {
-				mapService: queryParams.mapService,
-				layerID: queryParams.layerID,
-				returnGeometry: queryParams.returnGeometry,
-				where: queryParams.where,
-				outFields: queryParams.outFields		
-			};
-			if(options.withinExtent) {
-				var getCurrentMapExtent = function () {
-					var b = map.getBounds();
-					var ne = b.getNorthEast();
-					var sw = b.getSouthWest();
-					var nLat = ne.lat();
-					var eLng = ne.lng();
-					var sLat = sw.lat();
-					var wLng = sw.lng();
-					var swLatLng = {lat: sLat, lng: wLng};
-					var seLatLng = {lat: sLat, lng: eLng};
-					var neLatLng = {lat: nLat, lng: eLng};
-					var nwLatLng = {lat: nLat, lng: wLng};
-					return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
+		if ((featuresLength === 0) && options.hasOwnProperty('geocodeWhenQueryFail') && options.geocodeWhenQueryFail && options.hasOwnProperty('searchString')) {
+			var geocodingParams = options.searchString;
+			if (options.hasOwnProperty('GeocoderList')) {
+				geocodingParams = {
+					GeocoderList: options.GeocoderList,
+					address: options.searchString
 				};
-				result.geometry = getCurrentMapExtent();
 			}
-			return ArcGISServerAdapter.query(result);
-		});
-		$.when.apply($, promises).done(function() {
-			var featuresLength = Util.computerFeaturesNumber (arguments);
-			if ((featuresLength === 0) && options.geocodeWhenQueryFail) {
-				var geocodingParams = options.searchString;
-				if (globalConfigure.hasOwnProperty('GeocoderList')) {
-					geocodingParams = {
-						GeocoderList: globalConfigure.GeocoderList,
-						address: options.searchString
-					};
+			var geocodePromise = geocode(geocodingParams);
+			geocodePromise.done(function(result){
+				if (result.status === "OK") {
+					//result.latlng result.geocodedAddress, map zoom to specific area, add a location pin to the location, update search message.
+				} else {
+					//update search meesage
 				}
-				var geocodePromise = geocode(geocodingParams);
-				geocodePromise.done(function(result){
-					console.log(result);
-				});
-				return;
-			}
-			var splitResults = function(results, invalidFeatureLocations) {
-				var filterResults = function (results, invalidFeatureLocations, f) {
-					var returnedResults = [];
-					_.each(results, function(result) {
-						var clone = _.clone(result);
-						clone.features = _.filter(result.features, function (feature) {
-							return f(_.some(invalidFeatureLocations, function(location) {
-								return Math.abs(location.lng - feature.geometry.x) + Math.abs(location.lat - feature.geometry.y) > location.difference;
-							}));
-						});
-						returnedResults.push(clone);
-					});
-					return returnedResults;
-				};
-				return {validResults: filterResults(results, invalidFeatureLocations, function(input) {return !input;}),
-						invalidResults: filterResults(results, invalidFeatureLocations, function(input) {return input;})};
-			};
-			var splittedResults = splitResults(arguments, globalConfigure.invalidFeatureLocations);
+			});
+			return;
+		}
+		var validResults = arguments;
+		if (options.hasOwnProperty('containsInvalidCoordinates') && options.containsInvalidCoordinates) {
+			var splittedResults = Util.splitResults(arguments, globalConfigure.invalidFeatureLocations);
 			var validResults = splittedResults.validResults;
 			var invalidResults = splittedResults.invalidResults;
-			var validFeaturesLength = Util.computerFeaturesNumber(validResults);
-			var invalidFeaturesLength = Util.computerFeaturesNumber(invalidResults);
+			var validFeaturesLength = Util.computeFeaturesNumber(validResults);
+			var invalidFeaturesLength = Util.computeFeaturesNumber(invalidResults);
 			var validTable = globalConfigure.computeValidResultsTable(validResults, globalConfigure);
 			var invalidTable = globalConfigure.computeInvalidResultsTable(invalidResults, globalConfigure);
-			console.log(validTable);
+			console.log(validTable);			
+		}
 
-			var markers = globalConfigure.generateSearchResultsMarkers(validResults, globalConfigure);
-			_.each(markers, function(marker){
-				marker.setMap(map);
-				overlays.push(marker);
+		var markers = globalConfigure.generateSearchResultsMarkers(validResults, globalConfigure);
+		_.each(markers, function(marker){
+			marker.setMap(map);
+			overlays.push(marker);
+		});
+
+		if(!options.withinExtent) {
+			var convertToGBounds = function(b) {
+				var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
+				var ne = new google.maps.LatLng(b.northEast.lat, b.northEast.lng);			 
+				var bounds = new google.maps.LatLngBounds(sw, ne);
+				return bounds;
+			};
+			var bounds = convertToGBounds(Util.computePointsBounds(_.map(Util.combineFeatures(validResults), function(feature) {
+				return {lng: feature.geometry.x, lat: feature.geometry.y};
+			})));
+			_.each(arcGISMapServices, function(arcGISMapService) {
+				arcGISMapService.setMap(null);
 			});
-
-			if(!options.withinExtent) {
-				var convertToGBounds = function(b) {
-					var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
-					var ne = new google.maps.LatLng(b.northEast.lat, b.northEast.lng);			 
-					var bounds = new google.maps.LatLngBounds(sw, ne);
-					return bounds;
-				};
-				var bounds = convertToGBounds(Util.computePointsBounds(_.map(Util.combineFeatures(validResults), function(feature) {
-					return {lng: feature.geometry.x, lat: feature.geometry.y};
-				})));
-				_.each(arcGISMapServices, function(arcGISMapService) {
-					arcGISMapService.setMap(null);
-				});
-				map.fitBounds(bounds);
-				var maxQueryZoomLevel = globalConfigure.maxQueryZoomLevel;
-				if (map.getZoom() > maxQueryZoomLevel) {
-					map.setZoom(maxQueryZoomLevel);
-				}
+			map.fitBounds(bounds);
+			var maxQueryZoomLevel = globalConfigure.maxQueryZoomLevel;
+			if (map.getZoom() > maxQueryZoomLevel) {
+				map.setZoom(maxQueryZoomLevel);
 			}
-		});	
-	};	
-	queryLayers(searchParams);
+		}
+	});
 };
 
 
@@ -1611,6 +1559,7 @@ var entsub = function(event){
 		return true;
 	}
 };
+
 var searchChange = function () {};
 var api = {
 	init: init,
@@ -1619,7 +1568,8 @@ var api = {
 	search: search,
 	entsub: entsub,
 	searchChange: searchChange,
-	openInfoWindow: openInfoWindow
+	openInfoWindow: openInfoWindow,
+	queryLayers: queryLayers
 };
 
 module.exports = api;
@@ -1764,7 +1714,7 @@ var wordCapitalize = function (str){
 	return strArray.join(' ');
 };
 
-var computerFeaturesNumber = function(results) {
+var computeFeaturesNumber = function(results) {
 	return _.reduce(results, function(total, layer) {
 		if (layer.hasOwnProperty('features')) {
 			return total = total + layer.features.length;
@@ -1784,6 +1734,73 @@ var combineFeatures = function(results) {
 	}, []);
 };
 
+var splitResults = function(results, invalidFeatureLocations) {
+	var filterResults = function (results, invalidFeatureLocations, f) {
+		return _.map(results, function(result) {
+			var clone = _.clone(result);
+			clone.features = _.filter(result.features, function (feature) {
+				return f(_.some(invalidFeatureLocations, function(location) {
+					return Math.abs(location.lng - feature.geometry.x) + Math.abs(location.lat - feature.geometry.y) < location.difference;
+				}));
+			});
+			return clone;
+		});
+	};
+	return {validResults: filterResults(results, invalidFeatureLocations, function(input) {return !input;}),
+			invalidResults: filterResults(results, invalidFeatureLocations, function(input) {return input;})};
+};
+
+var deciToDegree = function (degree, language){
+	if(Math.abs(degree) <= 0.1){
+		return "N/A";
+	}
+	var sym = "N";
+	if(degree<0){
+		degree = -degree;
+		if(language === "EN") {
+			sym = "W";
+		} else {
+			sym = "O";
+		}
+	}
+	var deg = Math.floor(degree);
+	var temp = (degree - deg)*60;
+	var minute = Math.floor(temp);
+	var second = Math.floor((temp- minute)*60);
+	var res = "";
+	var degreeSymbolLang = "&deg;";
+	if(second<1){
+		res ="" + deg + degreeSymbolLang + minute + "'";
+	}else if(second>58){
+		res ="" + deg + degreeSymbolLang + (minute+1) + "'";
+	}else{
+		res ="" + deg + degreeSymbolLang + minute + "'" + second + "\"";
+	}
+	return res + sym;
+};
+
+var addBRtoLongText = function (text) {
+	var lineCount = 0;
+	var readyForBreak = false;
+	if (text.length <= 40) {
+		return text;
+	}
+	var textArray = text.split('');
+	var result = "";	
+	for (var i = 0; i < textArray.length; i++) {
+		if (lineCount > 40) {
+			readyForBreak = true;
+		}
+		result = result + textArray[i];
+		if ((readyForBreak) && (textArray[i] === " ")) {
+			lineCount = 0;
+			result = result + "<br>";
+			readyForBreak = false;
+		}
+		lineCount = lineCount + 1;
+	}
+	return result;
+};
 
 var api = {
 	computeCircle: computeCircle,
@@ -1794,8 +1811,11 @@ var api = {
 	convertLatLngtoUTM: convertLatLngtoUTM,
 	replaceChar: replaceChar,
 	wordCapitalize: wordCapitalize,
-	computerFeaturesNumber: computerFeaturesNumber,
-	combineFeatures: combineFeatures
+	computeFeaturesNumber: computeFeaturesNumber,
+	combineFeatures: combineFeatures,
+	splitResults: splitResults,
+	deciToDegree: deciToDegree,
+	addBRtoLongText: addBRtoLongText
 };
 
 module.exports = api;

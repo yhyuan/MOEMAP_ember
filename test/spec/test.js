@@ -196,27 +196,11 @@ module.exports = api;
 
 'use strict';
 var ArcGISServerAdapter = require('./ArcGISServerAdapter');
+var Util = require('./Util');
+var replaceChar = Util.replaceChar;
 
 var regIsFloat = /^(-?\d+)(\.\d+)?$/,
-/**
- * Replace the char A with char B in a String. 
- *
- * @param {str} The string to be processed.
- * @param {charA} the char to be replaced.
- * @param {charB} the char to replace.
- * @return {String} An ojbect sendt to Geocoder.
- **/
-	replaceChar = function (str, charA, charB) {
-		var temp = [];
-		temp = str.split(charA);
-		var result = temp[0];
-		if (temp.length >= 2) {
-			for (var i = 1; i < temp.length; i++) {
-				result = result + charB + temp[i];
-			}
-		}
-		return result;
-	},
+
 /**
  * Validate whether a latlng is inside a polygon or not. 
  * The algorithm is from http://appdelegateinc.com/blog/2010/05/16/point-in-polygon-checking/.
@@ -821,11 +805,92 @@ var api = {
 };
 
 module.exports = api;
-},{"./ArcGISServerAdapter":1}],3:[function(require,module,exports){
+},{"./ArcGISServerAdapter":1,"./Util":4}],3:[function(require,module,exports){
 /* global _, $, google */
 'use strict';
 var Geocoder = require('./Geocoder');
 var Util = require('./Util');
+var ArcGISServerAdapter = require('./ArcGISServerAdapter');
+
+
+/* this class is based on sample code USGSOverlay */
+/** @constructor */
+function ImageOverlay(bounds, image, map) {
+	// Initialize all properties.
+	this.bounds_ = bounds;
+	this.image_ = image;
+	this.map_ = map;
+
+	// Define a property to hold the image's div. We'll
+	// actually create this div upon receipt of the onAdd()
+	// method so we'll leave it null for now.
+	this.div_ = null;
+
+	// Explicitly call setMap on this overlay.
+	this.setMap(map);
+}
+ImageOverlay.prototype = new google.maps.OverlayView();
+/**
+ * onAdd is called when the map's panes are ready and the overlay has been
+ * added to the map.
+ */
+ImageOverlay.prototype.onAdd = function() {
+
+	var div = document.createElement('div');
+	div.style.borderStyle = 'none';
+	div.style.borderWidth = '0px';
+	div.style.position = 'absolute';
+
+	// Create the img element and attach it to the div.
+	var img = document.createElement('img');
+	img.src = this.image_;
+	img.style.width = '100%';
+	img.style.height = '100%';
+	img.style.position = 'absolute';
+	div.appendChild(img);
+
+	this.div_ = div;
+
+	// Add the element to the "overlayLayer" pane.
+	var panes = this.getPanes();
+	panes.overlayLayer.appendChild(div);
+};
+
+ImageOverlay.prototype.draw = function() {
+
+	// We use the south-west and north-east
+	// coordinates of the overlay to peg it to the correct position and size.
+	// To do this, we need to retrieve the projection from the overlay.
+	var overlayProjection = this.getProjection();
+
+	// Retrieve the south-west and north-east coordinates of this overlay
+	// in LatLngs and convert them to pixel coordinates.
+	// We'll use these coordinates to resize the div.
+	var sw = overlayProjection.fromLatLngToDivPixel(this.bounds_.getSouthWest());
+	var ne = overlayProjection.fromLatLngToDivPixel(this.bounds_.getNorthEast());
+
+	// Resize the image's div to fit the indicated dimensions.
+	var div = this.div_;
+	div.style.left = sw.x + 'px';
+	div.style.top = ne.y + 'px';
+	div.style.width = (ne.x - sw.x) + 'px';
+	div.style.height = (sw.y - ne.y) + 'px';
+};
+
+// The onRemove() method will be called automatically from the API if
+// we ever set the overlay's map property to 'null'.
+ImageOverlay.prototype.onRemove = function() {
+	this.div_.parentNode.removeChild(this.div_);
+	this.div_ = null;
+};
+
+var map;
+var overlays = [];
+var globalConfigure;
+var arcGISMapServices = [];
+var previousBounds;
+var infoWindow;
+
 var init = function(initParams) {
 	var defaultParams = {
 		searchControlDivId: 'searchControl',
@@ -835,32 +900,273 @@ var init = function(initParams) {
 		defaultMapTypeId: google.maps.MapTypeId.ROADMAP,
 		mapCanvasDivId: 'map_canvas',
 		isCoordinatesVisible: true,
-		coordinatesDivId: 'coordinates'
+		coordinatesDivId: 'coordinates',
+		minMapScale: 5,
+		maxMapScale: 21,
+		disallowMouseClick: false,
+		searchInputBoxDivId: "map_query",
+		maxQueryZoomLevel: 17,
+		invalidFeatureLocations: [{
+			lat: 0,
+			lng: 0,
+			difference: 0.0001
+		}],
+		tableID: "myTable",
+		tableWidth: 650, //The total width of the table below the map
+		tableClassName: "tablesorter"
+
 	};
 	var params = _.defaults(initParams, defaultParams);
+	globalConfigure = params;
+	//search = params.search;
 	$("#" + params.searchControlDivId).html(params.searchControlHTML);
+	var center = new google.maps.LatLng(params.orgLatitude, params.orgLongitude);
 	var mapOptions = {
 		zoom: params.orgzoomLevel,
-		center: new google.maps.LatLng(params.orgLatitude, params.orgLongitude),
+		center: center,
 		scaleControl: true,
 		streetViewControl: true,
 		mapTypeId: params.defaultMapTypeId
 	};
-	var map = new google.maps.Map($('#' + params.mapCanvasDivId)[0], mapOptions);
-	var updateCoordinates = function(lat, lng){
-		var utm = Util.convertLatLngtoUTM(lat, lng);
-		console.log(utm);
-		//$("#" + params.coordinatesDivId).html("Latitude:" + lat.toFixed(5) + ", Longitude:" + lng.toFixed(5) + " (" + globalConfig.UTM_ZoneLang + ":" + utm.Zone + ", " + globalConfig.EastingLang + ":" + utm.Easting + ", " + globalConfig.NorthingLang +":" + utm.Northing + ")<br>");
-	};
-	updateCoordinates(params.orgLatitude, params.orgLongitude);
-	var	mouseMoveHandler = function(event) {
-		/*Update the Coordinates*/
-		if(params.isCoordinatesVisible){
-			updateCoordinates(event.latLng.lat(), event.latLng.lng());
+	map = new google.maps.Map($('#' + params.mapCanvasDivId)[0], mapOptions);
+
+	/*bounds changed*/	
+	var boundsChangedHandler = function() {
+		if(previousBounds) {
+			var computeBoundsDifference = function(b1, b2) {
+				return Math.abs(b1.getNorthEast().lat() - b2.getNorthEast().lat()) + Math.abs(b1.getNorthEast().lng() - b2.getNorthEast().lng()) + Math.abs(b1.getSouthWest().lat() - b2.getSouthWest().lat()) + Math.abs(b1.getSouthWest().lng() - b2.getSouthWest().lng());
+			};
+			if (computeBoundsDifference(map.getBounds(), previousBounds) < 0.000000001) {
+				return;
+			}
 		}
-	};	
+
+		_.each(arcGISMapServices, function(arcGISMapService) {
+			arcGISMapService.setMap(null);
+		});
+		var convertBounds = function(latLngBounds) {
+			var latLngNE = latLngBounds.getNorthEast();
+			var latLngSW = latLngBounds.getSouthWest();
+			return {
+				southWest: {lat: latLngSW.lat(), lng: latLngSW.lng()},
+				northEast: {lat: latLngNE.lat(), lng: latLngNE.lng()}
+			};
+		};
+		var googleBounds = map.getBounds();
+		var bounds = convertBounds(googleBounds);
+		var div = map.getDiv();
+		var width = div.offsetWidth;
+		var height = div.offsetHeight;
+		var promises = _.map(params.mapServices, function(mapService) {
+			var exportParams =  {
+				bounds: bounds,
+				width: width,
+				height: height,
+				mapService: mapService.url,
+				visibleLayers: mapService.visibleLayers
+			};
+			return ArcGISServerAdapter.exportMap(exportParams);
+		});
+		$.when.apply($, promises).done(function() {
+			arcGISMapServices = _.map(arguments, function(argument) {
+				return new ImageOverlay(googleBounds, argument.href, map);
+			});
+		});
+		previousBounds = googleBounds;
+	};
+	/*Check bounds change every second.*/
+	setInterval(boundsChangedHandler,1000);
+	/*bounds changed*/
+	/*mouse move*/
+	var	mouseMoveHandler = function(event) {
+		if(params.isCoordinatesVisible){
+			var lat = event.latLng.lat();
+			var lng = event.latLng.lng();
+			var utm = Util.convertLatLngtoUTM(lat, lng);
+			var utmLang =  (params.language === "EN") ? {
+				UTM_ZoneLang: "UTM Zone",
+				EastingLang: "Easting",
+				NorthingLang: "Northing"
+			} : {
+				UTM_ZoneLang: "Zone UTM",
+				EastingLang: "abscisse",
+				NorthingLang: "ordonn\u00e9e"
+			};
+			$("#" + params.coordinatesDivId).html("Latitude:" + lat.toFixed(5) + ", Longitude:" + lng.toFixed(5) + " (" + utmLang.UTM_ZoneLang + ":" + utm.Zone + ", " + utmLang.EastingLang + ":" + utm.Easting + ", " + utmLang.NorthingLang +":" + utm.Northing + ")<br>");
+		}
+	};
 	google.maps.event.addListener(map, 'mousemove', mouseMoveHandler);
+	google.maps.event.trigger(map, 'mousemove', {latLng: center});
+	/*mouse move*/
+	/*zoom changed*/
+	var zoom_changedHandler = function () {
+		if (map.getZoom() > params.maxMapScale) {
+			map.setZoom(params.maxMapScale);
+		}
+		if (map.getZoom() < params.minMapScale) {
+			map.setZoom(params.minMapScale);
+		}
+	}	
+	google.maps.event.addListener(map, 'zoom_changed', zoom_changedHandler);
+	/*zoom changed*/
+	/*mouse click*/
+	var mouseClickHandler = function(event) {
+		if (infoWindow) {
+			infoWindow.setMap(null);
+		}
+		var gLatLng = event.latLng;
+		var latlng = {lat: gLatLng.lat(), lng: gLatLng.lng()};
+		var identifyRadiusZoomLevels = [-1, 320000, 160000, 80000, 40000, 20000, 9600, 4800, 2400, 1200, 600, 300, 160, 80, 50, 20, 10, 5, 3, 2, 1, 1];
+		var radius = identifyRadiusZoomLevels[map.getZoom()];
+		var circle = Util.computeCircle(latlng, radius);
+		var queryParamsList = _.map(params.identifyLayersList, function(layer) {
+			return {
+				mapService: layer.mapService,
+				layerID: layer.layerID,
+				returnGeometry: false,
+				outFields: layer.outFields,
+				geometry: circle
+			};
+		});
+		var promise = queryLayers({queryParamsList: queryParamsList});  // without options
+		promise.done(function() {
+			var featuresLength = Util.computeFeaturesNumber (arguments);
+			if (featuresLength === 0) {
+				infoWindow.setMap(null);
+				return;
+			}
+			var info = params.computeIdentifyInfoWindows(arguments, globalConfigure);
+			openInfoWindow(gLatLng, info);
+		});
+	};	
+	if (!params.disallowMouseClick) {
+		google.maps.event.addListener(map, 'click', mouseClickHandler);
+	}
+	/*mouse click*/
 };
+
+var openInfoWindow = function (latlng, container){
+	if (!infoWindow) {
+		infoWindow = new google.maps.InfoWindow({
+			content: container,
+			position: latlng
+		});
+	} else {
+		infoWindow.setContent(container);
+		infoWindow.setPosition(latlng);
+	}
+	infoWindow.open(map);
+};
+
+var queryLayers = function (searchParams) {
+	var queryParamsList = searchParams.queryParamsList;
+	var options = searchParams.options;
+	var promises = _.map(queryParamsList, function(queryParams) {
+		var result = {
+			mapService: queryParams.mapService,
+			layerID: queryParams.layerID,
+			returnGeometry: queryParams.returnGeometry,
+			where: queryParams.where,
+			outFields: queryParams.outFields		
+		};
+		if (queryParams.hasOwnProperty('geometry')) {
+			result.geometry = queryParams.geometry;
+		} else if(!!options && options.withinExtent) {
+			var getCurrentMapExtent = function () {
+				var b = map.getBounds();
+				var ne = b.getNorthEast();
+				var sw = b.getSouthWest();
+				var nLat = ne.lat();
+				var eLng = ne.lng();
+				var sLat = sw.lat();
+				var wLng = sw.lng();
+				var swLatLng = {lat: sLat, lng: wLng};
+				var seLatLng = {lat: sLat, lng: eLng};
+				var neLatLng = {lat: nLat, lng: eLng};
+				var nwLatLng = {lat: nLat, lng: wLng};
+				return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
+			};
+			result.geometry = getCurrentMapExtent();
+		}
+		return ArcGISServerAdapter.query(result);
+	});
+	return $.when.apply($, promises);
+};
+
+var search = function() {
+	var searchString = $('#' + globalConfigure.searchInputBoxDivId).val().trim();
+	if(searchString.length === 0){
+		return;
+	}
+	_.each(overlays, function(overlay){
+		overlay.setMap(null);
+	});
+	overlays = [];
+
+	var searchParams = globalConfigure.getSearchParams(searchString, globalConfigure);	
+	var promise = queryLayers(searchParams);
+
+	promise.done(function() {
+		var featuresLength = Util.computeFeaturesNumber (arguments);
+		var options = searchParams.options;
+		if ((featuresLength === 0) && options.hasOwnProperty('geocodeWhenQueryFail') && options.geocodeWhenQueryFail && options.hasOwnProperty('searchString')) {
+			var geocodingParams = options.searchString;
+			if (options.hasOwnProperty('GeocoderList')) {
+				geocodingParams = {
+					GeocoderList: options.GeocoderList,
+					address: options.searchString
+				};
+			}
+			var geocodePromise = geocode(geocodingParams);
+			geocodePromise.done(function(result){
+				if (result.status === "OK") {
+					//result.latlng result.geocodedAddress, map zoom to specific area, add a location pin to the location, update search message.
+				} else {
+					//update search meesage
+				}
+			});
+			return;
+		}
+
+		var splittedResults = Util.splitResults(arguments, globalConfigure.invalidFeatureLocations);
+		var validResults = splittedResults.validResults;
+		var invalidResults = splittedResults.invalidResults;
+		var validFeaturesLength = Util.computeFeaturesNumber(validResults);
+		var invalidFeaturesLength = Util.computeFeaturesNumber(invalidResults);
+		var validTable = globalConfigure.computeValidResultsTable(validResults, globalConfigure);
+		var invalidTable = globalConfigure.computeInvalidResultsTable(invalidResults, globalConfigure);
+		console.log(validTable);
+
+		var markers = globalConfigure.generateSearchResultsMarkers(validResults, globalConfigure);
+		_.each(markers, function(marker){
+			marker.setMap(map);
+			overlays.push(marker);
+		});
+
+		if(!options.withinExtent) {
+			var convertToGBounds = function(b) {
+				var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
+				var ne = new google.maps.LatLng(b.northEast.lat, b.northEast.lng);			 
+				var bounds = new google.maps.LatLngBounds(sw, ne);
+				return bounds;
+			};
+			var bounds = convertToGBounds(Util.computePointsBounds(_.map(Util.combineFeatures(validResults), function(feature) {
+				return {lng: feature.geometry.x, lat: feature.geometry.y};
+			})));
+			_.each(arcGISMapServices, function(arcGISMapService) {
+				arcGISMapService.setMap(null);
+			});
+			map.fitBounds(bounds);
+			var maxQueryZoomLevel = globalConfigure.maxQueryZoomLevel;
+			if (map.getZoom() > maxQueryZoomLevel) {
+				map.setZoom(maxQueryZoomLevel);
+			}
+		}
+	});
+};
+
+
+
 var geocode = function(input) {
 	var geocodeParams = {};
 	if (input.hasOwnProperty('lat') && input.hasOwnProperty('lng')) {
@@ -890,7 +1196,7 @@ var geocode = function(input) {
 			latlng: input,
 			reverseGeocoder: reverseGeocoder
 		};
-	} else {
+	} else if (typeof input === 'string') {
 		var defaultGeocoder = function(params) {
 			var dfd = new $.Deferred();			
 			if (params.address.toUpperCase() === "ONTARIO") {
@@ -963,6 +1269,11 @@ var geocode = function(input) {
 			},
 			defaultGeocoder: defaultGeocoder
 		};
+	} else if (input.hasOwnProperty('GeocoderList') && input.hasOwnProperty('address')) {
+		geocodeParams = {
+			address: input.address,
+			GeocoderList: input.GeocoderList
+		};
 	}
 	return Geocoder.geocode(geocodeParams);
 };
@@ -1005,41 +1316,30 @@ var createPolylines = function (rings, strokeOptions){
 	return marker;
 };*/
 
-var getIdentifyRadius = function(zoomLevel) {
-	var identifyRadiusZoomLevelList = {
-		21 : 0.001,
-		20 : 0.001,
-		19 : 0.002,
-		18 : 0.003,
-		17 : 0.005,
-		16 : 0.01,
-		15 : 0.02,
-		14 : 0.05,
-		13 : 0.08,
-		12 : 0.16,
-		11 : 0.3,
-		10 : 0.6,
-		9  : 1.2,
-		8  : 2.4,
-		7  : 4.8,
-		6  : 9.6,
-		5  : 20,
-		4  : 40,
-		3  : 80,
-		2  : 160,
-		1  : 320
-	};
-	return identifyRadiusZoomLevelList[zoomLevel] * 1000; // in meters
+
+
+var entsub = function(event){
+	if (event && event.which === 13){
+		search();
+	}else{
+		return true;
+	}
 };
+
+var searchChange = function () {};
 var api = {
 	init: init,
     geocode: geocode,
-    getIdentifyRadius: getIdentifyRadius, 
-    createPolylines: createPolylines
+    createPolylines: createPolylines,
+	search: search,
+	entsub: entsub,
+	searchChange: searchChange,
+	openInfoWindow: openInfoWindow,
+	queryLayers: queryLayers
 };
 
 module.exports = api;
-},{"./Geocoder":2,"./Util":4}],4:[function(require,module,exports){
+},{"./ArcGISServerAdapter":1,"./Geocoder":2,"./Util":4}],4:[function(require,module,exports){
 /* global _ */
 'use strict';
 
@@ -1152,13 +1452,136 @@ var convertLatLngtoUTM = function(lat, lng) {
 	};
 	return res;
 };
+/**
+ * Replace the char A with char B in a String. 
+ *
+ * @param {str} The string to be processed.
+ * @param {charA} the char to be replaced.
+ * @param {charB} the char to replace.
+ * @return {String} An ojbect sendt to Geocoder.
+ **/
+var replaceChar = function (str, charA, charB) {
+	var temp = [];
+	temp = str.split(charA);
+	var result = temp[0];
+	if (temp.length >= 2) {
+		for (var i = 1; i < temp.length; i++) {
+			result = result + charB + temp[i];
+		}
+	}
+	return result;
+};
+
+var wordCapitalize = function (str){
+	var strArray = str.trim().split(' ');
+	for(var i=0; i < strArray.length; i++) {
+		strArray[i] = strArray[i].substring(0,1).toUpperCase() + strArray[i].substring(1,strArray[i].length).toLowerCase();
+	}
+	return strArray.join(' ');
+};
+
+var computeFeaturesNumber = function(results) {
+	return _.reduce(results, function(total, layer) {
+		if (layer.hasOwnProperty('features')) {
+			return total = total + layer.features.length;
+		} else {
+			return total;
+		}
+	}, 0);
+};
+
+var combineFeatures = function(results) {
+	return _.reduce(results, function(total, layer) {
+		if (layer.hasOwnProperty('features')) {
+			return total = total.concat (layer.features);
+		} else {
+			return total;
+		}
+	}, []);
+};
+
+var splitResults = function(results, invalidFeatureLocations) {
+	var filterResults = function (results, invalidFeatureLocations, f) {
+		return _.map(results, function(result) {
+			var clone = _.clone(result);
+			clone.features = _.filter(result.features, function (feature) {
+				return f(_.some(invalidFeatureLocations, function(location) {
+					return Math.abs(location.lng - feature.geometry.x) + Math.abs(location.lat - feature.geometry.y) < location.difference;
+				}));
+			});
+			return clone;
+		});
+	};
+	return {validResults: filterResults(results, invalidFeatureLocations, function(input) {return !input;}),
+			invalidResults: filterResults(results, invalidFeatureLocations, function(input) {return input;})};
+};
+
+var deciToDegree = function (degree, language){
+	if(Math.abs(degree) <= 0.1){
+		return "N/A";
+	}
+	var sym = "N";
+	if(degree<0){
+		degree = -degree;
+		if(language === "EN") {
+			sym = "W";
+		} else {
+			sym = "O";
+		}
+	}
+	var deg = Math.floor(degree);
+	var temp = (degree - deg)*60;
+	var minute = Math.floor(temp);
+	var second = Math.floor((temp- minute)*60);
+	var res = "";
+	var degreeSymbolLang = "&deg;";
+	if(second<1){
+		res ="" + deg + degreeSymbolLang + minute + "'";
+	}else if(second>58){
+		res ="" + deg + degreeSymbolLang + (minute+1) + "'";
+	}else{
+		res ="" + deg + degreeSymbolLang + minute + "'" + second + "\"";
+	}
+	return res + sym;
+};
+
+var addBRtoLongText = function (text) {
+	var lineCount = 0;
+	var readyForBreak = false;
+	if (text.length <= 40) {
+		return text;
+	}
+	var textArray = text.split('');
+	var result = "";	
+	for (var i = 0; i < textArray.length; i++) {
+		if (lineCount > 40) {
+			readyForBreak = true;
+		}
+		result = result + textArray[i];
+		if ((readyForBreak) && (textArray[i] === " ")) {
+			lineCount = 0;
+			result = result + "<br>";
+			readyForBreak = false;
+		}
+		lineCount = lineCount + 1;
+	}
+	return result;
+};
+
 var api = {
 	computeCircle: computeCircle,
 	computeOffset: computeOffset,
 	computeDistance: computeDistance,
 	computePointsBounds: computePointsBounds,
 	computeClusters: computeClusters,
-	convertLatLngtoUTM: convertLatLngtoUTM
+	convertLatLngtoUTM: convertLatLngtoUTM,
+	replaceChar: replaceChar,
+	wordCapitalize: wordCapitalize,
+	computeFeaturesNumber: computeFeaturesNumber,
+	combineFeatures: combineFeatures,
+	splitResults: splitResults,
+	deciToDegree: deciToDegree,
+	addBRtoLongText: addBRtoLongText
 };
 
 module.exports = api;
@@ -1710,6 +2133,7 @@ var Geocoder = require('../../app/scripts/Geocoder');
 /* global describe, it, expect */
 var googleMapsAdapter = require('../../app/scripts/GoogleMapsAdapter');
 var Geocoder = require('../../app/scripts/Geocoder');
+var Util = require('../../app/scripts/Util');
 
 (function () {
     'use strict';
@@ -1756,7 +2180,7 @@ var Geocoder = require('../../app/scripts/Geocoder');
 			});
 		});
 
-	    describe('Google Maps Adapter can create an array of Google Maps polylines with rings from ArcGIS server ', function () {
+	    describe('Google Maps Adapter can create an array of Google Maps polylines with rings from ArcGIS server', function () {
 	        this.timeout(150000);
 	        it('should create polylines', function (done) {
 				var geocodeParams = {address: 'Abinger TWP'};
@@ -1774,10 +2198,54 @@ var Geocoder = require('../../app/scripts/Geocoder');
 				});
 	        });
 	    });
+
+	    describe('Google Maps Adapter can query a list of layers with different parameters', function () {
+	        this.timeout(150000);
+	        it('should emulate the identify function by querying a list of layers', function (done) {
+				var latlng = {lat: 44.53967, lng: -81.81531};
+				var identifyRadiusZoomLevels = [-1, 320000, 160000, 80000, 40000, 20000, 9600, 4800, 2400, 1200, 600, 300, 160, 80, 50, 20, 10, 5, 3, 2, 1, 1];
+				var radius = identifyRadiusZoomLevels[10];
+				var circle = Util.computeCircle(latlng, radius);
+				var queryParamsList = [{
+					mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
+					layerID: 0,
+					outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE'],
+					returnGeometry: false,
+					geometry: circle
+				}];
+				var promise = googleMapsAdapter.queryLayers({queryParamsList: queryParamsList});  // without options
+				promise.done(function() {					
+					expect(arguments).to.have.length(1);
+					expect(arguments[0].features).to.have.length(1);
+					expect(arguments[0].features[0].attributes.WATERBODYC).to.equal(44348119);
+					done();
+				});
+	        });
+	        it('should geocode the address when a search return no result', function (done) {
+				var options = {
+					searchString: '125 Resources Rd, toronto',
+					geocodeWhenQueryFail: true
+				};
+				var queryParamsList = [{
+					mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
+					layerID: 0,
+					outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE'],
+					returnGeometry: true,
+					where: "UPPER(LOCNAME_EN) LIKE '%" + options.searchString + "%'"
+				}];
+				var promise = googleMapsAdapter.queryLayers({queryParamsList: queryParamsList, options: options}); 
+				promise.done(function() {
+					var featuresLength = Util.computeFeaturesNumber (arguments);
+					console.log(featuresLength);
+					expect(featuresLength).to.equal(0);
+					done();
+				});
+	        });
+	    });
 	});
 })();
 
-},{"../../app/scripts/Geocoder":2,"../../app/scripts/GoogleMapsAdapter":3}],8:[function(require,module,exports){
+},{"../../app/scripts/Geocoder":2,"../../app/scripts/GoogleMapsAdapter":3,"../../app/scripts/Util":4}],8:[function(require,module,exports){
 /* global describe, it, expect */
 var Util = require('../../app/scripts/Util');
 
@@ -1857,14 +2325,118 @@ var Util = require('../../app/scripts/Util');
 				expect(Math.abs(bounds.northEast.lng - (-73.184177))).to.be.below(0.0001);
 	        });
 	    });
-	    describe('Util compute the clusters for an array of features', function () {
-	        it('should compute the clusters', function () {
+		describe('Util compute the clusters for an array of features', function () {
+			it('should compute the clusters', function () {
 				var features = [{latlng: {lat: 45, lng: -77}, attributes: {attr: "test"}}, {latlng: {lat: 45, lng: -77}, attributes: {attr: "test"}}, {latlng: {lat: 45.008284, lng: -77.184177}, attributes: {attr: "test"}}, {latlng: {lat: 44.008284, lng: -79.184177}, attributes: {attr: "test"}}];
-	            var clusters = Util.computeClusters(features);
+				var clusters = Util.computeClusters(features);
 				expect(clusters).to.have.length(3);
-	        });
-	    });
-    });
+			});
+		});
+		describe('Util convert a latitude & longitude to a UTM coordinate', function () {
+			it('should convert a latitude & longitude to a UTM coordinate', function () {
+				var UTM = Util.convertLatLngtoUTM(44.51848, -81.11352);
+				expect(Math.abs(UTM.Zone - 17)).to.be.below(0.0001);
+				expect(Math.abs(UTM.Easting - 490978)).to.be.below(0.0001);
+				expect(Math.abs(UTM.Northing - 4929468)).to.be.below(0.0001);
+			});
+		});
+		describe('Util replace a char in a string with another char', function () {
+			it('should replace a char in a string with another char', function () {
+				var str = Util.replaceChar('Apple', 'p', 'b');
+				expect(str).to.equal('Abble');
+			});
+		});
+		describe('Util word capitalize a string', function () {
+			it('should word capitalize a string with all letters in upper case', function () {
+				var str = Util.wordCapitalize('APPLE JUICE');
+				expect(str).to.equal('Apple Juice');
+			});
+			it('should word capitalize a string with all letters in lower case', function () {
+				var str = Util.wordCapitalize('apple juice');
+				expect(str).to.equal('Apple Juice');
+			});
+			it('should word capitalize a string with some letters in lower case and some letters in upper case', function () {
+				var str = Util.wordCapitalize('aPPle juIce');
+				expect(str).to.equal('Apple Juice');
+			});
+		});
+		describe('Util compute the number of features in different layers in the query result from ArcGIS Server', function () {
+			it('should compute the number of features in different layers in the query result from ArcGIS Server', function () {
+				var results = [
+					{
+						features: [{
+							geometry: {x: 0, y: 0}
+						}, {
+							geometry: {x: -81.11352, y: 44.008284}
+						}]
+					},
+					{
+						features: [{
+							geometry: {x: 0, y: 0}
+						}, {
+							geometry: {x: -82.11352, y: 45.008284}
+						}]
+					},
+				];
+				var total = Util.computeFeaturesNumber(results);
+				expect(total).to.equal(4);
+			});
+		});
+		describe('Util combine the features in different layers in the query result from ArcGIS Server', function () {
+			it('should combine the features in different layers in the query result from ArcGIS Server', function () {
+				var results = [
+					{
+						features: [{
+							geometry: {x: 0, y: 0}
+						}, {
+							geometry: {x: -81.11352, y: 44.008284}
+						}]
+					},
+					{
+						features: [{
+							geometry: {x: 0, y: 0}
+						}, {
+							geometry: {x: -82.11352, y: 45.008284}
+						}]
+					},
+				];
+				var totalFeatures = Util.combineFeatures(results);
+				expect(totalFeatures).to.have.length(4);
+			});
+		});
+		describe('Util split the query results from different layers from ArcGIS Server into valid features and invalid features with the provided invalid locations', function () {
+			it('should split the query results into valid features and invalid features with the provided invalid locations', function () {
+				var invalidFeatureLocations = [{
+					lat: 0,
+					lng: 0,
+					difference: 0.0001
+				}];
+				var results = [
+					{
+						features: [{
+							geometry: {x: 0, y: 0}
+						}, {
+							geometry: {x: -81.11352, y: 44.008284}
+						}]
+					},
+					{
+						features: [{
+							geometry: {x: 0, y: 0}
+						}, {
+							geometry: {x: -82.11352, y: 45.008284}
+						}]
+					},
+				];
+				var splittedResults = Util.splitResults(results, invalidFeatureLocations);
+				expect(splittedResults.validResults).to.have.length(2);
+				expect(splittedResults.validResults[0].features).to.have.length(1);
+				expect(splittedResults.validResults[1].features).to.have.length(1);
+				expect(splittedResults.invalidResults).to.have.length(2);
+				expect(splittedResults.invalidResults[0].features).to.have.length(1);
+				expect(splittedResults.invalidResults[1].features).to.have.length(1);				
+			});
+		});
+	});
 })();
 
 },{"../../app/scripts/Util":4}]},{},[5,6,7,8]);
