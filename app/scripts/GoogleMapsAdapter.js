@@ -500,7 +500,7 @@ var init = function(initParams) {
 
 	var url = 'http://files.ontariogovernment.ca/moe_mapping/mapping/js/MOEMap/';
 	var urls = [url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js'];
-	if(globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTab') {
+	if(globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTab' && globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTabPolygon') {
 		urls = urls.concat([url + 'css/multipletabs.css', url + 'js/closure-library-multipletabs-min.js']);
 	}
 	_.each(urls, function(url) {yepnope({load: url,callback: function(){}});});

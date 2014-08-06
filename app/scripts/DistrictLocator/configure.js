@@ -3,6 +3,9 @@
 var GoogleMapsAdapter = require('../scripts/GoogleMapsAdapter');
 var Util = require('../scripts/Util');
 window.GoogleMapsAdapter = GoogleMapsAdapter;
+var configure = {
+	webService: 
+};
 GoogleMapsAdapter.init({
 	/*English Begins*/
 	language: "EN",
@@ -34,6 +37,49 @@ GoogleMapsAdapter.init({
 		<input type="submit" value="&nbsp;Effacer&nbsp;" id="search_clear" title="Effacer" onclick="GoogleMapsAdapter.clear()" />\
 		<div id="information"></div>';
 	/*French Ends*/
+	postIdentifyCallbackName: 'ManyFeaturesOneTab',
+
+	identifySettings: {
+		radius: 1, /* 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
+		requireReverseGeocoding: true,
+		identifyLayersList: [{
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/MOE_Districts_Full_Bnd/MapServer',
+			layerID: 0,
+			outFields: ["OBJECTID","MOE_DISTRICT","STREET_NAME","CITY","POSTALCODE","PHONENUMBER","TOLLFREENUMBER","FAXNUMBER","MOE_DISTRICT_NAME"]
+		}],
+		/*English Begins*/		
+		identifyTemplate: {
+			infoWindow: '<% var featuresLength = Util.computeFeaturesNumber (results);\
+				if (featuresLength === 0) {%>\
+					<i> <%= geocodingResult.address %>.</i><br><br><strong>Result located within</strong><br><h3> No MOE District found</h3>\
+				<%} else { var attrs = results[0].features[0].attributes;%>\
+					<i><%= geocodingResult.address %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOE District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br><%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Toll Free: <%= attrs.TOLLFREENUMBER %><br>Tel: <%= attrs.PHONENUMBER %> Fax: <%= attrs.FAXNUMBER %>\
+				<% } %>',
+			table: '<% var featuresLength = Util.computeFeaturesNumber (results);\
+				if (featuresLength === 0) {%>\
+					<i> <%= geocodingResult.address %>.</i><br><br><strong>Result located within</strong><br><h3> No MOE District found</h3>\
+				<%} else { var attrs = results[0].features[0].attributes;%>\
+					<i><%= geocodingResult.address %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOE District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br><%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Toll Free: <%= attrs.TOLLFREENUMBER %><br>Tel: <%= attrs.PHONENUMBER %> Fax: <%= attrs.FAXNUMBER %>\
+				<% } %>'
+		}
+		/*English Ends*/
+		/*French Begins*/
+		identifyTemplate: {
+			infoWindow: '<% var featuresLength = Util.computeFeaturesNumber (results);\
+				if (featuresLength === 0) {%>\
+					<i> <%= geocodingResult.address %>.</i><br><br><strong>Result located within</strong><br><h3> No MOE District found</h3>\
+				<%} else { var attrs = results[0].features[0].attributes;%>\
+					<i><%= geocodingResult.address %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOE District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br><%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Toll Free: <%= attrs.TOLLFREENUMBER %><br>Tel: <%= attrs.PHONENUMBER %> Fax: <%= attrs.FAXNUMBER %>\
+				<% } %>',
+			table: '<% var featuresLength = Util.computeFeaturesNumber (results);\
+				if (featuresLength === 0) {%>\
+					<i> <%= geocodingResult.address %>.</i><br><br><strong>Result located within</strong><br><h3> No MOE District found</h3>\
+				<%} else { var attrs = results[0].features[0].attributes;%>\
+					<i><%= geocodingResult.address %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOE District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br><%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Toll Free: <%= attrs.TOLLFREENUMBER %><br>Tel: <%= attrs.PHONENUMBER %> Fax: <%= attrs.FAXNUMBER %>\
+				<% } %>'
+		}
+		/*French Ends*/			
+	},	
 	pointBufferTool: {available: false},
 	extraImageService: {visible: false},
 	usejQueryUITable: true,  //Avoid loading extra javascript files
@@ -65,41 +111,8 @@ GoogleMapsAdapter.init({
 		{name: "Tableau des mises en garde en mati\u00e8re de consommation", value: "<a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a>"}
 	],
 	/*French Ends*/
-	postIdentifyCallbackName: 'ManyFeaturesOneTab',
-	/*English Begins*/
-	identifySettings: {
-		/* radius: 1, // 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
-		identifyLayersList: [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/wells/MapServer',
-			layerID: 0,
-			outFields: ['BORE_HOLE_ID', 'WELL_ID', 'DEPTH_M', 'YEAR_COMPLETED', 'WELL_COMPLETED_DATE', 'AUDIT_NO', 'TAG_NO', 'CONTRACTOR', 'PATH']
-		}],
-		identifyTemplate: 'Total features returned: <strong><%= features.length %><strong><br>\
-			<table class=\'tabtable\'><tr><th>Well ID</th><th>Well Tag # (since 2003)</th><th>Audit # (since 1986)</th><th>Contractor Lic#</th><th>Well Depth (m)</th><th>Date of Completion (MM/DD/YYYY)</th><th>Well Record Information</th></tr>\
-			<%  var convertDepthFormat = function (val){if (val === "N/A") {	return "N/A";}	var res = parseFloat(val);	return res.toFixed(1);};\
-				var convertDateFormat = function (str){	if (str === "N/A") {		return "N/A";	}	var strArray = str.split("/");	if(strArray.length == 3){		str = strArray[1] + "/" + strArray[2] + "/" + strArray[0];	}	return str;};\
-				var calculatePDFURL = function(PATH, WELL_ID) {	if((!!PATH) && (PATH.length > 0) && (PATH !== "N/A")) {		return "| <a target=\'_blank\' href=\'http://files.ontario.ca/moe_mapping/downloads/2Water/Wells_pdfs/" + WELL_ID.substring(0,3) + "/" + WELL_ID + ".pdf\'>PDF</a>";	}	return "";};\
-			_.each(features, function(feature) {\
-					var attrs = feature.attributes; %> \
-				<tr><td><%= Util.processNA(attrs.WELL_ID) %></td><td><%= Util.processNA(attrs.TAG_NO) %></td><td><%= Util.processNA(attrs.AUDIT_NO) %></td><td><%= Util.processNA(attrs.CONTRACTOR) %></td><td><%= convertDepthFormat(attrs.DEPTH_M) %></td><td><%= convertDateFormat(attrs.WELL_COMPLETED_DATE) %></td><td><a target=\'_blank\' href=\'well-record-information?id=<%= attrs.BORE_HOLE_ID %>\'>HTML</a><%= calculatePDFURL(attrs.PATH, attrs.WELL_ID) %></td></tr>\
-			<% }); %>\
-			</tbody></table>'
-	},
-	/*English Ends*/
-	/*French Begins*/
-	identifySettings: {
-		/* radius: 1, // 1 meter If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
-		identifyLayersList: [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
-			layerID: 0,
-			outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
-		}],
-		identifyTemplate: '<strong><%= attrs.LOCNAME_FR %></strong><br><%= Util.addBRtoLongText(s.GUIDELOC_FR) %><br><br>\
-			<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>\
-			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "FR") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "FR") %></b><br>\
-			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission <%= s.LOCNAME_FR %>)\'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>'
-	},
-	/*French Ends*/
+	
+
 	queryLayerList: [{
 		url: this.url + "/0",
 		tabsTemplate: [{
