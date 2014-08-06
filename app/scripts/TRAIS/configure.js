@@ -11,29 +11,15 @@ GoogleMapsAdapter.init({
 	language: "FR",
 	/*French Ends*/
 	mapServices: [{
-		url: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/wells/MapServer',
-		visibleLayers: [0]
+		url: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/TRAIS/MapServer',
+		visibleLayers: [0, 1]
 	}],
 	/*English Begins*/
-	otherInfoHTML: "<h2>Find a map error?</h2> \
-		<p>It is possible you may encounter inaccuracies with map locations.</p> \
-		<p>If you find an error in the location of a lake, river or stream, please contact us.  Use the <a href='mailto:sportfish.moe@ontario.ca?subject=Sport Fish Map Error'>Report an error</a> link within the map pop-up.</p> \
-		<h2>Comments</h2> \
-		<p>For comments and suggestions, email us at <a href='mailto:sportfish.moe@ontario.ca?subject=Sport Fish Map Feedback'>sportfish.moe@ontario.ca</a>.</p>",
+	otherInfoHTML: '<strong>Note: The information and data reflected in this report is a consolidation of data reported by facilities regulated under Toxics Reduction Act, 2009 and is up to date as of December 20, 2013. The facilities have the opportunity to notify the ministry of errors.</strong>',
 	/*English Ends*/
 	/*French Begins*/
-	otherInfoHTML: '<h2>Une erreur sur la carte?</h2> \
-		<p>Il est possible que des impr&eacute;cisions se soient gliss&eacute;es sur les emplacements.</p> \
-		<p>Si vous trouvez une erreur d&rsquo;emplacement d&rsquo;un lac, d&rsquo;une rivi&egrave;re ou d&rsquo;un cours d&rsquo;eau, veuillez nous en avertir. Vous pouvez utiliser le lien &laquo; <a href="mailto:sportfish.moe@ontario.ca?subject=Sport%20Fish%20Map%20Error">Signaler une erreur</a> &raquo; du menu contextuel de la carte.</p> \
-		<h2>Commentaires</h2> \
-		<p>Veuillez formuler vos commentaires ou vos suggestions par courriel &agrave; <a href="mailto:sportfish.moe@ontario.ca">sportfish.moe@ontario.ca</a>.</p>',
+	otherInfoHTML: '<strong>Note : l’information et les donn&eacute;es pr&eacute;sent&eacute;s dans ce rapport est une synth&egrave;se des renseignements d&eacute;clar&eacute;s par les installations et les entreprises  en vertu de la Loi de 2009 sur la r&eacute;duction des toxiques. Ces renseignements &eacute;taient &agrave; jour le 20 d&eacute;cembre, 2013. Les installations et les entreprises peuvent communiquer avec le minist&egrave;re en cas d’erreurs.</strong><br><br>Certaines donn\u00e9es scientifiques et de surveillance n\u0027existent qu\u0027en anglais.',
 	/*French Ends*/
-	/*English Begins*/
-		Wells_Report_URL: "well-record-information",
-	/*English Ends*/
-	/*French Begins*/
-	report_URL: "rapport-de-consommation-de-poisson",
-	/*French Ends*/	
 	/*English Begins*/
 	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
 		<label class="element-invisible" for="map_query">Search the map</label>\
@@ -41,14 +27,19 @@ GoogleMapsAdapter.init({
 		<label class="element-invisible" for="search_submit">Search</label>\
 		<input id="search_submit" type="submit" title="Search" onclick="GoogleMapsAdapter.search()" value="Search"></input>\
 		<fieldset>\
-			<input type="radio" id="searchMapLocation" name="searchGroup" checked="checked" title="Search Map Location" name="location" value="location" onclick="GoogleMapsAdapter.searchChange(this)"></input>\
-			<span class="tooltip" title="Search Map Location: Enter the name of an Ontario lake/river, city/town/township or street address to find fish consumption advice">\
-			<label class="option" for="searchMapLocation">Search Map Location</label>\
+			<input type="radio" id="searchLocation" name="searchGroup" checked="checked" title="Search Map Location or Facility" name="location" value="location" onclick="GoogleMapsAdapter.searchChange(\'Location\')"></input>\
+			<span class="tooltip" title="Search Map Location or Facility: Enter facility name or street address to find facilities">\
+			<label class="option" for="searchLocation">Search Map Location or Facility</label>\
 			</span>\
 			<br/>\
-			<input type="radio" id="searchFishSpecies" name="searchGroup" title="Search Fish Species" name="species" value="species" onclick="GoogleMapsAdapter.searchChange(this)"></input>\
-			<span class="tooltip" title="Search Fish Species: Enter the name of a fish species to find lakes with fish consumption advice for the species">\
-			<label class="option" for="searchFishSpecies">Search Fish Species</label>\
+			<input type="radio" id="searchSubstance" name="searchGroup" title="Search Substance" value="substance" onclick="GoogleMapsAdapter.searchChange(\'Substance\')"></input>\
+			<span class="tooltip" title="Search Substance: Enter the name of a substance to find facilities">\
+			<label class="option" for="searchSubstance">Search Substance</label>\
+			</span>\
+			<br/>\
+			<input type="radio" id="searchSector" name="searchGroup" title="Search Sector" value="secteur" onclick="GoogleMapsAdapter.searchChange(\'Sector\')"></input>\
+			<span class="tooltip" title="Search Sector: Enter the name of a sector to find facilities">\
+			<label class="option" for="searchSector">Search Sector</label>\
 			</span>\
 			<br/>\
 			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Current Map Display" /> <label for="currentExtent" class=\'option\'>Search current map display only</label>\
@@ -56,20 +47,25 @@ GoogleMapsAdapter.init({
 		<div id="information"></div>',
 	/*English Ends*/
 	/*French Begins*/
-	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
+	searchControlHTML = '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
 		<label class="element-invisible" for="map_query">Recherche carte interactive</label>\
 		<input id="map_query" type="text" title="Terme de recherche" maxlength="100" size="50" onkeypress="return GoogleMapsAdapter.entsub(event)"></input>\
 		<label class="element-invisible" for="search_submit">Recherche</label>\
 		<input id="search_submit" type="submit" title="Recherche" onclick="GoogleMapsAdapter.search()" value="Recherche"></input>\
 		<fieldset>\
-			<input type="radio" id="searchMapLocation" name="searchGroup" checked="checked" title="Recherche d\'emplacements" name="location" value="location" onclick="GoogleMapsAdapter.searchChange(this)"></input>\
-			<span class="tooltip" title="Recherche d\'emplacements : Indiquer le lieu en Ontario (lac/rivi\u00e8re, ville/canton, adresse) pour avoir des conseils sur la consommation des poissons du lieu.">\
-			<label class="option" for="searchMapLocation">Recherche d\'emplacements</label>\
+			<input type="radio" id="searchLocation" name="searchGroup" checked="checked" title="Recherche par lieu ou par installation" name="location" value="location" onclick="GoogleMapsAdapter.searchChange(\'Location\')"></input>\
+			<span class="tooltip" title="Recherche par lieu ou par installation : entrez le nom de l\u0027installation ou son adresse.">\
+			<label class="option" for="searchLocation">Recherche par lieu ou par installation</label>\
 			</span>\
 			<br/>\
-			<input type="radio" id="searchFishSpecies" name="searchGroup" title="Recherche d\'esp\u00e8ces" name="species" value="species" onclick="GoogleMapsAdapter.searchChange(this)"></input>\
-			<span class="tooltip" title="Recherche d\'esp\u00e8ces : Indiquer une esp\u00e8ce de poisson pour trouver des lacs sur lesquels existent des conseils sur la consommation de l\'esp\u00e8ce.">\
-			<label class="option" for="searchFishSpecies">Recherche d\'esp\u00e8ces</label>\
+			<input type="radio" id="searchSubstance" name="searchGroup" title="Recherche par substance" value="substance" onclick="GoogleMapsAdapter.searchChange(\'Substance\')"></input>\
+			<span class="tooltip" title="Recherche par substance : entrez le nom de la substance pour trouver les installations avec cette substance">\
+			<label class="option" for="searchSubstance">Recherche par substance</label>\
+			</span>\
+			<br/>\
+			<input type="radio" id="searchSector" name="searchGroup" title="Recherche par secteur" value="secteur" onclick="GoogleMapsAdapter.searchChange(\'Sector\')"></input>\
+			<span class="tooltip" title="Recherche par secteur : entrez le nom d\u0027un secteur pour trouver les installations dans ce secteur">\
+			<label class="option" for="searchSector">Recherche par secteur</label>\
 			</span>\
 			<br/>\
 			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Étendue de la carte courante" /> <label for="currentExtent" class=\'option\'>\u00c9tendue de la carte courante</label>\
