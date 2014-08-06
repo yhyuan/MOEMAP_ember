@@ -1,8 +1,8 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 /* global _, $, google */
 'use strict';
-var GoogleMapsAdapter = require('../../scripts/GoogleMapsAdapter');
-var Util = require('../../scripts/Util');
+var GoogleMapsAdapter = require('../scripts/GoogleMapsAdapter');
+var Util = require('../scripts/Util');
 
 window.GoogleMapsAdapter = GoogleMapsAdapter;
 GoogleMapsAdapter.init({
@@ -11,10 +11,8 @@ GoogleMapsAdapter.init({
 	/*English Ends*/
 	/**/
 	mapServices: [{
-		/*url: "http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer",
-		visibleLayers: [0, 1, 2]*/
-		url: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/wells/MapServer',
-		visibleLayers: [0]
+		url: "http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer",
+		visibleLayers: [0, 1, 2]
 	}],
 	/*English Begins*/
 	otherInfoHTML: "<h2>Find a map error?</h2> 		<p>It is possible you may encounter inaccuracies with map locations.</p> 		<p>If you find an error in the location of a lake, river or stream, please contact us.  Use the <a href='mailto:sportfish.moe@ontario.ca?subject=Sport Fish Map Error'>Report an error</a> link within the map pop-up.</p> 		<h2>Comments</h2> 		<p>For comments and suggestions, email us at <a href='mailto:sportfish.moe@ontario.ca?subject=Sport Fish Map Feedback'>sportfish.moe@ontario.ca</a>.</p>",
@@ -51,23 +49,15 @@ GoogleMapsAdapter.init({
 	],
 	/*English Ends*/
 	/**/
-	postIdentifyCallbackName: 'ManyFeaturesOneTab',
-	Wells_Report_URL: "well-record-information",
 	/*English Begins*/
 	identifySettings: {
 		/* radius: 1, // 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
-		/*identifyLayersList: [{
+		identifyLayersList: [{
 			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
 			layerID: 0,
 			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
 		}],
-		identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>			<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></b><br>			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>'*/
-		identifyLayersList: [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/wells/MapServer',
-			layerID: 0,
-			outFields: ['BORE_HOLE_ID', 'WELL_ID', 'DEPTH_M', 'YEAR_COMPLETED', 'WELL_COMPLETED_DATE', 'AUDIT_NO', 'TAG_NO', 'CONTRACTOR', 'PATH']
-		}],
-		identifyTemplate: 'Total features returned: <strong><%= features.length %><strong><br>			<table class=\'tabtable\'><tr><th>Well ID</th><th>Well Tag # (since 2003)</th><th>Audit # (since 1986)</th><th>Contractor Lic#</th><th>Well Depth (m)</th><th>Date of Completion (MM/DD/YYYY)</th><th>Well Record Information</th></tr>			<%  var convertDepthFormat = function (val){if (val === "N/A") {	return "N/A";}	var res = parseFloat(val);	return res.toFixed(1);};				var convertDateFormat = function (str){	if (str === "N/A") {		return "N/A";	}	var strArray = str.split("/");	if(strArray.length == 3){		str = strArray[1] + "/" + strArray[2] + "/" + strArray[0];	}	return str;};				var calculatePDFURL = function(PATH, WELL_ID) {	if((!!PATH) && (PATH.length > 0) && (PATH !== "N/A")) {		return "| <a target=\'_blank\' href=\'http://files.ontario.ca/moe_mapping/downloads/2Water/Wells_pdfs/" + WELL_ID.substring(0,3) + "/" + WELL_ID + ".pdf\'>PDF</a>";	}	return "";};			_.each(features, function(feature) {					var attrs = feature.attributes; %> 				<tr><td><%= Util.processNA(attrs.WELL_ID) %></td><td><%= Util.processNA(attrs.TAG_NO) %></td><td><%= Util.processNA(attrs.AUDIT_NO) %></td><td><%= Util.processNA(attrs.CONTRACTOR) %></td><td><%= convertDepthFormat(attrs.DEPTH_M) %></td><td><%= convertDateFormat(attrs.WELL_COMPLETED_DATE) %></td><td><a target=\'_blank\' href=\'well-record-information?id=<%= attrs.BORE_HOLE_ID %>\'>HTML</a><%= calculatePDFURL(attrs.PATH, attrs.WELL_ID) %></td></tr>			<% }); %>			</tbody></table>'
+		identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>			<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></b><br>			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>'
 	},
 	/*English Ends*/
 	/**/
@@ -245,7 +235,7 @@ GoogleMapsAdapter.init({
 
 //globalConfig.tableSimpleTemplateTitleLang = globalConfig.chooseLang("Note: Data is in English only.", "\u00c0 noter : Les donn\u00e9es sont en anglais seulement.");
 //globalConfig.
-},{"../../scripts/GoogleMapsAdapter":4,"../../scripts/Util":5}],2:[function(require,module,exports){
+},{"../scripts/GoogleMapsAdapter":4,"../scripts/Util":5}],2:[function(require,module,exports){
 /* global _, $, escape */
 'use strict';
 var formatTimeString_ = function (time, endTime) {
@@ -1303,38 +1293,7 @@ var geocode = function(input) {
 	return Geocoder.geocode(geocodeParams);
 };
 
-var createTabBar = function (tabs, settings){
-	// the following code based on ESRI sample
-	// create and show the info-window with tabs, one for each map service layer		  
-	var container = document.createElement('div');
-	container.style.width = settings.infoWindowWidth;
-	container.style.height = settings.infoWindowHeight;
 
-        // =======START  TAB UI ================             
-	var tabBar = new goog.ui.TabBar();
-	for (var i = 0; i < tabs.length; i++) {
-		var tab = new goog.ui.Tab(tabs[i].label);
-		tab.content = tabs[i].content;
-		tabBar.addChild(tab, true);
-	}
-	tabBar.render(container);
-	goog.dom.appendChild(container, goog.dom.createDom('div', {
-		'class': 'goog-tab-bar-clear'
-	}));
-	var contentDiv = goog.dom.createDom('div', {
-		'class': 'goog-tab-content'
-	});
-	contentDiv.style.height = settings.infoWindowContentHeight;
-	contentDiv.style.width = settings.infoWindowContentWidth;
-			
-	goog.dom.appendChild(container, contentDiv);            
-	goog.events.listen(tabBar, goog.ui.Component.EventType.SELECT, function(e) {
-		contentDiv.innerHTML = e.target.content;
-	});
-	tabBar.setSelectedTabIndex(0);
-	return container;
-        // =======END  TAB UI ================
-};
 
 var init = function(initParams) {
 	var globalConfigLanguage = {
@@ -1525,16 +1484,19 @@ var init = function(initParams) {
 				}
 				var features = Util.combineFeatures(results);
 				var content = _.template(identifySettings.identifyTemplate, {features: features, Util: Util});
-				console.log(content);
-				console.log(globalConfigure.langs.InformationLang);
-				var container = createTabBar ([{
+				var settings = {
+					infoWindowWidth: globalConfigure.infoWindowWidth,
+					infoWindowHeight: globalConfigure.infoWindowHeight,
+					infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
+					infoWindowContentWidth: globalConfigure.infoWindowContentWidth
+				};
+				var container = Util.createTabBar ([{
 					label: globalConfigure.langs.InformationLang,
 					content: content
-				}], globalConfigure);
-
+				}], settings);
 				openInfoWindow(identifySettings.gLatLng, container);
 			},
-			/*PWQMN, PGMN, many tabs with one features*/
+			/*PWQMN, PGMN, many tabs with one features. identifyTemplate is an array with objects. Each object contains two perperties: label and content*/
 			'OneFeatureManyTabs': function(results, identifySettings) {
 				var featuresLength = Util.computeFeaturesNumber (results);
 				if (featuresLength === 0) {
@@ -1542,13 +1504,41 @@ var init = function(initParams) {
 				}
 				var features = Util.combineFeatures(results);
 				var attrs = features[0].attributes;  // The attributes for the first feature. 
-				var container = document.createElement('div');
-				container.style.width = globalConfigure.infoWindowWidth;
-				container.style.height = globalConfigure.infoWindowHeight;
-				container.innerHTML = _.template(identifySettings.identifyTemplate, {attrs: features[0].attributes, Util: Util, globalConfigure: globalConfigure});
-				openInfoWindow(identifySettings.gLatLng, container);
-			}			
-		},
+				var settings = {
+					infoWindowWidth: globalConfigure.infoWindowWidth,
+					infoWindowHeight: globalConfigure.infoWindowHeight,
+					infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
+					infoWindowContentWidth: globalConfigure.infoWindowContentWidth
+				};
+				var container = Util.createTabBar (_.map(identifySettings.identifyTemplate, function(template) {
+					return {
+						label: _.template(template.label,  {attrs: attrs, Util: Util}),
+						content: _.template(template.content,  {attrs: attrs, Util: Util})
+					};
+				}), settings);
+				openInfoWindow(identifySettings.gLatLng, container);			
+			},
+			/*District locator, watershed locator, source water protection One feature with no tab*/
+			'OneFeatureNoTabPolygon': function(results, identifySettings) {
+				var process = function (results, identifySettings, geocodingResult) {
+					var contain = _.template(identifySettings.identifyTemplate.infoWindow, {results: results, Util: Util, geocodingResult: geocodingResult});
+					var table = _.template(identifySettings.identifyTemplate.table, {results: results, Util: Util, geocodingResult: geocodingResult});
+				};
+
+				if (identifySettings.hasOwnProperty('requireReverseGeocoding') && identifySettings.requireReverseGeocoding) {
+					var geocodePromise = googleMapsAdapter.geocode(identifySettings.latlng);
+					geocodePromise.done(function (result) {
+						if (result.status === 'OK') {
+							process (results, identifySettings, result);
+						} else {
+							process (results, identifySettings);
+						}
+					});
+				} else {
+					process (results, identifySettings);
+				}
+			}
+		}
 	};
 	var params = _.defaults(initParams, defaultParams);
 	globalConfigure = params;
@@ -2044,6 +2034,39 @@ var processNA = function (str) {
 	return str;
 };	
 
+var createTabBar = function (tabs, settings){
+	// the following code based on ESRI sample
+	// create and show the info-window with tabs, one for each map service layer
+	var container = document.createElement('div');
+	container.style.width = settings.infoWindowWidth;
+	container.style.height = settings.infoWindowHeight;
+
+        // =======START  TAB UI ================             
+	var tabBar = new goog.ui.TabBar();
+	for (var i = 0; i < tabs.length; i++) {
+		var tab = new goog.ui.Tab(tabs[i].label);
+		tab.content = tabs[i].content;
+		tabBar.addChild(tab, true);
+	}
+	tabBar.render(container);
+	goog.dom.appendChild(container, goog.dom.createDom('div', {
+		'class': 'goog-tab-bar-clear'
+	}));
+	var contentDiv = goog.dom.createDom('div', {
+		'class': 'goog-tab-content'
+	});
+	contentDiv.style.height = settings.infoWindowContentHeight;
+	contentDiv.style.width = settings.infoWindowContentWidth;
+			
+	goog.dom.appendChild(container, contentDiv);            
+	goog.events.listen(tabBar, goog.ui.Component.EventType.SELECT, function(e) {
+		contentDiv.innerHTML = e.target.content;
+	});
+	tabBar.setSelectedTabIndex(0);
+	return container;
+        // =======END  TAB UI ================
+};
+
 var api = {
 	computeCircle: computeCircle,
 	computeOffset: computeOffset,
@@ -2058,7 +2081,8 @@ var api = {
 	splitResults: splitResults,
 	deciToDegree: deciToDegree,
 	addBRtoLongText: addBRtoLongText,
-	processNA: processNA
+	processNA: processNA,
+	createTabBar: createTabBar
 };
 
 module.exports = api;

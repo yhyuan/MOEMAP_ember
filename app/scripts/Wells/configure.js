@@ -1,8 +1,7 @@
 /* global _, $, google */
 'use strict';
-var GoogleMapsAdapter = require('../../scripts/GoogleMapsAdapter');
-var Util = require('../../scripts/Util');
-
+var GoogleMapsAdapter = require('../scripts/GoogleMapsAdapter');
+var Util = require('../scripts/Util');
 window.GoogleMapsAdapter = GoogleMapsAdapter;
 GoogleMapsAdapter.init({
 	/*English Begins*/
@@ -12,8 +11,6 @@ GoogleMapsAdapter.init({
 	language: "FR",
 	/*French Ends*/
 	mapServices: [{
-		/*url: "http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer",
-		visibleLayers: [0, 1, 2]*/
 		url: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/wells/MapServer',
 		visibleLayers: [0]
 	}],
@@ -32,7 +29,7 @@ GoogleMapsAdapter.init({
 		<p>Veuillez formuler vos commentaires ou vos suggestions par courriel &agrave; <a href="mailto:sportfish.moe@ontario.ca">sportfish.moe@ontario.ca</a>.</p>',
 	/*French Ends*/
 	/*English Begins*/
-	report_URL: "fish-consumption-report",
+		Wells_Report_URL: "well-record-information",
 	/*English Ends*/
 	/*French Begins*/
 	report_URL: "rapport-de-consommation-de-poisson",
@@ -111,19 +108,9 @@ GoogleMapsAdapter.init({
 	],
 	/*French Ends*/
 	postIdentifyCallbackName: 'ManyFeaturesOneTab',
-	Wells_Report_URL: "well-record-information",
 	/*English Begins*/
 	identifySettings: {
 		/* radius: 1, // 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
-		/*identifyLayersList: [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
-			layerID: 0,
-			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
-		}],
-		identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>\
-			<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>\
-			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></b><br>\
-			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>'*/
 		identifyLayersList: [{
 			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/wells/MapServer',
 			layerID: 0,

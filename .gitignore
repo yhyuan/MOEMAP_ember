@@ -5,5 +5,4 @@ dist
 .tmp
 app/bower_components
 test/bower_components
-app/configures/configure.js
-app/configures/SportFish/configure.en.js
+app/configures

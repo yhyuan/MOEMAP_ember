@@ -5,11 +5,12 @@ if (process.argv.length < 4) {
 }
 
 var removeLangaugeRelated = function(data, language) {
-	var codeArray = data.split((language=== "en") ? "French Begins" : "English Begins");
+	var codeArray = data.trim().split((language=== "en") ? "French Begins" : "English Begins");
 	var result = codeArray[0];
 	for(var i=1; i<codeArray.length; i++) {
-		result = result + codeArray.split((language=== "en") ? "French Ends" : "English Ends")[1];
+		result = result + codeArray[i].trim().split((language=== "en") ? "French Ends" : "English Ends")[1];
 	}
+	result = result.split("\\\r\n").join("");
 	return result;
 }
 
@@ -18,18 +19,12 @@ var fs = require('fs')
 	, language = process.argv[3];
 fs.readFile(foldername + "/configure.js", 'utf8', function(err, data) {
 	if (err) throw err;
-	fs.writeFile(foldername + "/configure.en.js", removeLangaugeRelated(data, "en"), function(err) {
+	//console.log(data);
+	fs.writeFile("../configures/configure.language.js", removeLangaugeRelated(data, language), function(err) {
 		if(err) {
 			console.log(err);
 		} else {
-			console.log("The file was saved!");
-		}
-	});
-	fs.writeFile(foldername + "/configure.en.js", removeLangaugeRelated(data, "en"), function(err) {
-		if(err) {
-			console.log(err);
-		} else {
-			console.log("The file was saved!");
+			console.log("The " + language + " file was saved!");
 		}
 	});
 });
