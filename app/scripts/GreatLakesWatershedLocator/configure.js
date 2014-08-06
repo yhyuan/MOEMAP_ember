@@ -34,6 +34,8 @@ GoogleMapsAdapter.init({
 		<input type="submit" value="&nbsp;Effacer&nbsp;" id="search_clear" title="Effacer" onclick="GoogleMapsAdapter.clear()" />\
 		<div id="information"></div>';
 	/*French Ends*/
+	postIdentifyCallbackName: 'OneFeatureNoTabPolygon',
+	
 	pointBufferTool: {available: false},
 	extraImageService: {visible: false},
 	usejQueryUITable: true,  //Avoid loading extra javascript files

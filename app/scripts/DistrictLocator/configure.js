@@ -37,7 +37,7 @@ GoogleMapsAdapter.init({
 		<input type="submit" value="&nbsp;Effacer&nbsp;" id="search_clear" title="Effacer" onclick="GoogleMapsAdapter.clear()" />\
 		<div id="information"></div>';
 	/*French Ends*/
-	postIdentifyCallbackName: 'ManyFeaturesOneTab',
+	postIdentifyCallbackName: 'OneFeatureNoTabPolygon',
 
 	identifySettings: {
 		radius: 1, /* 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
