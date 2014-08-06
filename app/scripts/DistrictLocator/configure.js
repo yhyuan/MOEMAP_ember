@@ -3,9 +3,6 @@
 var GoogleMapsAdapter = require('../scripts/GoogleMapsAdapter');
 var Util = require('../scripts/Util');
 window.GoogleMapsAdapter = GoogleMapsAdapter;
-var configure = {
-	webService: 
-};
 GoogleMapsAdapter.init({
 	/*English Begins*/
 	language: "EN",
