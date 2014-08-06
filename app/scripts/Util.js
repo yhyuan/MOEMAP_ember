@@ -141,7 +141,7 @@ var wordCapitalize = function (str){
 var computeFeaturesNumber = function(results) {
 	return _.reduce(results, function(total, layer) {
 		if (layer.hasOwnProperty('features')) {
-			return total = total + layer.features.length;
+			return total + layer.features.length;
 		} else {
 			return total;
 		}
@@ -151,7 +151,7 @@ var computeFeaturesNumber = function(results) {
 var combineFeatures = function(results) {
 	return _.reduce(results, function(total, layer) {
 		if (layer.hasOwnProperty('features')) {
-			return total = total.concat (layer.features);
+			return total.concat (layer.features);
 		} else {
 			return total;
 		}
@@ -226,6 +226,52 @@ var addBRtoLongText = function (text) {
 	return result;
 };
 
+var processNA = function (str) {
+	if (typeof(str) === 'undefined') {
+		return "N/A";
+	}
+	if (str === "null") {
+		return "N/A";
+	}
+	if (str === "Null") {
+		return "N/A";
+	}
+	return str;
+};	
+
+var createTabBar = function (tabs, settings){
+	// the following code based on ESRI sample
+	// create and show the info-window with tabs, one for each map service layer
+	var container = document.createElement('div');
+	container.style.width = settings.infoWindowWidth;
+	container.style.height = settings.infoWindowHeight;
+
+        // =======START  TAB UI ================             
+	var tabBar = new goog.ui.TabBar();
+	for (var i = 0; i < tabs.length; i++) {
+		var tab = new goog.ui.Tab(tabs[i].label);
+		tab.content = tabs[i].content;
+		tabBar.addChild(tab, true);
+	}
+	tabBar.render(container);
+	goog.dom.appendChild(container, goog.dom.createDom('div', {
+		'class': 'goog-tab-bar-clear'
+	}));
+	var contentDiv = goog.dom.createDom('div', {
+		'class': 'goog-tab-content'
+	});
+	contentDiv.style.height = settings.infoWindowContentHeight;
+	contentDiv.style.width = settings.infoWindowContentWidth;
+			
+	goog.dom.appendChild(container, contentDiv);            
+	goog.events.listen(tabBar, goog.ui.Component.EventType.SELECT, function(e) {
+		contentDiv.innerHTML = e.target.content;
+	});
+	tabBar.setSelectedTabIndex(0);
+	return container;
+        // =======END  TAB UI ================
+};
+
 var api = {
 	computeCircle: computeCircle,
 	computeOffset: computeOffset,
@@ -239,7 +285,9 @@ var api = {
 	combineFeatures: combineFeatures,
 	splitResults: splitResults,
 	deciToDegree: deciToDegree,
-	addBRtoLongText: addBRtoLongText
+	addBRtoLongText: addBRtoLongText,
+	processNA: processNA,
+	createTabBar: createTabBar
 };
 
 module.exports = api;

@@ -12,8 +12,10 @@ GoogleMapsAdapter.init({
 	language: "FR",
 	/*French Ends*/
 	mapServices: [{
-		url: "http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer",
-		visibleLayers: [0, 1, 2]
+		/*url: "http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer",
+		visibleLayers: [0, 1, 2]*/
+		url: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/wells/MapServer',
+		visibleLayers: [0]
 	}],
 	/*English Begins*/
 	otherInfoHTML: "<h2>Find a map error?</h2> \
@@ -87,8 +89,8 @@ GoogleMapsAdapter.init({
 	maxQueryZoomLevel: 11,
 	displayDisclaimer: true,
 	InformationLang: "Information",
-	postIdentifyCallbackName: "SportFish",
-	infoWindowWidth: '280px',
+	//postIdentifyCallbackName: "SportFish",
+	//infoWindowWidth: '280px',
 	tableSimpleTemplateTitleLang: "",
 	/*English Begins*/
 	tableFieldList: [
@@ -108,12 +110,12 @@ GoogleMapsAdapter.init({
 		{name: "Tableau des mises en garde en mati\u00e8re de consommation", value: "<a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a>"}
 	],
 	/*French Ends*/
+	postIdentifyCallbackName: 'ManyFeaturesOneTab',
+	Wells_Report_URL: "well-record-information",
 	/*English Begins*/
 	identifySettings: {
-		computeIdentifyInfoWindows: function(results, globalConfigure) {
-			return _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: results[0].features[0].attributes, Util: Util, globalConfigure: globalConfigure});
-		},
-		identifyLayersList: [{
+		/* radius: 1, // 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
+		/*identifyLayersList: [{
 			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
 			layerID: 0,
 			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
@@ -121,14 +123,27 @@ GoogleMapsAdapter.init({
 		identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>\
 			<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>\
 			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></b><br>\
-			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>'
+			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>'*/
+		identifyLayersList: [{
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/wells/MapServer',
+			layerID: 0,
+			outFields: ['BORE_HOLE_ID', 'WELL_ID', 'DEPTH_M', 'YEAR_COMPLETED', 'WELL_COMPLETED_DATE', 'AUDIT_NO', 'TAG_NO', 'CONTRACTOR', 'PATH']
+		}],
+		identifyTemplate: 'Total features returned: <strong><%= features.length %><strong><br>\
+			<table class=\'tabtable\'><tr><th>Well ID</th><th>Well Tag # (since 2003)</th><th>Audit # (since 1986)</th><th>Contractor Lic#</th><th>Well Depth (m)</th><th>Date of Completion (MM/DD/YYYY)</th><th>Well Record Information</th></tr>\
+			<%  var convertDepthFormat = function (val){if (val === "N/A") {	return "N/A";}	var res = parseFloat(val);	return res.toFixed(1);};\
+				var convertDateFormat = function (str){	if (str === "N/A") {		return "N/A";	}	var strArray = str.split("/");	if(strArray.length == 3){		str = strArray[1] + "/" + strArray[2] + "/" + strArray[0];	}	return str;};\
+				var calculatePDFURL = function(PATH, WELL_ID) {	if((!!PATH) && (PATH.length > 0) && (PATH !== "N/A")) {		return "| <a target=\'_blank\' href=\'http://files.ontario.ca/moe_mapping/downloads/2Water/Wells_pdfs/" + WELL_ID.substring(0,3) + "/" + WELL_ID + ".pdf\'>PDF</a>";	}	return "";};\
+			_.each(features, function(feature) {\
+					var attrs = feature.attributes; %> \
+				<tr><td><%= Util.processNA(attrs.WELL_ID) %></td><td><%= Util.processNA(attrs.TAG_NO) %></td><td><%= Util.processNA(attrs.AUDIT_NO) %></td><td><%= Util.processNA(attrs.CONTRACTOR) %></td><td><%= convertDepthFormat(attrs.DEPTH_M) %></td><td><%= convertDateFormat(attrs.WELL_COMPLETED_DATE) %></td><td><a target=\'_blank\' href=\'well-record-information?id=<%= attrs.BORE_HOLE_ID %>\'>HTML</a><%= calculatePDFURL(attrs.PATH, attrs.WELL_ID) %></td></tr>\
+			<% }); %>\
+			</tbody></table>'
 	},
 	/*English Ends*/
 	/*French Begins*/
 	identifySettings: {
-		computeIdentifyInfoWindows: function(results, globalConfigure) {
-			return _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: results[0].features[0].attributes, Util: Util, globalConfigure: globalConfigure});
-		},
+		/* radius: 1, // 1 meter If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
 		identifyLayersList: [{
 			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
 			layerID: 0,
@@ -262,8 +277,12 @@ GoogleMapsAdapter.init({
 		var options = {
 			searchString: searchString,
 			geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
-			withinExtent: $('#currentMapExtent')[0].checked,
-			containsInvalidCoordinates: false
+			withinExtent: $('#currentMapExtent')[0].checked/*,
+			invalidFeatureLocations: [{
+				lat: 0,
+				lng: 0,
+				difference: 0.0001
+			}]*/
 		};
 		return {
 			queryParamsList: queryParamsList,
