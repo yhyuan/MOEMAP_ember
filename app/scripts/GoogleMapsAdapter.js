@@ -82,6 +82,7 @@ var globalConfigure;
 var arcGISMapServices = [];
 var previousBounds;
 var infoWindow;
+var marker;
 
 var openInfoWindow = function (latlng, container){
 	if (!infoWindow) {
@@ -400,7 +401,7 @@ var init = function(initParams) {
 						return {
 							mapService: layer.mapService,
 							layerID: layer.layerID,
-							returnGeometry: false,
+							returnGeometry: layer.hasOwnProperty('returnGeometry') ? layer.returnGeometry : false,
 							outFields: layer.outFields,
 							geometry: circle
 						};
@@ -476,12 +477,90 @@ var init = function(initParams) {
 			/*District locator, watershed locator, source water protection One feature with no tab*/
 			'OneFeatureNoTabPolygon': function(results, identifySettings) {
 				var process = function (results, identifySettings, geocodingResult) {
-					var contain = _.template(identifySettings.identifyTemplate.infoWindow, {results: results, Util: Util, geocodingResult: geocodingResult});
-					var table = _.template(identifySettings.identifyTemplate.table, {results: results, Util: Util, geocodingResult: geocodingResult});
+					//console.log(results);
+					if (marker) {
+						marker.setMap(null);
+					}
+					_.each(overlays, function(overlay){
+						overlay.setMap(null);
+					});
+					overlays = [];
+
+					var contents = identifySettings.identifyTemplate(results, Util, geocodingResult);
+
+					$("#" + globalConfigure.queryTableDivId).html(contents.table);
+
+					marker = new google.maps.Marker({
+						map: map,
+						draggable: true,
+						position: identifySettings.gLatLng,
+						visible: true
+					});
+
+					var boxText = document.createElement("div");
+					boxText.style.cssText = "border: 1px solid black; margin-top: 8px; background: white; padding: 5px;";
+					boxText.innerHTML = contents.infoWindow;
+
+					var myOptions = {
+						 content: boxText
+						,disableAutoPan: false
+						,maxWidth: 0
+						,pixelOffset: new google.maps.Size(-140, 0)
+						,zIndex: null
+						,boxStyle: { 
+						  background: "url('http://google-maps-utility-library-v3.googlecode.com/svn/trunk/infobox/examples/tipbox.gif') no-repeat"
+						  ,opacity: 0.75
+						  ,width: "280px"
+						 }
+						,closeBoxMargin: "10px 2px 2px 2px"
+						,closeBoxURL: "http://www.google.com/intl/en_us/mapfiles/close.gif"
+						,infoBoxClearance: new google.maps.Size(1, 1)
+						,isHidden: false
+						,pane: "floatPane"
+						,enableEventPropagation: false
+					};
+
+					google.maps.event.addListener(marker, "click", function (e) {
+						infoWindow.open(map, this);
+					});
+					google.maps.event.addListener(marker, 'dragend', function (e) {
+						$('#' + globalConfigure.searchInputBoxDivId)[0].value = '';
+						$('#' + globalConfigure.searchInputBoxDivId)[0].focus();
+						$("#" + globalConfigure.queryTableDivId).html('');
+						var latlng = marker.getPosition();
+						map.setCenter(latlng);
+						google.maps.event.trigger(map, 'click', {latLng: latlng});
+					});
+					infoWindow = new InfoBox(myOptions);
+
+					infoWindow.open(map, marker);
+					
+					var isReturnGeometryTrue = _.some(identifySettings.identifyLayersList, function(setting) {return setting.returnGeometry;});
+					if (isReturnGeometryTrue) {
+						var polylinesOnMap = _.reduce(_.range(identifySettings.identifyLayersList.length), function(totalPolylines, i) {
+							if (identifySettings.identifyLayersList[i].returnGeometry) {
+								var strokeOptions = identifySettings.identifyLayersList[i].strokeOptions;
+								var polylines = _.reduce(results[i].features, function(total, feature) {
+									if(feature.hasOwnProperty('geometry')) {
+										return total.concat(createPolylines(feature.geometry.rings, strokeOptions));
+									} else {
+										return total;
+									}
+								}, []);
+								return totalPolylines.concat(polylines);
+							} else {
+								return totalPolylines;
+							}
+						}, []);
+						_.each(polylinesOnMap, function(line){
+							line.setMap(map);
+							overlays.push(line);
+						});
+					}
 				};
 
 				if (identifySettings.hasOwnProperty('requireReverseGeocoding') && identifySettings.requireReverseGeocoding) {
-					var geocodePromise = googleMapsAdapter.geocode(identifySettings.latlng);
+					var geocodePromise = geocode(identifySettings.latlng);
 					geocodePromise.done(function (result) {
 						if (result.status === 'OK') {
 							process (results, identifySettings, result);
@@ -499,7 +578,10 @@ var init = function(initParams) {
 	globalConfigure = params;
 
 	var url = 'http://files.ontariogovernment.ca/moe_mapping/mapping/js/MOEMap/';
-	var urls = [url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js'];
+	var urls = [];
+	if(globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTabPolygon') {
+		urls = urls.concat([url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js']);
+	}	
 	if(globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTab' && globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTabPolygon') {
 		urls = urls.concat([url + 'css/multipletabs.css', url + 'js/closure-library-multipletabs-min.js']);
 	}

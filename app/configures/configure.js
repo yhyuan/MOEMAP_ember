@@ -3,7 +3,6 @@
 'use strict';
 var GoogleMapsAdapter = require('../scripts/GoogleMapsAdapter');
 var Util = require('../scripts/Util');
-
 window.GoogleMapsAdapter = GoogleMapsAdapter;
 GoogleMapsAdapter.init({
 	/*English Begins*/
@@ -11,21 +10,42 @@ GoogleMapsAdapter.init({
 	/*English Ends*/
 	/**/
 	mapServices: [{
-		url: "http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer",
-		visibleLayers: [0, 1, 2]
+		url: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/MOE_Districts_Full_Bnd/MapServer',
+		visibleLayers: [0]
 	}],
 	/*English Begins*/
-	otherInfoHTML: "<h2>Find a map error?</h2> 		<p>It is possible you may encounter inaccuracies with map locations.</p> 		<p>If you find an error in the location of a lake, river or stream, please contact us.  Use the <a href='mailto:sportfish.moe@ontario.ca?subject=Sport Fish Map Error'>Report an error</a> link within the map pop-up.</p> 		<h2>Comments</h2> 		<p>For comments and suggestions, email us at <a href='mailto:sportfish.moe@ontario.ca?subject=Sport Fish Map Feedback'>sportfish.moe@ontario.ca</a>.</p>",
+	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>		<label class="element-invisible" for="map_query">Search the map</label>		<input id="map_query" type="text" title="Search term" maxlength="100" onkeypress="return GoogleMapsAdapter.entsub(event)" size="50" />		<label class="element-invisible" for="search_submit">Search</label>		<input type="submit" onclick="GoogleMapsAdapter.search()" id="search_submit" value="Search" title="Search" />		<label class="element-invisible" for="search_clear">Clear</label>		<input type="submit" value="&nbsp;Clear&nbsp;" id="search_clear" title="Clear" onclick="GoogleMapsAdapter.clear()" />		<div id="information">Search by <STRONG>Address</STRONG>, <STRONG>City Name</STRONG>, <STRONG>Postal Code</STRONG> or see help for more advanced options.</div>',
 	/*English Ends*/
 	/**/
-	/*English Begins*/
-	report_URL: "fish-consumption-report",
-	/*English Ends*/
-	/**/	
-	/*English Begins*/
-	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>		<label class="element-invisible" for="map_query">Search the map</label>		<input id="map_query" type="text" title="Search term" maxlength="100" size="50" onkeypress="return GoogleMapsAdapter.entsub(event)"></input>		<label class="element-invisible" for="search_submit">Search</label>		<input id="search_submit" type="submit" title="Search" onclick="GoogleMapsAdapter.search()" value="Search"></input>		<fieldset>			<input type="radio" id="searchMapLocation" name="searchGroup" checked="checked" title="Search Map Location" name="location" value="location" onclick="GoogleMapsAdapter.searchChange(this)"></input>			<span class="tooltip" title="Search Map Location: Enter the name of an Ontario lake/river, city/town/township or street address to find fish consumption advice">			<label class="option" for="searchMapLocation">Search Map Location</label>			</span>			<br/>			<input type="radio" id="searchFishSpecies" name="searchGroup" title="Search Fish Species" name="species" value="species" onclick="GoogleMapsAdapter.searchChange(this)"></input>			<span class="tooltip" title="Search Fish Species: Enter the name of a fish species to find lakes with fish consumption advice for the species">			<label class="option" for="searchFishSpecies">Search Fish Species</label>			</span>			<br/>			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Current Map Display" /> <label for="currentExtent" class=\'option\'>Search current map display only</label>		</fieldset>		<div id="information"></div>',
-	/*English Ends*/
-	/**/
+	postIdentifyCallbackName: 'OneFeatureNoTabPolygon',
+
+	identifySettings: {
+		radius: 1, /* 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
+		requireReverseGeocoding: true,
+		identifyLayersList: [{
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/MOE_Districts_Full_Bnd/MapServer',
+			layerID: 0,
+			/*returnGeometry: true,
+			strokeOptions: {
+				color: '#8583f3',
+				opacity: 1, 
+				weight: 4
+			},*/
+			outFields: ["OBJECTID","MOE_DISTRICT","STREET_NAME","CITY","POSTALCODE","PHONENUMBER","TOLLFREENUMBER","FAXNUMBER","MOE_DISTRICT_NAME"]
+		}],
+
+		identifyTemplate: function (results, Util, geocodingResult) {
+		/*English Begins*/		
+			var template = '<% var featuresLength = Util.computeFeaturesNumber (results); var address = (geocodingResult.hasOwnProperty("address") ? geocodingResult.address : "N/A"); 				if (featuresLength === 0) {%>					<i> <%= address %>.</i><br><br><strong>Result located within</strong><br><h3> No MOE District found</h3>				<%} else { var attrs = results[0].features[0].attributes;%>					<i><%= address %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOE District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br>					<%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Toll Free: <%= attrs.TOLLFREENUMBER %><br>Tel: <%= attrs.PHONENUMBER %> Fax: <%= attrs.FAXNUMBER %>				<% } %>';
+		/*English Ends*/
+		/**/
+			var contain = _.template(template, {results: results, Util: Util, geocodingResult: geocodingResult});			
+			return {
+				infoWindow: contain,
+				table: contain
+			}; 
+		}
+	},	
 	pointBufferTool: {available: false},
 	extraImageService: {visible: false},
 	usejQueryUITable: true,  //Avoid loading extra javascript files
@@ -49,18 +69,8 @@ GoogleMapsAdapter.init({
 	],
 	/*English Ends*/
 	/**/
-	/*English Begins*/
-	identifySettings: {
-		/* radius: 1, // 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
-		identifyLayersList: [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
-			layerID: 0,
-			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
-		}],
-		identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>			<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></b><br>			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>'
-	},
-	/*English Ends*/
-	/**/
+	
+
 	queryLayerList: [{
 		url: this.url + "/0",
 		tabsTemplate: [{
@@ -1127,6 +1137,7 @@ var globalConfigure;
 var arcGISMapServices = [];
 var previousBounds;
 var infoWindow;
+var marker;
 
 var openInfoWindow = function (latlng, container){
 	if (!infoWindow) {
@@ -1445,7 +1456,7 @@ var init = function(initParams) {
 						return {
 							mapService: layer.mapService,
 							layerID: layer.layerID,
-							returnGeometry: false,
+							returnGeometry: layer.hasOwnProperty('returnGeometry') ? layer.returnGeometry : false,
 							outFields: layer.outFields,
 							geometry: circle
 						};
@@ -1521,12 +1532,90 @@ var init = function(initParams) {
 			/*District locator, watershed locator, source water protection One feature with no tab*/
 			'OneFeatureNoTabPolygon': function(results, identifySettings) {
 				var process = function (results, identifySettings, geocodingResult) {
-					var contain = _.template(identifySettings.identifyTemplate.infoWindow, {results: results, Util: Util, geocodingResult: geocodingResult});
-					var table = _.template(identifySettings.identifyTemplate.table, {results: results, Util: Util, geocodingResult: geocodingResult});
+					//console.log(results);
+					if (marker) {
+						marker.setMap(null);
+					}
+					_.each(overlays, function(overlay){
+						overlay.setMap(null);
+					});
+					overlays = [];
+
+					var contents = identifySettings.identifyTemplate(results, Util, geocodingResult);
+
+					$("#" + globalConfigure.queryTableDivId).html(contents.table);
+
+					marker = new google.maps.Marker({
+						map: map,
+						draggable: true,
+						position: identifySettings.gLatLng,
+						visible: true
+					});
+
+					var boxText = document.createElement("div");
+					boxText.style.cssText = "border: 1px solid black; margin-top: 8px; background: white; padding: 5px;";
+					boxText.innerHTML = contents.infoWindow;
+
+					var myOptions = {
+						 content: boxText
+						,disableAutoPan: false
+						,maxWidth: 0
+						,pixelOffset: new google.maps.Size(-140, 0)
+						,zIndex: null
+						,boxStyle: { 
+						  background: "url('http://google-maps-utility-library-v3.googlecode.com/svn/trunk/infobox/examples/tipbox.gif') no-repeat"
+						  ,opacity: 0.75
+						  ,width: "280px"
+						 }
+						,closeBoxMargin: "10px 2px 2px 2px"
+						,closeBoxURL: "http://www.google.com/intl/en_us/mapfiles/close.gif"
+						,infoBoxClearance: new google.maps.Size(1, 1)
+						,isHidden: false
+						,pane: "floatPane"
+						,enableEventPropagation: false
+					};
+
+					google.maps.event.addListener(marker, "click", function (e) {
+						infoWindow.open(map, this);
+					});
+					google.maps.event.addListener(marker, 'dragend', function (e) {
+						$('#' + globalConfigure.searchInputBoxDivId)[0].value = '';
+						$('#' + globalConfigure.searchInputBoxDivId)[0].focus();
+						$("#" + globalConfigure.queryTableDivId).html('');
+						var latlng = marker.getPosition();
+						map.setCenter(latlng);
+						google.maps.event.trigger(map, 'click', {latLng: latlng});
+					});
+					infoWindow = new InfoBox(myOptions);
+
+					infoWindow.open(map, marker);
+					
+					var isReturnGeometryTrue = _.some(identifySettings.identifyLayersList, function(setting) {return setting.returnGeometry;});
+					if (isReturnGeometryTrue) {
+						var polylinesOnMap = _.reduce(_.range(identifySettings.identifyLayersList.length), function(totalPolylines, i) {
+							if (identifySettings.identifyLayersList[i].returnGeometry) {
+								var strokeOptions = identifySettings.identifyLayersList[i].strokeOptions;
+								var polylines = _.reduce(results[i].features, function(total, feature) {
+									if(feature.hasOwnProperty('geometry')) {
+										return total.concat(createPolylines(feature.geometry.rings, strokeOptions));
+									} else {
+										return total;
+									}
+								}, []);
+								return totalPolylines.concat(polylines);
+							} else {
+								return totalPolylines;
+							}
+						}, []);
+						_.each(polylinesOnMap, function(line){
+							line.setMap(map);
+							overlays.push(line);
+						});
+					}
 				};
 
 				if (identifySettings.hasOwnProperty('requireReverseGeocoding') && identifySettings.requireReverseGeocoding) {
-					var geocodePromise = googleMapsAdapter.geocode(identifySettings.latlng);
+					var geocodePromise = geocode(identifySettings.latlng);
 					geocodePromise.done(function (result) {
 						if (result.status === 'OK') {
 							process (results, identifySettings, result);
@@ -1544,8 +1633,11 @@ var init = function(initParams) {
 	globalConfigure = params;
 
 	var url = 'http://files.ontariogovernment.ca/moe_mapping/mapping/js/MOEMap/';
-	var urls = [url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js'];
-	if(globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTab') {
+	var urls = [];
+	if(globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTabPolygon') {
+		urls = urls.concat([url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js']);
+	}	
+	if(globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTab' && globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTabPolygon') {
 		urls = urls.concat([url + 'css/multipletabs.css', url + 'js/closure-library-multipletabs-min.js']);
 	}
 	_.each(urls, function(url) {yepnope({load: url,callback: function(){}});});

@@ -22,7 +22,7 @@ GoogleMapsAdapter.init({
 		<input type="submit" onclick="GoogleMapsAdapter.search()" id="search_submit" value="Search" title="Search" />\
 		<label class="element-invisible" for="search_clear">Clear</label>\
 		<input type="submit" value="&nbsp;Clear&nbsp;" id="search_clear" title="Clear" onclick="GoogleMapsAdapter.clear()" />\
-		<div id="information"></div>',
+		<div id="information">You may search by <strong>address</strong>, <strong>city name</strong>, <strong>coordinates</strong> or see help for advanced options.</div>',
 	/*English Ends*/
 	/*French Begins*/
 	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
@@ -32,7 +32,7 @@ GoogleMapsAdapter.init({
 		<input type="submit" onclick="GoogleMapsAdapter.search()" id="search_submit" value="Recherche" title="Recherche" />\
 		<label class="element-invisible" for="search_clear">Effacer</label>\
 		<input type="submit" value="&nbsp;Effacer&nbsp;" id="search_clear" title="Effacer" onclick="GoogleMapsAdapter.clear()" />\
-		<div id="information"></div>';
+		<div id="information">Vous pouvez rechercher par <strong>adresse</strong>, <strong>ville</strong>, <strong>coordonn\u00e9es</strong> ou consulter l\'aide pour de l\'information sur les recherches avanc&eacute;es.</div>';
 	/*French Ends*/
 	postIdentifyCallbackName: 'OneFeatureNoTabPolygon',
 	
