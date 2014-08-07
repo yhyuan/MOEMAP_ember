@@ -252,7 +252,6 @@ var geocode = function(input) {
 };
 
 
-
 var init = function(initParams) {
 	var globalConfigLanguage = {
 		'EN': {
@@ -385,9 +384,6 @@ var init = function(initParams) {
 		informationDivId: 'information',
 		maxQueryZoomLevel: 17,
 		maxQueryReturn: 500,
-		/*tableID: 'myTable',
-		tableWidth: 650, //The total width of the table below the map
-		tableClassName: 'tablesorter',*/
 		queryTableDivId: 'query_table',
 		infoWindowWidth: '280px',
 		infoWindowHeight: '200px',
@@ -709,9 +705,8 @@ var init = function(initParams) {
 				};
 				$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');
 			},
-			/*Wells, Permits to take water, One tab with many features*/
+			/*District locator, watershed locator, source water protection One feature with no tab*/
 			'Geocode': function(results) {
-				//console.log(results);
 				if(results[0].status === 'OK') {
 					var latlng = new google.maps.LatLng(results[0].latlng.lat, results[0].latlng.lng);
 					map.setCenter(latlng);
@@ -724,126 +719,6 @@ var init = function(initParams) {
 						searchString: results[0].address
 					};
 					$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');					
-				}
-			},
-			/*PWQMN, PGMN, many tabs with one features. identifyTemplate is an array with objects. Each object contains two perperties: label and content*/
-			'OneFeatureManyTabs': function(results, identifySettings) {
-				var featuresLength = Util.computeFeaturesNumber (results);
-				if (featuresLength === 0) {
-					return;
-				}
-				var features = Util.combineFeatures(results);
-				var attrs = features[0].attributes;  // The attributes for the first feature. 
-				var settings = {
-					infoWindowWidth: globalConfigure.infoWindowWidth,
-					infoWindowHeight: globalConfigure.infoWindowHeight,
-					infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
-					infoWindowContentWidth: globalConfigure.infoWindowContentWidth
-				};
-				var container = Util.createTabBar (_.map(identifySettings.identifyTemplate, function(template) {
-					return {
-						label: _.template(template.label,  {attrs: attrs, Util: Util}),
-						content: _.template(template.content,  {attrs: attrs, Util: Util})
-					};
-				}), settings);
-				openInfoWindow(identifySettings.gLatLng, container);			
-			},
-			/*District locator, watershed locator, source water protection One feature with no tab*/
-			'OneFeatureNoTabPolygon': function(results, identifySettings) {
-				var process = function (results, identifySettings, geocodingResult) {
-					//console.log(results);
-					if (marker) {
-						marker.setMap(null);
-					}
-					_.each(overlays, function(overlay){
-						overlay.setMap(null);
-					});
-					overlays = [];
-
-					var contents = identifySettings.identifyTemplate(results, Util, geocodingResult);
-
-					$("#" + globalConfigure.queryTableDivId).html(contents.table);
-
-					marker = new google.maps.Marker({
-						map: map,
-						draggable: true,
-						position: identifySettings.gLatLng,
-						visible: true
-					});
-
-					var boxText = document.createElement("div");
-					boxText.style.cssText = "border: 1px solid black; margin-top: 8px; background: white; padding: 5px;";
-					boxText.innerHTML = contents.infoWindow;
-
-					var myOptions = {
-						 content: boxText
-						,disableAutoPan: false
-						,maxWidth: 0
-						,pixelOffset: new google.maps.Size(-140, 0)
-						,zIndex: null
-						,boxStyle: { 
-						  background: "url('http://google-maps-utility-library-v3.googlecode.com/svn/trunk/infobox/examples/tipbox.gif') no-repeat"
-						  ,opacity: 0.75
-						  ,width: "280px"
-						 }
-						,closeBoxMargin: "10px 2px 2px 2px"
-						,closeBoxURL: "http://www.google.com/intl/en_us/mapfiles/close.gif"
-						,infoBoxClearance: new google.maps.Size(1, 1)
-						,isHidden: false
-						,pane: "floatPane"
-						,enableEventPropagation: false
-					};
-
-					google.maps.event.addListener(marker, "click", function (e) {
-						infoWindow.open(map, this);
-					});
-					google.maps.event.addListener(marker, 'dragend', function (e) {
-						$('#' + globalConfigure.searchInputBoxDivId)[0].value = '';
-						$('#' + globalConfigure.searchInputBoxDivId)[0].focus();
-						$("#" + globalConfigure.queryTableDivId).html('');
-						var latlng = marker.getPosition();
-						map.setCenter(latlng);
-						google.maps.event.trigger(map, 'click', {latLng: latlng});
-					});
-					infoWindow = new InfoBox(myOptions);
-
-					infoWindow.open(map, marker);
-					
-					var isReturnGeometryTrue = _.some(identifySettings.identifyLayersList, function(setting) {return setting.returnGeometry;});
-					if (isReturnGeometryTrue) {
-						var polylinesOnMap = _.reduce(_.range(identifySettings.identifyLayersList.length), function(totalPolylines, i) {
-							if (identifySettings.identifyLayersList[i].returnGeometry) {
-								var strokeOptions = identifySettings.identifyLayersList[i].strokeOptions;
-								var polylines = _.reduce(results[i].features, function(total, feature) {
-									if(feature.hasOwnProperty('geometry')) {
-										return total.concat(createPolylines(feature.geometry.rings, strokeOptions));
-									} else {
-										return total;
-									}
-								}, []);
-								return totalPolylines.concat(polylines);
-							} else {
-								return totalPolylines;
-							}
-						}, []);
-						_.each(polylinesOnMap, function(line){
-							line.setMap(map);
-							overlays.push(line);
-						});
-					}
-				};
-
-				if (identifySettings.hasOwnProperty('requireReverseGeocoding') && identifySettings.requireReverseGeocoding) {
-					var geocodePromise = geocode(identifySettings.latlng);
-					geocodePromise.done(function (result) {
-						if (result.status === 'OK') {
-							process (results, identifySettings, result);
-						} else {
-							process (results, identifySettings);
-						}
-					});
-				} else {
-					process (results, identifySettings);
 				}
 			}
 		}		
