@@ -605,11 +605,15 @@ var init = function(initParams) {
 					queryParamsList: queryParamsList, 
 					options: options
 				};
+			},
+			'Geocode': function (searchString) {
+				return searchString;
 			}
 		},
 		searchCallbackName: 'Default',
 		searchCallbackList: {
-			'Default': queryLayers
+			'Default': queryLayers,
+			'Geocode': geocode
 		},
 		postSearchCallbackName: 'OneFeatureNoTab',
 		postSearchCallbackList: {
@@ -702,24 +706,8 @@ var init = function(initParams) {
 				$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');
 			},
 			/*Wells, Permits to take water, One tab with many features*/
-			'ManyFeaturesOneTab': function(results, searchString) {
-				var featuresLength = Util.computeFeaturesNumber (results);
-				if (featuresLength === 0) {
-					return;
-				}
-				var features = Util.combineFeatures(results);
-				var content = _.template(identifySettings.identifyTemplate, {features: features, Util: Util});
-				var settings = {
-					infoWindowWidth: globalConfigure.infoWindowWidth,
-					infoWindowHeight: globalConfigure.infoWindowHeight,
-					infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
-					infoWindowContentWidth: globalConfigure.infoWindowContentWidth
-				};
-				var container = Util.createTabBar ([{
-					label: globalConfigure.langs.InformationLang,
-					content: content
-				}], settings);
-				openInfoWindow(identifySettings.gLatLng, container);
+			'Geocode': function(results, searchString) {
+				console.log(results);
 			},
 			/*PWQMN, PGMN, many tabs with one features. identifyTemplate is an array with objects. Each object contains two perperties: label and content*/
 			'OneFeatureManyTabs': function(results, identifySettings) {

@@ -120,6 +120,9 @@ GoogleMapsAdapter.init({
 			}; 
 		}
 	},	
+	preSearchCallbackName: 'Geocode',
+	searchCallbackName: 'Geocode',
+	postSearchCallbackName: 'Geocode',
 	pointBufferTool: {available: false},
 	extraImageService: {visible: false},
 	usejQueryUITable: true,  //Avoid loading extra javascript files

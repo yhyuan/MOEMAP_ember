@@ -10,37 +10,45 @@ GoogleMapsAdapter.init({
 	/*English Ends*/
 	/**/
 	mapServices: [{
-		url: "http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer",
-		visibleLayers: [0, 1, 2]
+		url: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/MOE_Districts_Full_Bnd/MapServer',
+		visibleLayers: [0]
 	}],
 	/*English Begins*/
-	otherInfoHTML: "<h2>Find a map error?</h2> 		<p>It is possible you may encounter inaccuracies with map locations.</p> 		<p>If you find an error in the location of a lake, river or stream, please contact us.  Use the <a href='mailto:sportfish.moe@ontario.ca?subject=Sport Fish Map Error'>Report an error</a> link within the map pop-up.</p> 		<h2>Comments</h2> 		<p>For comments and suggestions, email us at <a href='mailto:sportfish.moe@ontario.ca?subject=Sport Fish Map Feedback'>sportfish.moe@ontario.ca</a>.</p>",
+	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>		<label class="element-invisible" for="map_query">Search the map</label>		<input id="map_query" type="text" title="Search term" maxlength="100" onkeypress="return GoogleMapsAdapter.entsub(event)" size="50" />		<label class="element-invisible" for="search_submit">Search</label>		<input type="submit" onclick="GoogleMapsAdapter.search()" id="search_submit" value="Search" title="Search" />		<label class="element-invisible" for="search_clear">Clear</label>		<input type="submit" value="&nbsp;Clear&nbsp;" id="search_clear" title="Clear" onclick="GoogleMapsAdapter.clear()" />		<div id="information">Search by <STRONG>Address</STRONG>, <STRONG>City Name</STRONG>, <STRONG>Postal Code</STRONG> or see help for more advanced options.</div>',
 	/*English Ends*/
 	/**/
-	/*English Begins*/
-	report_URL: "fish-consumption-report",
-	/*English Ends*/
-	/**/	
-	/*English Begins*/
-	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>		<label class="element-invisible" for="map_query">Search the map</label>		<input id="map_query" type="text" title="Search term" maxlength="100" size="50" onkeypress="return GoogleMapsAdapter.entsub(event)"></input>		<label class="element-invisible" for="search_submit">Search</label>		<input id="search_submit" type="submit" title="Search" onclick="GoogleMapsAdapter.search()" value="Search"></input>		<fieldset>			<input type="radio" id="searchMapLocation" name="searchGroup" checked="checked" title="Search Map Location" name="location" value="location" onclick="GoogleMapsAdapter.searchChange(this)"></input>			<span class="tooltip" title="Search Map Location: Enter the name of an Ontario lake/river, city/town/township or street address to find fish consumption advice">			<label class="option" for="searchMapLocation">Search Map Location</label>			</span>			<br/>			<input type="radio" id="searchFishSpecies" name="searchGroup" title="Search Fish Species" name="species" value="species" onclick="GoogleMapsAdapter.searchChange(this)"></input>			<span class="tooltip" title="Search Fish Species: Enter the name of a fish species to find lakes with fish consumption advice for the species">			<label class="option" for="searchFishSpecies">Search Fish Species</label>			</span>			<br/>			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Current Map Display" /> <label for="currentExtent" class=\'option\'>Search current map display only</label>		</fieldset>		<div id="information"></div>',
-	/*English Ends*/
-	/**/
+	postIdentifyCallbackName: 'OneFeatureNoTabPolygon',
+
 	identifySettings: {
-		/* radius: 1, // 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
+		radius: 1, /* 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
+		requireReverseGeocoding: true,
 		identifyLayersList: [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/MOE_Districts_Full_Bnd/MapServer',
 			layerID: 0,
-			/*English Begins*/
-			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
-			/*English Ends*/
-			/**/
+			/*returnGeometry: true,
+			strokeOptions: {
+				color: '#8583f3',
+				opacity: 1, 
+				weight: 4
+			},*/
+			outFields: ["OBJECTID","MOE_DISTRICT","STREET_NAME","CITY","POSTALCODE","PHONENUMBER","TOLLFREENUMBER","FAXNUMBER","MOE_DISTRICT_NAME"]
 		}],
+
+		identifyTemplate: function (results, Util, geocodingResult) {
 		/*English Begins*/		
-		identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>			<a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></b><br>			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>'
+			var template = '<% var featuresLength = Util.computeFeaturesNumber (results); var address = (geocodingResult.hasOwnProperty("address") ? geocodingResult.address : "N/A"); 				if (featuresLength === 0) {%>					<i> <%= address %>.</i><br><br><strong>Result located within</strong><br><h3> No MOE District found</h3>				<%} else { var attrs = results[0].features[0].attributes;%>					<i><%= address %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOE District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br>					<%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Toll Free: <%= attrs.TOLLFREENUMBER %><br>Tel: <%= attrs.PHONENUMBER %> Fax: <%= attrs.FAXNUMBER %>				<% } %>';
 		/*English Ends*/
 		/**/
-	},
-	infoWindowHeight: '140px',
+			var contain = _.template(template, {results: results, Util: Util, geocodingResult: geocodingResult});			
+			return {
+				infoWindow: contain,
+				table: contain
+			}; 
+		}
+	},	
+	preSearchCallbackName: 'Geocode',
+	searchCallbackName: 'Geocode',
+	postSearchCallbackName: 'Geocode',
 	pointBufferTool: {available: false},
 	extraImageService: {visible: false},
 	usejQueryUITable: true,  //Avoid loading extra javascript files
@@ -64,6 +72,8 @@ GoogleMapsAdapter.init({
 	],
 	/*English Ends*/
 	/**/
+	
+
 	queryLayerList: [{
 		url: this.url + "/0",
 		tabsTemplate: [{
@@ -75,7 +85,7 @@ GoogleMapsAdapter.init({
 			content: this.tableFieldList
 		} 
 	}],
-	getSearchParams: function(searchString){
+	getSearchParams: function(searchString, globalConfigure){
 		var getLakeNameSearchCondition = function(searchString) {
 			var coorsArray = searchString.split(/\s+/);
 			var str = coorsArray.join(" ").toUpperCase();
@@ -169,6 +179,7 @@ GoogleMapsAdapter.init({
 			layerID: 0,
 			returnGeometry: true,
 			where: ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition,
+			//infoWindowTemplate: globalConfigure.identifyTemplate,
 			/*English Begins*/
 			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
 			/*English Ends*/
@@ -189,15 +200,22 @@ GoogleMapsAdapter.init({
 			options: options
 		}
 	},
-	tableTemplate: '<table id="myTable" class="tablesorter" width="650" border="0" cellpadding="0" cellspacing="1">		<thead><tr><th><center>Waterbody</center></th><th><center>Location</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Consumption Advisory Table</center></th></tr></thead><tbody>		<% _.each(features, function(feature) {			var attrs = feature.attributes; %> 			<tr><td><%= attrs.LOCNAME_EN %></td><td><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td><td><a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>		<% }); %>		</tbody></table>',
-/*	generateSearchResultsMarkers: function(results, globalConfigure) {
+	computeValidResultsTable: function(results, globalConfigure) {
+		var features = Util.combineFeatures(results);
+		var template = '<table id=\"<%= globalConfigure.tableID %>\" class=\"<%= globalConfigure.tableClassName %>\" width=\"<%= globalConfigure.tableWidth %>\" border=\"0\" cellpadding=\"0\" cellspacing=\"1\"><thead>			<tr><th><center>Waterbody</center></th><th><center>Location</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Consumption Advisory Table</center></th></tr></thead><tbody>			<% _.each(features, function(feature) {				var attrs = feature.attributes; %> 				<tr><td><%= attrs.LOCNAME_EN %></td><td><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td><td><a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>			<% }); %>			</tbody></table>';
+		return _.template(template, {features: features, globalConfigure: globalConfigure, Util: Util});
+	},
+	computeInvalidResultsTable: function () {
+		return globalConfigure.computeValidResultsTable;
+	}, 	
+	generateSearchResultsMarkers: function(results, globalConfigure) {
 		var features = Util.combineFeatures(results);
 		return _.map(features, function(feature) {
 			var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
 			var container = document.createElement('div');
 			container.style.width = globalConfigure.infoWindowWidth;
 			container.style.height = globalConfigure.infoWindowHeight;
-			container.innerHTML = _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: feature.attributes, Util: Util});
+			container.innerHTML = _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: feature.attributes, globalConfigure: globalConfigure, Util: Util});
 			//console.log(container.innerHTML);
 			var marker = new google.maps.Marker({
 				position: gLatLng
@@ -209,7 +227,7 @@ GoogleMapsAdapter.init({
 			})(container, marker);
 			return marker;			
 		});
-	},*/	
+	},	
 	searchChange: function () {}
 });
 
@@ -1645,11 +1663,15 @@ var init = function(initParams) {
 					queryParamsList: queryParamsList, 
 					options: options
 				};
+			},
+			'Geocode': function (searchString) {
+				return searchString;
 			}
 		},
 		searchCallbackName: 'Default',
 		searchCallbackList: {
-			'Default': queryLayers
+			'Default': queryLayers,
+			'Geocode': geocode
 		},
 		postSearchCallbackName: 'OneFeatureNoTab',
 		postSearchCallbackList: {
@@ -1742,24 +1764,8 @@ var init = function(initParams) {
 				$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');
 			},
 			/*Wells, Permits to take water, One tab with many features*/
-			'ManyFeaturesOneTab': function(results, searchString) {
-				var featuresLength = Util.computeFeaturesNumber (results);
-				if (featuresLength === 0) {
-					return;
-				}
-				var features = Util.combineFeatures(results);
-				var content = _.template(identifySettings.identifyTemplate, {features: features, Util: Util});
-				var settings = {
-					infoWindowWidth: globalConfigure.infoWindowWidth,
-					infoWindowHeight: globalConfigure.infoWindowHeight,
-					infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
-					infoWindowContentWidth: globalConfigure.infoWindowContentWidth
-				};
-				var container = Util.createTabBar ([{
-					label: globalConfigure.langs.InformationLang,
-					content: content
-				}], settings);
-				openInfoWindow(identifySettings.gLatLng, container);
+			'Geocode': function(results, searchString) {
+				console.log(results);
 			},
 			/*PWQMN, PGMN, many tabs with one features. identifyTemplate is an array with objects. Each object contains two perperties: label and content*/
 			'OneFeatureManyTabs': function(results, identifySettings) {
