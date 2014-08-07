@@ -747,7 +747,21 @@ var init = function(initParams) {
 		streetViewControl: true,
 		mapTypeId: params.defaultMapTypeId
 	};
+	if (globalConfigure.hasOwnProperty('extraImageServices')) {
+		var ids = _.map(globalConfigure.extraImageServices, function(extraImageService) {return extraImageService.id;});
+		mapOptions.mapTypeControlOptions = {
+			mapTypeIds: ids.concat([google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.HYBRID, google.maps.MapTypeId.TERRAIN])
+		};
+	}
 	map = new google.maps.Map($('#' + params.mapCanvasDivId)[0], mapOptions);
+	if (globalConfigure.hasOwnProperty('extraImageServices')) {
+		_.each(globalConfigure.extraImageServices, function(extraImageService) {
+			var agsType = new gmaps.ags.MapType(extraImageService.url, {
+				name: extraImageService.name
+			});
+			map.mapTypes.set(extraImageService.id, agsType);			
+		});
+	}
 
 	/*bounds changed*/	
 	var boundsChangedHandler = function() {

@@ -14,6 +14,11 @@ GoogleMapsAdapter.init({
 		url: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/MOE_Districts_Full_Bnd/MapServer',
 		visibleLayers: [0]
 	}],
+	extraImageServices: [{
+		id: "arcgis",
+		name: "ESRI",
+		url: 'http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer'
+	}],
 	/*English Begins*/
 	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
 		<label class="element-invisible" for="map_query">Search the map</label>\
