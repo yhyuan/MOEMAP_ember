@@ -49,185 +49,7 @@ GoogleMapsAdapter.init({
 	preSearchCallbackName: 'Geocode',
 	searchCallbackName: 'Geocode',
 	postSearchCallbackName: 'Geocode',
-	pointBufferTool: {available: false},
-	extraImageService: {visible: false},
-	usejQueryUITable: true,  //Avoid loading extra javascript files
-	usePredefinedMultipleTabs: false, //Avoid loading extra javascript files
-	allowMultipleIdentifyResult: false,
-	displayTotalIdentifyCount: false,
-	locationServicesList: [],
-	maxQueryZoomLevel: 11,
-	displayDisclaimer: true,
-	InformationLang: "Information",
-	//postIdentifyCallbackName: "SportFish",
-	//infoWindowWidth: '280px',
-	tableSimpleTemplateTitleLang: "",
-	/*English Begins*/
-	tableFieldList: [
-		{name: "Waterbody", value: "{LOCNAME_EN}"}, 
-		{name: "Location", value: "{globalConfig.addBRtoLongText(GUIDELOC_EN)}"}, 
-		{name: "Latitude", value: "{globalConfig.deciToDegree(LATITUDE)}"}, 
-		{name: "Longitude", value: "{globalConfig.deciToDegree(LONGITUDE)}"}, 	
-		{name: "Consumption Advisory Table", value: "<a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Consumption Advisory Table</a>"}
-	],
-	/*English Ends*/
-	/**/
-	
-
-	queryLayerList: [{
-		url: this.url + "/0",
-		tabsTemplate: [{
-			label: this.InformationLang,
-			content:this.tabsTemplateContent
-		}], 
-		tableSimpleTemplate: {
-			title: this.tableSimpleTemplateTitleLang, 
-			content: this.tableFieldList
-		} 
-	}],
-	getSearchParams: function(searchString, globalConfigure){
-		var getLakeNameSearchCondition = function(searchString) {
-			var coorsArray = searchString.split(/\s+/);
-			var str = coorsArray.join(" ").toUpperCase();
-			str = Util.replaceChar(str, "'", "''");
-			str = Util.replaceChar(str, "\u2019", "''");
-			/*English Begins*/
-			return "UPPER(LOCNAME_EN) LIKE '%" + str + "%'";
-			/*English Ends*/
-			/**/
-		};
-		var getQueryCondition = function(name){
-			var str = name.toUpperCase();
-			str = Util.replaceChar(str, '&', ', ');
-			str = Util.replaceChar(str, ' AND ', ', '); 
-			str = str.trim();
-			var nameArray = str.split(',');
-			var max = nameArray.length;
-			var res = [];
-			var inform = [];
-			var processAliasFishName = function(fishname){
-				var aliasList = {
-					GERMAN_TROUT: ["BROWN_TROUT"],
-					SHEEPHEAD:	["FRESHWATER_DRUM"],
-					STEELHEAD:	["RAINBOW_TROUT"],
-					SUNFISH:	["PUMPKINSEED"],
-					BARBOTTE:	["BROWN_BULLHEAD"],
-					BLACK_BASS:	["LARGEMOUTH_BASS","SMALLMOUTH_BASS"],
-					CALICO_BASS:	["BLACK_CRAPPIE"],
-					CRAWPIE:	["BLACK_CRAPPIE","WHITE_CRAPPIE"],
-					GREY_TROUT:	["LAKE_TROUT"],
-					HUMPBACK_SALMON:	["PINK_SALMON"],
-					KING_SALMON:	["CHINOOK_SALMON"],
-					LAKER:	["LAKE_TROUT"],
-					MENOMINEE:	["ROUND_WHITEFISH"],
-					MUDCAT:	["BROWN_BULLHEAD"],
-					MULLET:	["WHITE_SUCKER"],
-					PANFISH:	["BLUEGILL","ROCK_BASS","PUMPKINSEED"],
-					PICKEREL:	["WALLEYE"],
-					SILVER_BASS:	["WHITE_BASS"],
-					SILVER_SALMON:	["COHO_SALMON"],
-					SPECKLED_TROUT:	["BROOK_TROUT"],
-					SPRING_SALMON:	["CHINOOK_SALMON"]
-				};
-				var alias = aliasList[fishname];
-				var fish = Util.wordCapitalize(Util.replaceChar(fishname, '_', ' '));
-				if (typeof(alias) === "undefined"){
-					var result = {
-						/*English Begins*/
-						condition: "(SPECIES_EN like '%" + fishname +"%')",
-						/*English Ends*/
-						/**/
-						information: fish
-					};
-					return result;
-				}else{
-					var res = [];
-					var fishArray = [];
-					for (var i = 0; i < alias.length; i++){
-						/*English Begins*/
-						res.push("(SPECIES_EN like '%" + alias[i] +"%')");
-						/*English Ends*/
-						/**/
-						var str = Util.wordCapitalize(Util.replaceChar(alias[i], '_', ' '));
-						fishArray.push(str.trim());
-					}
-					var result = {
-						condition: "(" + res.join(" OR ") + ")",
-						information: fish + " ("  + fishArray.join(", ") + ")"
-					};
-					return result;
-				}
-			}
-			for (var i = 0; i < max; i++){
-				var str1 = (nameArray[i]).trim();
-				if(str1.length > 0){
-					var coorsArray = str1.split(/\s+/);
-					str1 = coorsArray.join("_");
-					var temp = processAliasFishName(str1);
-					res.push(temp.condition);
-					inform.push(temp.information);
-				}
-			}		
-			var result = {
-				condition: res.join(" AND "),
-				information: inform.join(", ")
-			};
-			return result;
-		};
-		var queryParamsList = [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
-			layerID: 0,
-			returnGeometry: true,
-			where: ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition,
-			//infoWindowTemplate: globalConfigure.identifyTemplate,
-			/*English Begins*/
-			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
-			/*English Ends*/
-			/**/
-		}];
-		var options = {
-			searchString: searchString,
-			geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
-			withinExtent: $('#currentMapExtent')[0].checked/*,
-			invalidFeatureLocations: [{
-				lat: 0,
-				lng: 0,
-				difference: 0.0001
-			}]*/
-		};
-		return {
-			queryParamsList: queryParamsList,
-			options: options
-		}
-	},
-	computeValidResultsTable: function(results, globalConfigure) {
-		var features = Util.combineFeatures(results);
-		var template = '<table id=\"<%= globalConfigure.tableID %>\" class=\"<%= globalConfigure.tableClassName %>\" width=\"<%= globalConfigure.tableWidth %>\" border=\"0\" cellpadding=\"0\" cellspacing=\"1\"><thead>			<tr><th><center>Waterbody</center></th><th><center>Location</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Consumption Advisory Table</center></th></tr></thead><tbody>			<% _.each(features, function(feature) {				var attrs = feature.attributes; %> 				<tr><td><%= attrs.LOCNAME_EN %></td><td><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td><td><a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>			<% }); %>			</tbody></table>';
-		return _.template(template, {features: features, globalConfigure: globalConfigure, Util: Util});
-	},
-	computeInvalidResultsTable: function () {
-		return globalConfigure.computeValidResultsTable;
-	}, 	
-	generateSearchResultsMarkers: function(results, globalConfigure) {
-		var features = Util.combineFeatures(results);
-		return _.map(features, function(feature) {
-			var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
-			var container = document.createElement('div');
-			container.style.width = globalConfigure.infoWindowWidth;
-			container.style.height = globalConfigure.infoWindowHeight;
-			container.innerHTML = _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: feature.attributes, globalConfigure: globalConfigure, Util: Util});
-			//console.log(container.innerHTML);
-			var marker = new google.maps.Marker({
-				position: gLatLng
-			});		
-			(function (container, marker) {
-				google.maps.event.addListener(marker, 'click', function () {
-					GoogleMapsAdapter.openInfoWindow(marker.getPosition(), container);
-				});
-			})(container, marker);
-			return marker;			
-		});
-	},	
+	searchZoomLevel: 12,
 	searchChange: function () {}
 });
 
@@ -1142,6 +964,24 @@ var previousBounds;
 var infoWindow;
 var marker;
 
+var clear = function () {
+	if (infoWindow) {
+		infoWindow.setMap(null);
+	}
+	if (marker) {
+		marker.setMap(null);
+	}
+	if (overlays) {
+		_.each(overlays,function (overlay) {
+			overlay.setMap(null);	
+		});
+	}
+
+	var center = new google.maps.LatLng(globalConfigure.orgLatitude, globalConfigure.orgLongitude);
+	map.setCenter(center);
+	map.setZoom(globalConfigure.orgzoomLevel);
+};
+
 var openInfoWindow = function (latlng, container){
 	if (!infoWindow) {
 		infoWindow = new google.maps.InfoWindow({
@@ -1770,6 +1610,8 @@ var init = function(initParams) {
 				//console.log(results);
 				if(results[0].status === 'OK') {
 					var latlng = new google.maps.LatLng(results[0].latlng.lat, results[0].latlng.lng);
+					map.setCenter(latlng);
+					map.setZoom(globalConfigure.searchZoomLevel);
 					google.maps.event.trigger(map, 'click', {latLng: latlng});
 				} else {
 					var messageParams = {
@@ -2093,7 +1935,8 @@ var api = {
 	entsub: entsub,
 	searchChange: searchChange,
 	openInfoWindow: openInfoWindow,
-	queryLayers: queryLayers
+	queryLayers: queryLayers,
+	clear: clear
 };
 
 module.exports = api;

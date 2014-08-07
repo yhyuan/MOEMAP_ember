@@ -84,6 +84,24 @@ var previousBounds;
 var infoWindow;
 var marker;
 
+var clear = function () {
+	if (infoWindow) {
+		infoWindow.setMap(null);
+	}
+	if (marker) {
+		marker.setMap(null);
+	}
+	if (overlays) {
+		_.each(overlays,function (overlay) {
+			overlay.setMap(null);	
+		});
+	}
+
+	var center = new google.maps.LatLng(globalConfigure.orgLatitude, globalConfigure.orgLongitude);
+	map.setCenter(center);
+	map.setZoom(globalConfigure.orgzoomLevel);
+};
+
 var openInfoWindow = function (latlng, container){
 	if (!infoWindow) {
 		infoWindow = new google.maps.InfoWindow({
@@ -712,6 +730,8 @@ var init = function(initParams) {
 				//console.log(results);
 				if(results[0].status === 'OK') {
 					var latlng = new google.maps.LatLng(results[0].latlng.lat, results[0].latlng.lng);
+					map.setCenter(latlng);
+					map.setZoom(globalConfigure.searchZoomLevel);
 					google.maps.event.trigger(map, 'click', {latLng: latlng});
 				} else {
 					var messageParams = {
@@ -1035,7 +1055,8 @@ var api = {
 	entsub: entsub,
 	searchChange: searchChange,
 	openInfoWindow: openInfoWindow,
-	queryLayers: queryLayers
+	queryLayers: queryLayers,
+	clear: clear
 };
 
 module.exports = api;
