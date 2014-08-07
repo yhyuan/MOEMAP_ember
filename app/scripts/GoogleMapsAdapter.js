@@ -134,23 +134,7 @@ var queryLayers = function (searchParams) {
 		};
 		if (queryParams.hasOwnProperty('geometry')) {
 			result.geometry = queryParams.geometry;
-		} /*else if(!!options && options.withinExtent) {
-			var getCurrentMapExtent = function () {
-				var b = map.getBounds();
-				var ne = b.getNorthEast();
-				var sw = b.getSouthWest();
-				var nLat = ne.lat();
-				var eLng = ne.lng();
-				var sLat = sw.lat();
-				var wLng = sw.lng();
-				var swLatLng = {lat: sLat, lng: wLng};
-				var seLatLng = {lat: sLat, lng: eLng};
-				var neLatLng = {lat: nLat, lng: eLng};
-				var nwLatLng = {lat: nLat, lng: wLng};
-				return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
-			};
-			result.geometry = getCurrentMapExtent();
-		}*/
+		}
 		return ArcGISServerAdapter.query(result);
 	});
 	return $.when.apply($, promises);
