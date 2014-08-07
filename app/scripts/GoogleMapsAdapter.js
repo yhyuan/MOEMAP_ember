@@ -602,8 +602,8 @@ var init = function(initParams) {
 					});
 				}
 				return {
-					queryParamsList: queryParamsList, 
-					options: options
+					queryParamsList: queryParamsList//, 
+					//options: options
 				};
 			},
 			'Geocode': function (searchString) {
@@ -623,8 +623,10 @@ var init = function(initParams) {
 			Get the first result from query results and use it to create the info window. The info window contains no tabs and no tables inside. 
 			Sport Fish, Lake Partner, TRAIS, 
 			*/
-			'OneFeatureNoTab': function(results, searchParams) {
+			'OneFeatureNoTab': function(results) {
 				var featuresLength = Util.computeFeaturesNumber (results);
+				var searchString = $('#' + globalConfigure.searchInputBoxDivId).val().trim();
+				var searchParams = globalConfigure.getSearchParams(searchString);
 				var options = searchParams.options;
 				if ((featuresLength === 0) && options.hasOwnProperty('geocodeWhenQueryFail') && options.geocodeWhenQueryFail && options.hasOwnProperty('searchString')) {
 					var geocodingParams = options.searchString;
@@ -706,8 +708,19 @@ var init = function(initParams) {
 				$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');
 			},
 			/*Wells, Permits to take water, One tab with many features*/
-			'Geocode': function(results, searchString) {
-				console.log(results);
+			'Geocode': function(results) {
+				//console.log(results);
+				if(results[0].status === 'OK') {
+					var latlng = new google.maps.LatLng(results[0].latlng.lat, results[0].latlng.lng);
+					google.maps.event.trigger(map, 'click', {latLng: latlng});
+				} else {
+					var messageParams = {
+						totalCount: 0,
+						maxQueryReturn: globalConfigure.maxQueryReturn,
+						searchString: results[0].address
+					};
+					$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');					
+				}
 			},
 			/*PWQMN, PGMN, many tabs with one features. identifyTemplate is an array with objects. Each object contains two perperties: label and content*/
 			'OneFeatureManyTabs': function(results, identifySettings) {
@@ -956,9 +969,9 @@ var search = function() {
 	overlays = [];
 
 	var searchParams = globalConfigure.preSearchCallbackList[globalConfigure.preSearchCallbackName](searchString);
-	var promise = globalConfigure.searchCallbackList[globalConfigure.searchCallbackName]({queryParamsList: searchParams.queryParamsList});
+	var promise = globalConfigure.searchCallbackList[globalConfigure.searchCallbackName](searchParams);
 	promise.done(function () {
-		globalConfigure.postSearchCallbackList[globalConfigure.postSearchCallbackName](arguments, searchParams);
+		globalConfigure.postSearchCallbackList[globalConfigure.postSearchCallbackName](arguments);
 	});
 };
 
