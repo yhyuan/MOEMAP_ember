@@ -76,77 +76,33 @@ GoogleMapsAdapter.init({
 		</fieldset>\
 		<div id="information"></div>',
 	/*French Ends*/
-	pointBufferTool: {available: false},
-	extraImageService: {visible: false},
-	usejQueryUITable: true,  //Avoid loading extra javascript files
-	usePredefinedMultipleTabs: false, //Avoid loading extra javascript files
-	allowMultipleIdentifyResult: false,
-	displayTotalIdentifyCount: false,
-	locationServicesList: [],
-	maxQueryZoomLevel: 11,
-	displayDisclaimer: true,
-	InformationLang: "Information",
-	//postIdentifyCallbackName: "SportFish",
-	//infoWindowWidth: '280px',
-	tableSimpleTemplateTitleLang: "",
-	/*English Begins*/
-	tableFieldList: [
-		{name: "Waterbody", value: "{LOCNAME_EN}"}, 
-		{name: "Location", value: "{globalConfig.addBRtoLongText(GUIDELOC_EN)}"}, 
-		{name: "Latitude", value: "{globalConfig.deciToDegree(LATITUDE)}"}, 
-		{name: "Longitude", value: "{globalConfig.deciToDegree(LONGITUDE)}"}, 	
-		{name: "Consumption Advisory Table", value: "<a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Consumption Advisory Table</a>"}
-	],
-	/*English Ends*/
-	/*French Begins*/
-	tableFieldList: [
-		{name: "Plan d'eau", value: "{LOCNAME_FR}"}, 
-		{name: "Lieu", value: "{globalConfig.addBRtoLongText(GUIDELOC_FR)}"}, 
-		{name: "Latitude", value: "{globalConfig.deciToDegree(LATITUDE)}"}, 
-		{name: "Longitude", value: "{globalConfig.deciToDegree(LONGITUDE)}"}, 	
-		{name: "Tableau des mises en garde en mati\u00e8re de consommation", value: "<a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a>"}
-	],
-	/*French Ends*/
-	/*English Begins*/
 	identifySettings: {
 		/* radius: 1, // 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
 		identifyLayersList: [{
 			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
 			layerID: 0,
+			/*English Begins*/
 			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
+			/*English Ends*/
+			/*French Begins*/
+			outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
+			/*French Ends*/
 		}],
+		/*English Begins*/		
 		identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>\
-			<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>\
+			<a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>\
 			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></b><br>\
 			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>'
-	},
-	/*English Ends*/
-	/*French Begins*/
-	identifySettings: {
-		/* radius: 1, // 1 meter If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
-		identifyLayersList: [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
-			layerID: 0,
-			outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
-		}],
+		/*English Ends*/
+		/*French Begins*/
 		identifyTemplate: '<strong><%= attrs.LOCNAME_FR %></strong><br><%= Util.addBRtoLongText(s.GUIDELOC_FR) %><br><br>\
-			<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>\
+			<a target=\'_blank\' href=\'rapport-de-consommation-de-poisson?id=<%= attrs.WATERBODYC %>\'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>\
 			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "FR") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "FR") %></b><br>\
 			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission <%= s.LOCNAME_FR %>)\'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>'
+		/*French Ends*/
 	},
-	/*French Ends*/
-	queryLayerList: [{
-		url: this.url + "/0",
-		tabsTemplate: [{
-			label: this.InformationLang,
-			content:this.tabsTemplateContent
-		}], 
-		tableSimpleTemplate: {
-			title: this.tableSimpleTemplateTitleLang, 
-			content: this.tableFieldList
-		} 
-	}],
-	getSearchParams: function(searchString, globalConfigure){
+	infoWindowHeight: '140px',
+	getSearchParams: function(searchString){
 		var getLakeNameSearchCondition = function(searchString) {
 			var coorsArray = searchString.split(/\s+/);
 			var str = coorsArray.join(" ").toUpperCase();
@@ -246,7 +202,6 @@ GoogleMapsAdapter.init({
 			layerID: 0,
 			returnGeometry: true,
 			where: ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition,
-			//infoWindowTemplate: globalConfigure.identifyTemplate,
 			/*English Begins*/
 			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
 			/*English Ends*/
@@ -269,60 +224,33 @@ GoogleMapsAdapter.init({
 			options: options
 		}
 	},
-	computeValidResultsTable: function(results, globalConfigure) {
-		var features = Util.combineFeatures(results);
-		var template = '<table id=\"<%= globalConfigure.tableID %>\" class=\"<%= globalConfigure.tableClassName %>\" width=\"<%= globalConfigure.tableWidth %>\" border=\"0\" cellpadding=\"0\" cellspacing=\"1\"><thead>\
-			<tr><th><center>Waterbody</center></th><th><center>Location</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Consumption Advisory Table</center></th></tr></thead><tbody>\
-			<% _.each(features, function(feature) {\
-				var attrs = feature.attributes; %> \
-				<tr><td><%= attrs.LOCNAME_EN %></td><td><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td><td><a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>\
-			<% }); %>\
-			</tbody></table>';
-		return _.template(template, {features: features, globalConfigure: globalConfigure, Util: Util});
-	},
-	computeInvalidResultsTable: function () {
-		return globalConfigure.computeValidResultsTable;
-	}, 	
-	generateSearchResultsMarkers: function(results, globalConfigure) {
-		var features = Util.combineFeatures(results);
-		return _.map(features, function(feature) {
-			var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
-			var container = document.createElement('div');
-			container.style.width = globalConfigure.infoWindowWidth;
-			container.style.height = globalConfigure.infoWindowHeight;
-			container.innerHTML = _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: feature.attributes, globalConfigure: globalConfigure, Util: Util});
-			//console.log(container.innerHTML);
-			var marker = new google.maps.Marker({
-				position: gLatLng
-			});		
-			(function (container, marker) {
-				google.maps.event.addListener(marker, 'click', function () {
-					GoogleMapsAdapter.openInfoWindow(marker.getPosition(), container);
-				});
-			})(container, marker);
-			return marker;			
-		});
-	},	
+	tableTemplate: '<table id="myTable" class="tablesorter" width="650" border="0" cellpadding="0" cellspacing="1">\
+		<thead><tr><th><center>Waterbody</center></th><th><center>Location</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Consumption Advisory Table</center></th></tr></thead><tbody>\
+		<% _.each(features, function(feature) {\
+			var attrs = feature.attributes; %> \
+			<tr><td><%= attrs.LOCNAME_EN %></td><td><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td><td><a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>\
+		<% }); %>\
+		</tbody></table>',
+		
+	pointBufferTool: {available: false},
+	extraImageService: {visible: false},
+	usejQueryUITable: true,  //Avoid loading extra javascript files
+	usePredefinedMultipleTabs: false, //Avoid loading extra javascript files
+	allowMultipleIdentifyResult: false,
+	displayTotalIdentifyCount: false,
+	locationServicesList: [],
+	maxQueryZoomLevel: 11,
+	displayDisclaimer: true,
+	InformationLang: "Information",
+	//postIdentifyCallbackName: "SportFish",
+	//infoWindowWidth: '280px',
+	tableSimpleTemplateTitleLang: "",
 	searchChange: function () {}
 });
 
-//globalConfig.chooseLang = function (en, fr) {return (globalConfig.language === "EN") ? en : fr;};
-
-//globalConfig.report_URL = globalConfig.chooseLang("SportFish_Report.htm", "SportFish_Report.htm");
-
-//globalConfig.searchableFieldsList = [{en: "waterbody name", fr: "plan d'eau"}, {en: "location", fr: "un lieu"}, {en: "species name", fr: "une espèce"}];
-
-
-	
 
 //globalConfig.infoWindowWidth = '320px';
 //globalConfig.infoWindowHeight = "140px";
-//globalConfig.infoWindowContentHeight = "200px";
-//globalConfig.infoWindowContentWidth = "300px";
-
-
-//globalConfig.tableSimpleTemplateTitleLang = globalConfig.chooseLang("Note: Data is in English only.", "\u00c0 noter : Les donn\u00e9es sont en anglais seulement.");
-//globalConfig.
 
 
 

@@ -272,6 +272,61 @@ var createTabBar = function (tabs, settings){
         // =======END  TAB UI ================
 };
 
+var getTableIDFromTableTemplate = function (template) {
+	var index = template.indexOf('id');
+	var str = template.substring(index + 2, template.length).trim();
+	str = str.substring(1, str.length).trim();
+	index = str.indexOf(' ');
+	str = str.substring(0, index).trim();
+	str = str.substring(1, str.length - 1);
+	return str;
+};
+
+/*
+	params
+		requried: totalCount, maxQueryReturn
+		optional: searchString, withinExtent, invalidCount
+
+*/
+var generateMessage = function(params, langs){
+	var totalCount = params.totalCount;
+	var maxQueryReturn = params.maxQueryReturn;
+
+	var regionName = "";
+	if (typeof(params.withinExtent) !== "undefined") {
+		regionName = " " + (params.withinExtent ? langs.inCurrentMapExtentLang : langs.inGobalRegionLang);
+	}
+	var searchString = " ";
+	if (typeof(params.searchString) !== "undefined") {
+		searchString = " " + langs.forLang + " <strong>"  + params.searchString + "</strong> ";
+	}
+	
+	var message = "";
+	if (params.hasOwnProperty("invalidCount") && (params.invalidCount > 0)) {
+		var invalidResultMsg = (params.invalidCount === 1) ? langs.ResultDoesNotHaveValidCoordinates : langs.ResultsDoNotHaveValidCoordinates;
+		if(totalCount === 0){
+			message = langs.yourSearchLang + searchString + langs.returnedNoResultLang + regionName + ". " + langs.pleaseRefineSearchLang + ".";
+		} else if(totalCount === 1){
+			message = langs.oneResultFoundLang  + searchString + regionName + "." + langs.ThisResultDoesNotHaveValidCoordinates;
+		} else if(totalCount >= maxQueryReturn){
+			message = langs.moreThanLang + " " + maxQueryReturn + " " + langs.resultsFoundLang + searchString + regionName + ". " + langs.onlyLang + " " + maxQueryReturn + " " + langs.returnedLang + ". " + langs.seeHelpLang + "." + langs.AmongReturnedResults + ", " + queryParams.invalidCount + invalidResultMsg;
+		} else {
+			message = totalCount + " " + langs.resultsFoundLang + searchString + regionName + ". " + langs.AmongReturnedResults + ", " + queryParams.invalidCount + invalidResultMsg;
+		}	
+	} else {
+		if(totalCount === 0){
+			message = langs.yourSearchLang + searchString + langs.returnedNoResultLang + regionName + ". " + langs.pleaseRefineSearchLang + ".";
+		} else if(totalCount === 1){
+			message = langs.oneResultFoundLang  + searchString + regionName + ".";
+		} else if(totalCount >= maxQueryReturn){
+			message = langs.moreThanLang + " " + maxQueryReturn + " " + langs.resultsFoundLang + searchString + regionName + ". " + langs.onlyLang + " " + maxQueryReturn + " " + langs.returnedLang + ". " + langs.seeHelpLang + ".";
+		} else {
+			message = totalCount + " " + langs.resultsFoundLang + searchString + regionName + ".";
+		}
+	}
+	return message;
+};
+
 var api = {
 	computeCircle: computeCircle,
 	computeOffset: computeOffset,
@@ -287,7 +342,9 @@ var api = {
 	deciToDegree: deciToDegree,
 	addBRtoLongText: addBRtoLongText,
 	processNA: processNA,
-	createTabBar: createTabBar
+	createTabBar: createTabBar,
+	getTableIDFromTableTemplate: getTableIDFromTableTemplate,
+	generateMessage: generateMessage
 };
 
 module.exports = api;

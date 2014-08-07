@@ -105,7 +105,7 @@ var closeInfoWindow = function (){
 
 var queryLayers = function (searchParams) {
 	var queryParamsList = searchParams.queryParamsList;
-	var options = searchParams.options;
+	//var options = searchParams.options;
 	var promises = _.map(queryParamsList, function(queryParams) {
 		var result = {
 			mapService: queryParams.mapService,
@@ -116,7 +116,7 @@ var queryLayers = function (searchParams) {
 		};
 		if (queryParams.hasOwnProperty('geometry')) {
 			result.geometry = queryParams.geometry;
-		} else if(!!options && options.withinExtent) {
+		} /*else if(!!options && options.withinExtent) {
 			var getCurrentMapExtent = function () {
 				var b = map.getBounds();
 				var ne = b.getNorthEast();
@@ -132,7 +132,7 @@ var queryLayers = function (searchParams) {
 				return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
 			};
 			result.geometry = getCurrentMapExtent();
-		}
+		}*/
 		return ArcGISServerAdapter.query(result);
 	});
 	return $.when.apply($, promises);
@@ -380,10 +380,12 @@ var init = function(initParams) {
 		maxMapScale: 21,
 		disallowMouseClick: false,
 		searchInputBoxDivId: 'map_query',
+		informationDivId: 'information',
 		maxQueryZoomLevel: 17,
-		tableID: 'myTable',
+		maxQueryReturn: 500,
+		/*tableID: 'myTable',
 		tableWidth: 650, //The total width of the table below the map
-		tableClassName: 'tablesorter',
+		tableClassName: 'tablesorter',*/
 		queryTableDivId: 'query_table',
 		infoWindowWidth: '280px',
 		infoWindowHeight: '200px',
@@ -534,6 +536,273 @@ var init = function(initParams) {
 					infoWindow = new InfoBox(myOptions);
 
 					infoWindow.open(map, marker);
+
+					var isReturnGeometryTrue = _.some(identifySettings.identifyLayersList, function(setting) {return setting.returnGeometry;});
+					if (isReturnGeometryTrue) {
+						var polylinesOnMap = _.reduce(_.range(identifySettings.identifyLayersList.length), function(totalPolylines, i) {
+							if (identifySettings.identifyLayersList[i].returnGeometry) {
+								var strokeOptions = identifySettings.identifyLayersList[i].strokeOptions;
+								var polylines = _.reduce(results[i].features, function(total, feature) {
+									if(feature.hasOwnProperty('geometry')) {
+										return total.concat(createPolylines(feature.geometry.rings, strokeOptions));
+									} else {
+										return total;
+									}
+								}, []);
+								return totalPolylines.concat(polylines);
+							} else {
+								return totalPolylines;
+							}
+						}, []);
+						_.each(polylinesOnMap, function(line){
+							line.setMap(map);
+							overlays.push(line);
+						});
+					}
+				};
+
+				if (identifySettings.hasOwnProperty('requireReverseGeocoding') && identifySettings.requireReverseGeocoding) {
+					var geocodePromise = geocode(identifySettings.latlng);
+					geocodePromise.done(function (result) {
+						if (result.status === 'OK') {
+							process (results, identifySettings, result);
+						} else {
+							process (results, identifySettings);
+						}
+					});
+				} else {
+					process (results, identifySettings);
+				}
+			}
+		},
+		preSearchCallbackName: 'Default',
+		preSearchCallbackList: {
+			'Default': function (searchString) {
+				var searchParams = globalConfigure.getSearchParams(searchString);
+				var queryParamsList = searchParams.queryParamsList;
+				var options = searchParams.options;
+				if(!!options && options.withinExtent) {
+					var getCurrentMapExtent = function () {
+						var b = map.getBounds();
+						var ne = b.getNorthEast();
+						var sw = b.getSouthWest();
+						var nLat = ne.lat();
+						var eLng = ne.lng();
+						var sLat = sw.lat();
+						var wLng = sw.lng();
+						var swLatLng = {lat: sLat, lng: wLng};
+						var seLatLng = {lat: sLat, lng: eLng};
+						var neLatLng = {lat: nLat, lng: eLng};
+						var nwLatLng = {lat: nLat, lng: wLng};
+						return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
+					};
+					var geometry = getCurrentMapExtent();
+					_.each(queryParamsList, function(queryParams) {
+						queryParams.geometry = geometry;
+					});
+				}
+				return {
+					queryParamsList: queryParamsList, 
+					options: options
+				};
+			}
+		},
+		searchCallbackName: 'Default',
+		searchCallbackList: {
+			'Default': queryLayers
+		},
+		postSearchCallbackName: 'OneFeatureNoTab',
+		postSearchCallbackList: {
+			/* If there is no returned result, it is allowed to call geocoding to geocode the location. 
+
+			are more than one layer, they must have the same structure. Or there is only one layer. 
+			Get the first result from query results and use it to create the info window. The info window contains no tabs and no tables inside. 
+			Sport Fish, Lake Partner, TRAIS, 
+			*/
+			'OneFeatureNoTab': function(results, searchParams) {
+				var featuresLength = Util.computeFeaturesNumber (results);
+				var options = searchParams.options;
+				if ((featuresLength === 0) && options.hasOwnProperty('geocodeWhenQueryFail') && options.geocodeWhenQueryFail && options.hasOwnProperty('searchString')) {
+					var geocodingParams = options.searchString;
+					if (options.hasOwnProperty('GeocoderList')) {
+						geocodingParams = {
+							GeocoderList: options.GeocoderList,
+							address: options.searchString
+						};
+					}
+					var geocodePromise = geocode(geocodingParams);
+					geocodePromise.done(function(result){
+						if (result.status === "OK") {
+							//result.latlng result.geocodedAddress, map zoom to specific area, add a location pin to the location, update search message.
+						} else {
+							//update search meesage
+						}
+					});
+					return;
+				}
+
+				var features = Util.combineFeatures(results);
+				$('#' + globalConfigure.queryTableDivId).html(_.template(globalConfigure.tableTemplate, {features: features, Util: Util}));
+				var dataTableOptions = {
+					'bJQueryUI': true,
+					'sPaginationType': 'full_numbers' 
+				};
+				if (globalConfigure.language !== 'EN') {
+					dataTableOptions['oLanguage'] = globalConfigure.langs.dataTableLang;
+				}
+				var tableID = Util.getTableIDFromTableTemplate(globalConfigure.tableTemplate);
+				$('#' + tableID).dataTable(dataTableOptions);
+
+				var markers = _.map(features, function(feature) {
+					var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
+					var container = document.createElement('div');
+					container.style.width = globalConfigure.infoWindowWidth;
+					container.style.height = globalConfigure.infoWindowHeight;
+					container.innerHTML = _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: feature.attributes, Util: Util});
+					var marker = new google.maps.Marker({
+						position: gLatLng
+					});		
+					(function (container, marker) {
+						google.maps.event.addListener(marker, 'click', function () {
+							openInfoWindow(marker.getPosition(), container);
+						});
+					})(container, marker);
+					return marker;
+				});
+				_.each(markers, function(marker){
+					marker.setMap(map);
+					overlays.push(marker);
+				});
+
+				if(options.hasOwnProperty('withinExtent') && !options.withinExtent) {
+					var convertToGBounds = function(b) {
+						var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
+						var ne = new google.maps.LatLng(b.northEast.lat, b.northEast.lng);			 
+						var bounds = new google.maps.LatLngBounds(sw, ne);
+						return bounds;
+					};
+					var bounds = convertToGBounds(Util.computePointsBounds(_.map(features, function(feature) {
+						return {lng: feature.geometry.x, lat: feature.geometry.y};
+					})));
+					_.each(arcGISMapServices, function(arcGISMapService) {
+						arcGISMapService.setMap(null);
+					});
+					map.fitBounds(bounds);
+					var maxQueryZoomLevel = globalConfigure.maxQueryZoomLevel;
+					if (map.getZoom() > maxQueryZoomLevel) {
+						map.setZoom(maxQueryZoomLevel);
+					}
+				}
+				var messageParams = {
+					totalCount: featuresLength,
+					maxQueryReturn: globalConfigure.maxQueryReturn,
+					searchString: options.searchString,
+					withinExtent: options.withinExtent
+				};
+				$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');
+			},
+			/*Wells, Permits to take water, One tab with many features*/
+			'ManyFeaturesOneTab': function(results, searchString) {
+				var featuresLength = Util.computeFeaturesNumber (results);
+				if (featuresLength === 0) {
+					return;
+				}
+				var features = Util.combineFeatures(results);
+				var content = _.template(identifySettings.identifyTemplate, {features: features, Util: Util});
+				var settings = {
+					infoWindowWidth: globalConfigure.infoWindowWidth,
+					infoWindowHeight: globalConfigure.infoWindowHeight,
+					infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
+					infoWindowContentWidth: globalConfigure.infoWindowContentWidth
+				};
+				var container = Util.createTabBar ([{
+					label: globalConfigure.langs.InformationLang,
+					content: content
+				}], settings);
+				openInfoWindow(identifySettings.gLatLng, container);
+			},
+			/*PWQMN, PGMN, many tabs with one features. identifyTemplate is an array with objects. Each object contains two perperties: label and content*/
+			'OneFeatureManyTabs': function(results, identifySettings) {
+				var featuresLength = Util.computeFeaturesNumber (results);
+				if (featuresLength === 0) {
+					return;
+				}
+				var features = Util.combineFeatures(results);
+				var attrs = features[0].attributes;  // The attributes for the first feature. 
+				var settings = {
+					infoWindowWidth: globalConfigure.infoWindowWidth,
+					infoWindowHeight: globalConfigure.infoWindowHeight,
+					infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
+					infoWindowContentWidth: globalConfigure.infoWindowContentWidth
+				};
+				var container = Util.createTabBar (_.map(identifySettings.identifyTemplate, function(template) {
+					return {
+						label: _.template(template.label,  {attrs: attrs, Util: Util}),
+						content: _.template(template.content,  {attrs: attrs, Util: Util})
+					};
+				}), settings);
+				openInfoWindow(identifySettings.gLatLng, container);			
+			},
+			/*District locator, watershed locator, source water protection One feature with no tab*/
+			'OneFeatureNoTabPolygon': function(results, identifySettings) {
+				var process = function (results, identifySettings, geocodingResult) {
+					//console.log(results);
+					if (marker) {
+						marker.setMap(null);
+					}
+					_.each(overlays, function(overlay){
+						overlay.setMap(null);
+					});
+					overlays = [];
+
+					var contents = identifySettings.identifyTemplate(results, Util, geocodingResult);
+
+					$("#" + globalConfigure.queryTableDivId).html(contents.table);
+
+					marker = new google.maps.Marker({
+						map: map,
+						draggable: true,
+						position: identifySettings.gLatLng,
+						visible: true
+					});
+
+					var boxText = document.createElement("div");
+					boxText.style.cssText = "border: 1px solid black; margin-top: 8px; background: white; padding: 5px;";
+					boxText.innerHTML = contents.infoWindow;
+
+					var myOptions = {
+						 content: boxText
+						,disableAutoPan: false
+						,maxWidth: 0
+						,pixelOffset: new google.maps.Size(-140, 0)
+						,zIndex: null
+						,boxStyle: { 
+						  background: "url('http://google-maps-utility-library-v3.googlecode.com/svn/trunk/infobox/examples/tipbox.gif') no-repeat"
+						  ,opacity: 0.75
+						  ,width: "280px"
+						 }
+						,closeBoxMargin: "10px 2px 2px 2px"
+						,closeBoxURL: "http://www.google.com/intl/en_us/mapfiles/close.gif"
+						,infoBoxClearance: new google.maps.Size(1, 1)
+						,isHidden: false
+						,pane: "floatPane"
+						,enableEventPropagation: false
+					};
+
+					google.maps.event.addListener(marker, "click", function (e) {
+						infoWindow.open(map, this);
+					});
+					google.maps.event.addListener(marker, 'dragend', function (e) {
+						$('#' + globalConfigure.searchInputBoxDivId)[0].value = '';
+						$('#' + globalConfigure.searchInputBoxDivId)[0].focus();
+						$("#" + globalConfigure.queryTableDivId).html('');
+						var latlng = marker.getPosition();
+						map.setCenter(latlng);
+						google.maps.event.trigger(map, 'click', {latLng: latlng});
+					});
+					infoWindow = new InfoBox(myOptions);
+
+					infoWindow.open(map, marker);
 					
 					var isReturnGeometryTrue = _.some(identifySettings.identifyLayersList, function(setting) {return setting.returnGeometry;});
 					if (isReturnGeometryTrue) {
@@ -572,7 +841,7 @@ var init = function(initParams) {
 					process (results, identifySettings);
 				}
 			}
-		}
+		}		
 	};
 	var params = _.defaults(initParams, defaultParams);
 	globalConfigure = params;
@@ -698,70 +967,10 @@ var search = function() {
 	});
 	overlays = [];
 
-	var searchParams = globalConfigure.getSearchParams(searchString, globalConfigure);	
-	var promise = queryLayers(searchParams);
-
-	promise.done(function() {
-		var featuresLength = Util.computeFeaturesNumber (arguments);
-		var options = searchParams.options;
-		if ((featuresLength === 0) && options.hasOwnProperty('geocodeWhenQueryFail') && options.geocodeWhenQueryFail && options.hasOwnProperty('searchString')) {
-			var geocodingParams = options.searchString;
-			if (options.hasOwnProperty('GeocoderList')) {
-				geocodingParams = {
-					GeocoderList: options.GeocoderList,
-					address: options.searchString
-				};
-			}
-			var geocodePromise = geocode(geocodingParams);
-			geocodePromise.done(function(result){
-				if (result.status === "OK") {
-					//result.latlng result.geocodedAddress, map zoom to specific area, add a location pin to the location, update search message.
-				} else {
-					//update search meesage
-				}
-			});
-			return;
-		}
-		var validResults = arguments;
-		var validTable = '';
-		if (options.hasOwnProperty('invalidFeatureLocations') && options.invalidFeatureLocations) {
-			var splittedResults = Util.splitResults(arguments, options.invalidFeatureLocations);
-			validResults = splittedResults.validResults;
-			var invalidResults = splittedResults.invalidResults;
-			var validFeaturesLength = Util.computeFeaturesNumber(validResults);
-			var invalidFeaturesLength = Util.computeFeaturesNumber(invalidResults);
-			validTable = globalConfigure.computeValidResultsTable(validResults, globalConfigure);
-			var invalidTable = globalConfigure.computeInvalidResultsTable(invalidResults, globalConfigure);
-			//console.log(validTable);			
-		}
-		validTable = globalConfigure.computeValidResultsTable(validResults, globalConfigure);
-		$("#" + globalConfigure.queryTableDivId).html(validTable);
-
-		var markers = globalConfigure.generateSearchResultsMarkers(validResults, globalConfigure);
-		_.each(markers, function(marker){
-			marker.setMap(map);
-			overlays.push(marker);
-		});
-
-		if(options.hasOwnProperty('withinExtent') && !options.withinExtent) {
-			var convertToGBounds = function(b) {
-				var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
-				var ne = new google.maps.LatLng(b.northEast.lat, b.northEast.lng);			 
-				var bounds = new google.maps.LatLngBounds(sw, ne);
-				return bounds;
-			};
-			var bounds = convertToGBounds(Util.computePointsBounds(_.map(Util.combineFeatures(validResults), function(feature) {
-				return {lng: feature.geometry.x, lat: feature.geometry.y};
-			})));
-			_.each(arcGISMapServices, function(arcGISMapService) {
-				arcGISMapService.setMap(null);
-			});
-			map.fitBounds(bounds);
-			var maxQueryZoomLevel = globalConfigure.maxQueryZoomLevel;
-			if (map.getZoom() > maxQueryZoomLevel) {
-				map.setZoom(maxQueryZoomLevel);
-			}
-		}
+	var searchParams = globalConfigure.preSearchCallbackList[globalConfigure.preSearchCallbackName](searchString);
+	var promise = globalConfigure.searchCallbackList[globalConfigure.searchCallbackName]({queryParamsList: searchParams.queryParamsList});
+	promise.done(function () {
+		globalConfigure.postSearchCallbackList[globalConfigure.postSearchCallbackName](arguments, searchParams);
 	});
 };
 
