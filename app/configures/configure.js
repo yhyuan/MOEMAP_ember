@@ -1,5 +1,13 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 /* global _, $, google */
+
+/*
+	Enhancements: 1) Fix a bug. When the clear button is clicked, the table below the map is still there in the existing application. The new version fixed this issue by removing it when the Clear button is clicked. 
+	Meanwhile, the message information become empty. The new version change the message information back to help information. 
+	2) When the user clicks on the map, it will display the information. 
+*/
+
+
 'use strict';
 var GoogleMapsAdapter = require('../scripts/GoogleMapsAdapter');
 var Util = require('../scripts/Util');
@@ -10,25 +18,29 @@ GoogleMapsAdapter.init({
 	/*English Ends*/
 	/**/
 	mapServices: [{
-		url: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/MOE_Districts_Full_Bnd/MapServer',
-		visibleLayers: [0]
+		url: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/GreatLakes_WS_Bnd/MapServer',
+		visibleLayers: [0, 1]
 	}],
 	extraImageServices: [{
 		id: "arcgis",
 		name: "ESRI",
 		url: 'http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer'
-	}],
+	}],	
 	/*English Begins*/
-	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>		<label class="element-invisible" for="map_query">Search the map</label>		<input id="map_query" type="text" title="Search term" maxlength="100" onkeypress="return GoogleMapsAdapter.entsub(event)" size="50" />		<label class="element-invisible" for="search_submit">Search</label>		<input type="submit" onclick="GoogleMapsAdapter.search()" id="search_submit" value="Search" title="Search" />		<label class="element-invisible" for="search_clear">Clear</label>		<input type="submit" value="&nbsp;Clear&nbsp;" id="search_clear" title="Clear" onclick="GoogleMapsAdapter.clear()" />		<div id="information">Search by <STRONG>Address</STRONG>, <STRONG>City Name</STRONG>, <STRONG>Postal Code</STRONG> or see help for more advanced options.</div>',
+	otherInfoHTML: '<br>Data source: Land Information Ontario (LIO).<br>',
+	/*English Ends*/
+	/**/	
+	/*English Begins*/
+	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>		<label class="element-invisible" for="map_query">Search the map</label>		<input id="map_query" type="text" title="Search term" maxlength="100" onkeypress="return GoogleMapsAdapter.entsub(event)" size="50" />		<label class="element-invisible" for="search_submit">Search</label>		<input type="submit" onclick="GoogleMapsAdapter.search()" id="search_submit" value="Search" title="Search" />		<label class="element-invisible" for="search_clear">Clear</label>		<input type="submit" value="&nbsp;Clear&nbsp;" id="search_clear" title="Clear" onclick="GoogleMapsAdapter.clear()" />		<div id="information">You may search by <strong>address</strong>, <strong>city name</strong>, <strong>coordinates</strong> or see help for advanced options.</div>',
 	/*English Ends*/
 	/**/
 	postIdentifyCallbackName: 'OneFeatureNoTabPolygon',
-
+	
 	identifySettings: {
 		radius: 1, /* 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
 		requireReverseGeocoding: true,
 		identifyLayersList: [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/MOE_Districts_Full_Bnd/MapServer',
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/GreatLakes_WS_Bnd/MapServer',
 			layerID: 0,
 			/*returnGeometry: true,
 			strokeOptions: {
@@ -36,45 +48,98 @@ GoogleMapsAdapter.init({
 				opacity: 1, 
 				weight: 4
 			},*/
-			outFields: ["OBJECTID","MOE_DISTRICT","STREET_NAME","CITY","POSTALCODE","PHONENUMBER","TOLLFREENUMBER","FAXNUMBER","MOE_DISTRICT_NAME"]
+			outFields: ["LABEL"]
 		}],
 
-		identifyTemplate: function (results, Util, geocodingResult) {
+		identifyTemplate: function (results, Util, geocodingResult, searchString) {
+			var utm = Util.convertLatLngtoUTM(geocodingResult.latlng.lat, geocodingResult.latlng.lng);
+			var latlng = geocodingResult.latlng;
+			var test = _.some([{lat: 42.261049,lng: -81.128540}, {lat: 45.313529,lng: -81.886597}, {lat: 43.651976,lng: -77.997437}, {lat: 47.802087,lng: -86.989746}, {lat: 44.439805,lng: -75.848505}], function (loc) {
+				return Math.abs(latlng.lat - loc.lat) + Math.abs(latlng.lng - loc.lng) < 0.0001;
+			});
+			if (test) {
+				geocodingResult.address = searchString;
+			}
+			
+			/*var address = Util.findGreatLakeWithLocation(latlng);
+			if (!!address) {
+				geocodingResult.address = address;
+			}*/
 		/*English Begins*/		
-			var template = '<% var featuresLength = Util.computeFeaturesNumber (results); var address = (geocodingResult.hasOwnProperty("address") ? geocodingResult.address : "N/A"); 				if (featuresLength === 0) {%>					<i> <%= address %>.</i><br><br><strong>Result located within</strong><br><h3> No MOE District found</h3>				<%} else { var attrs = results[0].features[0].attributes;%>					<i><%= address %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOE District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br>					<%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Toll Free: <%= attrs.TOLLFREENUMBER %><br>Tel: <%= attrs.PHONENUMBER %> Fax: <%= attrs.FAXNUMBER %>				<% } %>';
+			var template = '<% var featuresLength = Util.computeFeaturesNumber (results); var address = (geocodingResult.hasOwnProperty("address") ? geocodingResult.address : "N/A"); 				if (featuresLength === 0) {%>					<i> <%= address %>.</i><br><br><strong>Result located within</strong><br> No Great Lakes Watershed found				<%} else { var attrs = results[0].features[0].attributes;%>					<i><%= address %></i><br><br><i><strong>Latitude:</strong> <%= geocodingResult.latlng.lat.toFixed(6) %>  <strong>Longitude:</strong> <%= geocodingResult.latlng.lng.toFixed(6) %></i><br>					<i><strong>UTM Zone:</strong>  <%= utm.Zone %> <strong>Easting:</strong>  <%= utm.Easting %>  <strong>Northing:</strong>  <%= utm.Northing %>  </i><br><br>					<strong>Result located within</strong><br><%= attrs.LABEL %> WATERSHED				<% } %>';
 		/*English Ends*/
 		/**/
-			var contain = _.template(template, {results: results, Util: Util, geocodingResult: geocodingResult});			
+			var contain = _.template(template, {results: results, Util: Util, geocodingResult: geocodingResult, utm: utm});			
 			return {
 				infoWindow: contain,
 				table: contain
 			}; 
 		}
-	},	
-	preSearchCallbackName: 'Geocode',
-	searchCallbackName: 'Geocode',
-	postSearchCallbackName: 'Geocode',
+	},
+	searchGeocoderList: {
+		'GreatLakes' : {		
+			'match': function (params) {
+				var lakeLocations = ["LAKE ERIE", "LAC \u00c9RI\u00c9", "LAKE HURON", "LAC HURON", "LAKE ONTARIO", "LAC ONTARIO", "LAKE SUPERIOR", "LAC SUP\u00c9RIEUR", "UPPER ST. LAWRENCE", "ST. LAWRENCE RIVER", "HAUT SAINT-LAURENT", "FLEUVE SAINT-LAURENT"];
+				return _.contains(lakeLocations, params.address.split(/\s+/).join(" ").toUpperCase());
+			},
+			'geocode': function (params) {				
+				var lakeLocations = {
+					"LAKE ERIE": {location: {lat: 42.261049,lng: -81.128540}, zoomlevel: 8},
+					"LAC \u00c9RI\u00c9": {location: {lat: 42.261049,lng: -81.128540}, zoomlevel: 8},
+					"LAKE HURON": {location: {lat: 45.313529,lng: -81.886597}, zoomlevel: 8},
+					"LAC HURON": {location: {lat: 45.313529,lng: -81.886597}, zoomlevel: 8},
+					"LAKE ONTARIO": {location: {lat: 43.651976,lng: -77.997437}, zoomlevel: 8},
+					"LAC ONTARIO": {location: {lat: 43.651976,lng: -77.997437}, zoomlevel: 8},
+					"LAKE SUPERIOR": {location: {lat: 47.802087,lng: -86.989746}, zoomlevel: 7},	
+					"LAC SUP\u00c9RIEUR": {location: {lat: 47.802087,lng: -86.989746}, zoomlevel: 7},	
+					"UPPER ST. LAWRENCE": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+					"ST. LAWRENCE RIVER": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+					"HAUT SAINT-LAURENT": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+					"FLEUVE SAINT-LAURENT": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9}
+				};
+				var key = params.address.split(/\s+/).join(" ").toUpperCase();
+				var result = {
+					latlng: lakeLocations[key].location,
+					zoomLevel: lakeLocations[key].zoomlevel,
+					address: params.address,
+					status: 'OK'
+				};
+				var dfd = new $.Deferred();
+				dfd.resolve(result);
+				return dfd.promise();
+			}
+		}
+	},
+	preSearchCallbackName: 'OneFeatureNoTabPolygon',
+	searchCallbackName: 'OneFeatureNoTabPolygon',
+	postSearchCallbackName: 'OneFeatureNoTabPolygon',
 	searchZoomLevel: 12,
-	searchChange: function () {}
+	generateMessage: function (results, geocodingResult, searchString) {
+		var latlng = geocodingResult.latlng;
+		var test = _.some([{lat: 42.261049,lng: -81.128540}, {lat: 45.313529,lng: -81.886597}, {lat: 43.651976,lng: -77.997437}, {lat: 47.802087,lng: -86.989746}, {lat: 44.439805,lng: -75.848505}], function (loc) {
+			return Math.abs(latlng.lat - loc.lat) + Math.abs(latlng.lng - loc.lng) < 0.0001;
+		});
+		if (test) {
+			geocodingResult.address = searchString;
+		}
+		/*var address = Util.findGreatLakeWithLocation(latlng);
+		if (!address) {
+			address = geocodingResult.address;
+		}*/
+		var address = geocodingResult.address;
+		if (!!results && !!results[0].features && results[0].features.length === 0) {
+			/*English Begins*/
+			return '<strong>' + address + '</strong> located within <strong>No Great Lakes Watershed found.</strong>';
+			/*English Ends*/
+			/**/
+		}
+		var lake = results[0].features[0].attributes.LABEL;
+		/*English Begins*/
+		return '<strong>' + address + '</strong> located within <strong>' + lake + ' WATERSHED.</strong>';
+		/*English Ends*/
+		/**/		
+	}
 });
-
-//globalConfig.chooseLang = function (en, fr) {return (globalConfig.language === "EN") ? en : fr;};
-
-//globalConfig.report_URL = globalConfig.chooseLang("SportFish_Report.htm", "SportFish_Report.htm");
-
-//globalConfig.searchableFieldsList = [{en: "waterbody name", fr: "plan d'eau"}, {en: "location", fr: "un lieu"}, {en: "species name", fr: "une espèce"}];
-
-
-	
-
-//globalConfig.infoWindowWidth = '320px';
-//globalConfig.infoWindowHeight = "140px";
-//globalConfig.infoWindowContentHeight = "200px";
-//globalConfig.infoWindowContentWidth = "300px";
-
-
-//globalConfig.tableSimpleTemplateTitleLang = globalConfig.chooseLang("Note: Data is in English only.", "\u00c0 noter : Les donn\u00e9es sont en anglais seulement.");
-//globalConfig.
 },{"../scripts/GoogleMapsAdapter":4,"../scripts/Util":5}],2:[function(require,module,exports){
 /* global _, $, escape */
 'use strict';
@@ -981,7 +1046,10 @@ var clear = function () {
 			overlay.setMap(null);	
 		});
 	}
-
+	$('#' + globalConfigure.searchInputBoxDivId)[0].value = '';
+	$('#' + globalConfigure.searchInputBoxDivId)[0].focus();
+	$("#" + globalConfigure.queryTableDivId).html('');
+	$('#' + globalConfigure.informationDivId).html(globalConfigure.searchHelpText);
 	var center = new google.maps.LatLng(globalConfigure.orgLatitude, globalConfigure.orgLongitude);
 	map.setCenter(center);
 	map.setZoom(globalConfigure.orgzoomLevel);
@@ -1027,6 +1095,70 @@ var queryLayers = function (searchParams) {
 
 var geocode = function(input) {
 	var geocodeParams = {};
+	var defaultGeocoder = function(params) {
+		var dfd = new $.Deferred();			
+		if (params.address.toUpperCase() === "ONTARIO") {
+			var result = {
+				status: 'No_Result'
+			};
+			dfd.resolve(result);
+		} else {
+			//Private method: test whether the input ends with region names.
+			var regionAddressProcess = function(addressStr, defaultRegionNames){
+				var isAddressEndsWithRegionName = function(address, str) {
+					if (address.length > str.length + 1) {
+						var substr = address.substring(address.length - str.length - 1);
+						if (substr === (" " + str) || substr === ("," + str)) {
+							return true;
+						}
+					}
+					return false;
+				};					
+				var address = addressStr.toUpperCase();
+				var res = _.some(defaultRegionNames, function(regionName) {
+					return isAddressEndsWithRegionName(address, regionName);
+				});
+				if(!res){
+					return addressStr + " Ontario";
+				}
+				return addressStr;
+			};
+
+			var Geocoder = new google.maps.Geocoder();
+			Geocoder.geocode({
+				'address': regionAddressProcess(params.address, params.defaultRegionNames)
+			}, function (results, status) {
+				if (status === google.maps.GeocoderStatus.OK) {
+					var geocodeResult = _.find(results, function(result){
+						var point = result.geometry.location;
+						var failedPositions = _.filter(params.failedLocation.positions, function(position) {
+							return ((Math.abs(point.lat() - position[0]) + Math.abs(point.lng() - position[1])) < params.failedLocation.difference);
+						});
+						return (failedPositions.length === 0) && (params.validateLatLngInPolygon({lat: point.lat(), lng: point.lng()}, params.regionBoundary));
+					});
+					if (geocodeResult) {
+						var point = geocodeResult.geometry.location;
+						var result = {
+							latlng: {
+								lat: point.lat(),
+								lng: point.lng()
+							},
+							address: params.address,
+							geocodedAddress: geocodeResult.formatted_address.toString(),
+							status: 'OK'
+						};
+						dfd.resolve(result);
+					} else {
+						dfd.resolve({status: 'No_Result'});
+					}
+				} else {
+					dfd.resolve({status: 'No_Result'});
+				}
+			});
+		}
+		return dfd.promise();
+	};
+
 	if (input.hasOwnProperty('lat') && input.hasOwnProperty('lng')) {
 		var reverseGeocoder = function(params) {
 			var dfd = new $.Deferred();
@@ -1055,69 +1187,6 @@ var geocode = function(input) {
 			reverseGeocoder: reverseGeocoder
 		};
 	} else if (typeof input === 'string') {
-		var defaultGeocoder = function(params) {
-			var dfd = new $.Deferred();			
-			if (params.address.toUpperCase() === "ONTARIO") {
-				var result = {
-					status: 'No_Result'
-				};
-				dfd.resolve(result);
-			} else {
-				//Private method: test whether the input ends with region names.
-				var regionAddressProcess = function(addressStr, defaultRegionNames){
-					var isAddressEndsWithRegionName = function(address, str) {
-						if (address.length > str.length + 1) {
-							var substr = address.substring(address.length - str.length - 1);
-							if (substr === (" " + str) || substr === ("," + str)) {
-								return true;
-							}
-						}
-						return false;
-					};					
-					var address = addressStr.toUpperCase();
-					var res = _.some(defaultRegionNames, function(regionName) {
-						return isAddressEndsWithRegionName(address, regionName);
-					});
-					if(!res){
-						return addressStr + " Ontario";
-					}
-					return addressStr;
-				};
-
-				var Geocoder = new google.maps.Geocoder();
-				Geocoder.geocode({
-					'address': regionAddressProcess(params.address, params.defaultRegionNames)
-				}, function (results, status) {
-					if (status === google.maps.GeocoderStatus.OK) {
-						var geocodeResult = _.find(results, function(result){
-							var point = result.geometry.location;
-							var failedPositions = _.filter(params.failedLocation.positions, function(position) {
-								return ((Math.abs(point.lat() - position[0]) + Math.abs(point.lng() - position[1])) < params.failedLocation.difference);
-							});
-							return (failedPositions.length === 0) && (params.validateLatLngInPolygon({lat: point.lat(), lng: point.lng()}, params.regionBoundary));
-						});
-						if (geocodeResult) {
-							var point = geocodeResult.geometry.location;
-							var result = {
-								latlng: {
-									lat: point.lat(),
-									lng: point.lng()
-								},
-								address: params.address,
-								geocodedAddress: geocodeResult.formatted_address.toString(),
-								status: 'OK'
-							};
-							dfd.resolve(result);
-						} else {
-							dfd.resolve({status: 'No_Result'});
-						}
-					} else {
-						dfd.resolve({status: 'No_Result'});
-					}
-				});
-			}
-			return dfd.promise();
-		};
 		geocodeParams = {
 			address: input,
 			defaultRegionNames: ["ON", "ONT", "ONTARIO"], 
@@ -1130,7 +1199,13 @@ var geocode = function(input) {
 	} else if (input.hasOwnProperty('GeocoderList') && input.hasOwnProperty('address')) {
 		geocodeParams = {
 			address: input.address,
-			GeocoderList: input.GeocoderList
+			defaultRegionNames: ["ON", "ONT", "ONTARIO"], 
+			failedLocation: {
+				positions: [[51.253775,-85.32321389999998], [42.832714, -80.279923]],
+				difference: 0.00001
+			},			
+			GeocoderList: input.GeocoderList,
+			defaultGeocoder: defaultGeocoder
 		};
 	}
 	return Geocoder.geocode(geocodeParams);
@@ -1361,8 +1436,9 @@ var init = function(initParams) {
 			},
 			/*District locator, watershed locator, source water protection One feature with no tab*/
 			'OneFeatureNoTabPolygon': function(results, identifySettings) {
-				var process = function (results, identifySettings, geocodingResult) {
-					//console.log(results);
+				var process = function (results, identifySettings, geocodingResult) {					
+					var searchString = $('#' + globalConfigure.searchInputBoxDivId).val().trim();
+					$('#' + globalConfigure.informationDivId).html('<i>' + globalConfigure.generateMessage(results, geocodingResult, searchString) + '</i>');
 					if (marker) {
 						marker.setMap(null);
 					}
@@ -1371,7 +1447,7 @@ var init = function(initParams) {
 					});
 					overlays = [];
 
-					var contents = identifySettings.identifyTemplate(results, Util, geocodingResult);
+					var contents = identifySettings.identifyTemplate(results, Util, geocodingResult, searchString);
 
 					$("#" + globalConfigure.queryTableDivId).html(contents.table);
 
@@ -1489,14 +1565,21 @@ var init = function(initParams) {
 					//options: options
 				};
 			},
-			'Geocode': function (searchString) {
-				return searchString;
+			'OneFeatureNoTabPolygon': function (searchString) {
+				if (!!globalConfigure.searchGeocoderList) {
+					return {
+						GeocoderList: globalConfigure.searchGeocoderList,
+						address: searchString
+					};
+				} else {
+					return searchString;
+				}
 			}
 		},
 		searchCallbackName: 'Default',
 		searchCallbackList: {
 			'Default': queryLayers,
-			'Geocode': geocode
+			'OneFeatureNoTabPolygon': geocode
 		},
 		postSearchCallbackName: 'OneFeatureNoTab',
 		postSearchCallbackList: {
@@ -1591,11 +1674,16 @@ var init = function(initParams) {
 				$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');
 			},
 			/*District locator, watershed locator, source water protection One feature with no tab*/
-			'Geocode': function(results) {
+			'OneFeatureNoTabPolygon': function(results) {
 				if(results[0].status === 'OK') {
 					var latlng = new google.maps.LatLng(results[0].latlng.lat, results[0].latlng.lng);
+					_.each(arcGISMapServices, function(arcGISMapService) {
+						arcGISMapService.setMap(null);
+					});
+					//console.log(results);
 					map.setCenter(latlng);
-					map.setZoom(globalConfigure.searchZoomLevel);
+					var zoomLevel = (results[0].hasOwnProperty('zoomLevel')) ? results[0].zoomLevel : globalConfigure.searchZoomLevel;
+					map.setZoom(zoomLevel);
 					google.maps.event.trigger(map, 'click', {latLng: latlng});
 				} else {
 					var messageParams = {
@@ -1603,12 +1691,14 @@ var init = function(initParams) {
 						maxQueryReturn: globalConfigure.maxQueryReturn,
 						searchString: results[0].address
 					};
-					$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');					
+					$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');
 				}
 			}
 		}		
 	};
 	var params = _.defaults(initParams, defaultParams);
+	params.searchHelpText = Util.getSearchHelpText(params.searchControlHTML);
+	//console.log(params.searchHelpText);
 	globalConfigure = params;
 
 	var url = 'http://files.ontariogovernment.ca/moe_mapping/mapping/js/MOEMap/';
@@ -1640,13 +1730,14 @@ var init = function(initParams) {
 	}
 	map = new google.maps.Map($('#' + params.mapCanvasDivId)[0], mapOptions);
 	if (globalConfigure.hasOwnProperty('extraImageServices')) {
-		_.each(globalConfigure.extraImageServices, function(extraImageService) {
-			var agsType = new gmaps.ags.MapType(extraImageService.url, {
-				name: extraImageService.name
-			});
-			map.mapTypes.set(extraImageService.id, agsType);			
-		});
-
+		yepnope({load: 'http://lrcdrrvsdvap002/web/arcgislink.js',callback: function(){
+			_.each(globalConfigure.extraImageServices, function(extraImageService) {
+				var agsType = new gmaps.ags.MapType(extraImageService.url, {
+					name: extraImageService.name
+				});
+				map.mapTypes.set(extraImageService.id, agsType);
+			});			
+		}});
 	}
 
 	/*bounds changed*/	
@@ -2149,6 +2240,42 @@ var generateMessage = function(params, langs){
 	return message;
 };
 
+var getSearchHelpText = function (searchControlHTML) {
+	//console.log(searchControlHTML);
+	var str = searchControlHTML.split('id="information"')[1];
+	console.log(str);
+	var index1 = str.indexOf('>');
+	var index2 = str.indexOf('</div>');
+	return str.substring(index1 + 1, index2);
+};
+/*
+var findGreatLakeWithLocation = function (latlng) {
+	var lakeLocations = {
+		"LAKE ERIE": {location: {lat: 42.261049,lng: -81.128540}, zoomlevel: 8},
+		"LAC \u00c9RI\u00c9": {location: {lat: 42.261049,lng: -81.128540}, zoomlevel: 8},
+		"LAKE HURON": {location: {lat: 45.313529,lng: -81.886597}, zoomlevel: 8},
+		"LAC HURON": {location: {lat: 45.313529,lng: -81.886597}, zoomlevel: 8},
+		"LAKE ONTARIO": {location: {lat: 43.651976,lng: -77.997437}, zoomlevel: 8},
+		"LAC ONTARIO": {location: {lat: 43.651976,lng: -77.997437}, zoomlevel: 8},
+		"LAKE SUPERIOR": {location: {lat: 47.802087,lng: -86.989746}, zoomlevel: 7},	
+		"LAC SUP\u00c9RIEUR": {location: {lat: 47.802087,lng: -86.989746}, zoomlevel: 7},	
+		"UPPER ST. LAWRENCE": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+		"ST. LAWRENCE RIVER": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+		"HAUT SAINT-LAURENT": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+		"FLEUVE SAINT-LAURENT": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9}
+	};
+	var lake = _.find(_.pairs(lakeLocations), function (items) {
+		var lat = items[1].location.lat;
+		var lng = items[1].location.lng;
+		return Math.abs(lat - latlng.lat) + Math.abs(lng - latlng.lng) < 0.0001;
+	});
+	if (!!lake) {
+		return wordCapitalize(lake[0]);
+	} else {
+		return null;
+	}
+};
+*/
 var api = {
 	computeCircle: computeCircle,
 	computeOffset: computeOffset,
@@ -2166,7 +2293,9 @@ var api = {
 	processNA: processNA,
 	createTabBar: createTabBar,
 	getTableIDFromTableTemplate: getTableIDFromTableTemplate,
-	generateMessage: generateMessage
+	generateMessage: generateMessage,
+	getSearchHelpText: getSearchHelpText/*,
+	findGreatLakeWithLocation: findGreatLakeWithLocation*/
 };
 
 module.exports = api;

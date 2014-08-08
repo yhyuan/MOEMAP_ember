@@ -1,4 +1,12 @@
 /* global _, $, google */
+
+/*
+	Enhancements: 1) Fix a bug. When the clear button is clicked, the table below the map is still there in the existing application. The new version fixed this issue by removing it when the Clear button is clicked. 
+	Meanwhile, the message information become empty. The new version change the message information back to help information. 
+	2) When the user clicks on the map, it will display the information. 
+*/
+
+
 'use strict';
 var GoogleMapsAdapter = require('../scripts/GoogleMapsAdapter');
 var Util = require('../scripts/Util');
@@ -14,6 +22,17 @@ GoogleMapsAdapter.init({
 		url: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/GreatLakes_WS_Bnd/MapServer',
 		visibleLayers: [0, 1]
 	}],
+	extraImageServices: [{
+		id: "arcgis",
+		name: "ESRI",
+		url: 'http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer'
+	}],	
+	/*English Begins*/
+	otherInfoHTML: '<br>Data source: Land Information Ontario (LIO).<br>',
+	/*English Ends*/
+	/*French Begins*/
+	otherInfoHTML: '<br>Source: Information sur les terres de l\'Ontario (ITO).<br>',
+	/*French Ends*/	
 	/*English Begins*/
 	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
 		<label class="element-invisible" for="map_query">Search the map</label>\
@@ -32,264 +51,145 @@ GoogleMapsAdapter.init({
 		<input type="submit" onclick="GoogleMapsAdapter.search()" id="search_submit" value="Recherche" title="Recherche" />\
 		<label class="element-invisible" for="search_clear">Effacer</label>\
 		<input type="submit" value="&nbsp;Effacer&nbsp;" id="search_clear" title="Effacer" onclick="GoogleMapsAdapter.clear()" />\
-		<div id="information">Vous pouvez rechercher par <strong>adresse</strong>, <strong>ville</strong>, <strong>coordonn\u00e9es</strong> ou consulter l\'aide pour de l\'information sur les recherches avanc&eacute;es.</div>';
+		<div id="information">Vous pouvez rechercher par <strong>adresse</strong>, <strong>ville</strong>, <strong>coordonn\u00e9es</strong> ou consulter l\'aide pour de l\'information sur les recherches avanc&eacute;es.</div>',
 	/*French Ends*/
 	postIdentifyCallbackName: 'OneFeatureNoTabPolygon',
 	
-	pointBufferTool: {available: false},
-	extraImageService: {visible: false},
-	usejQueryUITable: true,  //Avoid loading extra javascript files
-	usePredefinedMultipleTabs: false, //Avoid loading extra javascript files
-	allowMultipleIdentifyResult: false,
-	displayTotalIdentifyCount: false,
-	locationServicesList: [],
-	maxQueryZoomLevel: 11,
-	displayDisclaimer: true,
-	InformationLang: "Information",
-	//postIdentifyCallbackName: "SportFish",
-	//infoWindowWidth: '280px',
-	tableSimpleTemplateTitleLang: "",
-	/*English Begins*/
-	tableFieldList: [
-		{name: "Waterbody", value: "{LOCNAME_EN}"}, 
-		{name: "Location", value: "{globalConfig.addBRtoLongText(GUIDELOC_EN)}"}, 
-		{name: "Latitude", value: "{globalConfig.deciToDegree(LATITUDE)}"}, 
-		{name: "Longitude", value: "{globalConfig.deciToDegree(LONGITUDE)}"}, 	
-		{name: "Consumption Advisory Table", value: "<a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Consumption Advisory Table</a>"}
-	],
-	/*English Ends*/
-	/*French Begins*/
-	tableFieldList: [
-		{name: "Plan d'eau", value: "{LOCNAME_FR}"}, 
-		{name: "Lieu", value: "{globalConfig.addBRtoLongText(GUIDELOC_FR)}"}, 
-		{name: "Latitude", value: "{globalConfig.deciToDegree(LATITUDE)}"}, 
-		{name: "Longitude", value: "{globalConfig.deciToDegree(LONGITUDE)}"}, 	
-		{name: "Tableau des mises en garde en mati\u00e8re de consommation", value: "<a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a>"}
-	],
-	/*French Ends*/
-	postIdentifyCallbackName: 'ManyFeaturesOneTab',
-	/*English Begins*/
 	identifySettings: {
-		/* radius: 1, // 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
+		radius: 1, /* 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
+		requireReverseGeocoding: true,
 		identifyLayersList: [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/wells/MapServer',
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/GreatLakes_WS_Bnd/MapServer',
 			layerID: 0,
-			outFields: ['BORE_HOLE_ID', 'WELL_ID', 'DEPTH_M', 'YEAR_COMPLETED', 'WELL_COMPLETED_DATE', 'AUDIT_NO', 'TAG_NO', 'CONTRACTOR', 'PATH']
+			/*returnGeometry: true,
+			strokeOptions: {
+				color: '#8583f3',
+				opacity: 1, 
+				weight: 4
+			},*/
+			outFields: ["LABEL"]
 		}],
-		identifyTemplate: 'Total features returned: <strong><%= features.length %><strong><br>\
-			<table class=\'tabtable\'><tr><th>Well ID</th><th>Well Tag # (since 2003)</th><th>Audit # (since 1986)</th><th>Contractor Lic#</th><th>Well Depth (m)</th><th>Date of Completion (MM/DD/YYYY)</th><th>Well Record Information</th></tr>\
-			<%  var convertDepthFormat = function (val){if (val === "N/A") {	return "N/A";}	var res = parseFloat(val);	return res.toFixed(1);};\
-				var convertDateFormat = function (str){	if (str === "N/A") {		return "N/A";	}	var strArray = str.split("/");	if(strArray.length == 3){		str = strArray[1] + "/" + strArray[2] + "/" + strArray[0];	}	return str;};\
-				var calculatePDFURL = function(PATH, WELL_ID) {	if((!!PATH) && (PATH.length > 0) && (PATH !== "N/A")) {		return "| <a target=\'_blank\' href=\'http://files.ontario.ca/moe_mapping/downloads/2Water/Wells_pdfs/" + WELL_ID.substring(0,3) + "/" + WELL_ID + ".pdf\'>PDF</a>";	}	return "";};\
-			_.each(features, function(feature) {\
-					var attrs = feature.attributes; %> \
-				<tr><td><%= Util.processNA(attrs.WELL_ID) %></td><td><%= Util.processNA(attrs.TAG_NO) %></td><td><%= Util.processNA(attrs.AUDIT_NO) %></td><td><%= Util.processNA(attrs.CONTRACTOR) %></td><td><%= convertDepthFormat(attrs.DEPTH_M) %></td><td><%= convertDateFormat(attrs.WELL_COMPLETED_DATE) %></td><td><a target=\'_blank\' href=\'well-record-information?id=<%= attrs.BORE_HOLE_ID %>\'>HTML</a><%= calculatePDFURL(attrs.PATH, attrs.WELL_ID) %></td></tr>\
-			<% }); %>\
-			</tbody></table>'
-	},
-	/*English Ends*/
-	/*French Begins*/
-	identifySettings: {
-		/* radius: 1, // 1 meter If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
-		identifyLayersList: [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
-			layerID: 0,
-			outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
-		}],
-		identifyTemplate: '<strong><%= attrs.LOCNAME_FR %></strong><br><%= Util.addBRtoLongText(s.GUIDELOC_FR) %><br><br>\
-			<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>\
-			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "FR") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "FR") %></b><br>\
-			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission <%= s.LOCNAME_FR %>)\'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>'
-	},
-	/*French Ends*/
-	queryLayerList: [{
-		url: this.url + "/0",
-		tabsTemplate: [{
-			label: this.InformationLang,
-			content:this.tabsTemplateContent
-		}], 
-		tableSimpleTemplate: {
-			title: this.tableSimpleTemplateTitleLang, 
-			content: this.tableFieldList
-		} 
-	}],
-	getSearchParams: function(searchString, globalConfigure){
-		var getLakeNameSearchCondition = function(searchString) {
-			var coorsArray = searchString.split(/\s+/);
-			var str = coorsArray.join(" ").toUpperCase();
-			str = Util.replaceChar(str, "'", "''");
-			str = Util.replaceChar(str, "\u2019", "''");
-			/*English Begins*/
-			return "UPPER(LOCNAME_EN) LIKE '%" + str + "%'";
-			/*English Ends*/
-			/*French Begins*/
-			return "UPPER(LOCNAME_FR) LIKE '%" + str + "%'";
-			/*French Ends*/
-		};
-		var getQueryCondition = function(name){
-			var str = name.toUpperCase();
-			str = Util.replaceChar(str, '&', ', ');
-			str = Util.replaceChar(str, ' AND ', ', '); 
-			str = str.trim();
-			var nameArray = str.split(',');
-			var max = nameArray.length;
-			var res = [];
-			var inform = [];
-			var processAliasFishName = function(fishname){
-				var aliasList = {
-					GERMAN_TROUT: ["BROWN_TROUT"],
-					SHEEPHEAD:	["FRESHWATER_DRUM"],
-					STEELHEAD:	["RAINBOW_TROUT"],
-					SUNFISH:	["PUMPKINSEED"],
-					BARBOTTE:	["BROWN_BULLHEAD"],
-					BLACK_BASS:	["LARGEMOUTH_BASS","SMALLMOUTH_BASS"],
-					CALICO_BASS:	["BLACK_CRAPPIE"],
-					CRAWPIE:	["BLACK_CRAPPIE","WHITE_CRAPPIE"],
-					GREY_TROUT:	["LAKE_TROUT"],
-					HUMPBACK_SALMON:	["PINK_SALMON"],
-					KING_SALMON:	["CHINOOK_SALMON"],
-					LAKER:	["LAKE_TROUT"],
-					MENOMINEE:	["ROUND_WHITEFISH"],
-					MUDCAT:	["BROWN_BULLHEAD"],
-					MULLET:	["WHITE_SUCKER"],
-					PANFISH:	["BLUEGILL","ROCK_BASS","PUMPKINSEED"],
-					PICKEREL:	["WALLEYE"],
-					SILVER_BASS:	["WHITE_BASS"],
-					SILVER_SALMON:	["COHO_SALMON"],
-					SPECKLED_TROUT:	["BROOK_TROUT"],
-					SPRING_SALMON:	["CHINOOK_SALMON"]
-				};
-				var alias = aliasList[fishname];
-				var fish = Util.wordCapitalize(Util.replaceChar(fishname, '_', ' '));
-				if (typeof(alias) === "undefined"){
-					var result = {
-						/*English Begins*/
-						condition: "(SPECIES_EN like '%" + fishname +"%')",
-						/*English Ends*/
-						/*French Begins*/
-						condition: "(SPECIES_FR like '%" + fishname +"%')",
-						/*French Ends*/
-						information: fish
-					};
-					return result;
-				}else{
-					var res = [];
-					var fishArray = [];
-					for (var i = 0; i < alias.length; i++){
-						/*English Begins*/
-						res.push("(SPECIES_EN like '%" + alias[i] +"%')");
-						/*English Ends*/
-						/*French Begins*/
-						res.push("(SPECIES_FR like '%" + alias[i] +"%')");
-						/*French Ends*/
-						var str = Util.wordCapitalize(Util.replaceChar(alias[i], '_', ' '));
-						fishArray.push(str.trim());
-					}
-					var result = {
-						condition: "(" + res.join(" OR ") + ")",
-						information: fish + " ("  + fishArray.join(", ") + ")"
-					};
-					return result;
-				}
+
+		identifyTemplate: function (results, Util, geocodingResult, searchString) {
+			var utm = Util.convertLatLngtoUTM(geocodingResult.latlng.lat, geocodingResult.latlng.lng);
+			var latlng = geocodingResult.latlng;
+			var test = _.some([{lat: 42.261049,lng: -81.128540}, {lat: 45.313529,lng: -81.886597}, {lat: 43.651976,lng: -77.997437}, {lat: 47.802087,lng: -86.989746}, {lat: 44.439805,lng: -75.848505}], function (loc) {
+				return Math.abs(latlng.lat - loc.lat) + Math.abs(latlng.lng - loc.lng) < 0.0001;
+			});
+			if (test) {
+				geocodingResult.address = searchString;
 			}
-			for (var i = 0; i < max; i++){
-				var str1 = (nameArray[i]).trim();
-				if(str1.length > 0){
-					var coorsArray = str1.split(/\s+/);
-					str1 = coorsArray.join("_");
-					var temp = processAliasFishName(str1);
-					res.push(temp.condition);
-					inform.push(temp.information);
-				}
-			}		
-			var result = {
-				condition: res.join(" AND "),
-				information: inform.join(", ")
-			};
-			return result;
-		};
-		var queryParamsList = [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
-			layerID: 0,
-			returnGeometry: true,
-			where: ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition,
-			//infoWindowTemplate: globalConfigure.identifyTemplate,
-			/*English Begins*/
-			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
-			/*English Ends*/
-			/*French Begins*/
-			outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
-			/*French Ends*/
-		}];
-		var options = {
-			searchString: searchString,
-			geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
-			withinExtent: $('#currentMapExtent')[0].checked/*,
-			invalidFeatureLocations: [{
-				lat: 0,
-				lng: 0,
-				difference: 0.0001
-			}]*/
-		};
-		return {
-			queryParamsList: queryParamsList,
-			options: options
+			
+			/*var address = Util.findGreatLakeWithLocation(latlng);
+			if (!!address) {
+				geocodingResult.address = address;
+			}*/
+		/*English Begins*/		
+			var template = '<% var featuresLength = Util.computeFeaturesNumber (results); var address = (geocodingResult.hasOwnProperty("address") ? geocodingResult.address : "N/A"); \
+				if (featuresLength === 0) {%>\
+					<i> <%= address %>.</i><br><br><strong>Result located within</strong><br> No Great Lakes Watershed found\
+				<%} else { var attrs = results[0].features[0].attributes;%>\
+					<i><%= address %></i><br><br><i><strong>Latitude:</strong> <%= geocodingResult.latlng.lat.toFixed(6) %>  <strong>Longitude:</strong> <%= geocodingResult.latlng.lng.toFixed(6) %></i><br>\
+					<i><strong>UTM Zone:</strong>  <%= utm.Zone %> <strong>Easting:</strong>  <%= utm.Easting %>  <strong>Northing:</strong>  <%= utm.Northing %>  </i><br><br>\
+					<strong>Result located within</strong><br><%= attrs.LABEL %> WATERSHED\
+				<% } %>';
+		/*English Ends*/
+		/*French Begins*/
+			var template = '<% var featuresLength = Util.computeFeaturesNumber (results); var address = (geocodingResult.hasOwnProperty("address") ? geocodingResult.address : "N/A");\
+				var GL = {\
+					"LAKE ONTARIO":  "Bassin versant du lac Ontario",\
+					"LAKE ERIE": "Bassin versant du lac \u00c9ri\u00e9",\
+					"LAKE HURON": "Bassin versant du lac Huron",\
+					"LAKE SUPERIOR": "Bassin versant du lac Sup\u00e9rieur",\
+					"UPPER ST. LAWRENCE": "Bassin versant du haut Saint-Laurent"\
+				};\
+				if (featuresLength === 0) {%>\
+					<i> <%= address %>.</i><br><br><strong>Result located within</strong><br> Le syst\u00e8me n\u2019a pas trouv\u00e9 de bassin versant des Grands Lacs\
+				<%} else { var attrs = results[0].features[0].attributes;%>\
+					<i><%= address %></i><br><br><i><strong>Latitude:</strong> <%= geocodingResult.latlng.lat.toFixed(6) %>   <strong>Longitude:</strong> <%= geocodingResult.latlng.lng.toFixed(6) %></i><br>\
+					<i><strong>Zone UTM:</strong>  <%= utm.Zone %> <strong>abscisse:</strong>  <%= utm.Easting %>  <strong>ordonn\u00e9e:</strong>  <%= utm.Northing %>  </i><br><br>\
+					<strong>R\u00e9sultat situ\u00e9 dans le</strong><br><%= GL[attrs.LABEL] %>\
+				<% } %>';
+		/*French Ends*/
+			var contain = _.template(template, {results: results, Util: Util, geocodingResult: geocodingResult, utm: utm});			
+			return {
+				infoWindow: contain,
+				table: contain
+			}; 
 		}
 	},
-	computeValidResultsTable: function(results, globalConfigure) {
-		var features = Util.combineFeatures(results);
-		var template = '<table id=\"<%= globalConfigure.tableID %>\" class=\"<%= globalConfigure.tableClassName %>\" width=\"<%= globalConfigure.tableWidth %>\" border=\"0\" cellpadding=\"0\" cellspacing=\"1\"><thead>\
-			<tr><th><center>Waterbody</center></th><th><center>Location</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Consumption Advisory Table</center></th></tr></thead><tbody>\
-			<% _.each(features, function(feature) {\
-				var attrs = feature.attributes; %> \
-				<tr><td><%= attrs.LOCNAME_EN %></td><td><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td><td><a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>\
-			<% }); %>\
-			</tbody></table>';
-		return _.template(template, {features: features, globalConfigure: globalConfigure, Util: Util});
+	searchGeocoderList: {
+		'GreatLakes' : {		
+			'match': function (params) {
+				var lakeLocations = ["LAKE ERIE", "LAC \u00c9RI\u00c9", "LAKE HURON", "LAC HURON", "LAKE ONTARIO", "LAC ONTARIO", "LAKE SUPERIOR", "LAC SUP\u00c9RIEUR", "UPPER ST. LAWRENCE", "ST. LAWRENCE RIVER", "HAUT SAINT-LAURENT", "FLEUVE SAINT-LAURENT"];
+				return _.contains(lakeLocations, params.address.split(/\s+/).join(" ").toUpperCase());
+			},
+			'geocode': function (params) {				
+				var lakeLocations = {
+					"LAKE ERIE": {location: {lat: 42.261049,lng: -81.128540}, zoomlevel: 8},
+					"LAC \u00c9RI\u00c9": {location: {lat: 42.261049,lng: -81.128540}, zoomlevel: 8},
+					"LAKE HURON": {location: {lat: 45.313529,lng: -81.886597}, zoomlevel: 8},
+					"LAC HURON": {location: {lat: 45.313529,lng: -81.886597}, zoomlevel: 8},
+					"LAKE ONTARIO": {location: {lat: 43.651976,lng: -77.997437}, zoomlevel: 8},
+					"LAC ONTARIO": {location: {lat: 43.651976,lng: -77.997437}, zoomlevel: 8},
+					"LAKE SUPERIOR": {location: {lat: 47.802087,lng: -86.989746}, zoomlevel: 7},	
+					"LAC SUP\u00c9RIEUR": {location: {lat: 47.802087,lng: -86.989746}, zoomlevel: 7},	
+					"UPPER ST. LAWRENCE": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+					"ST. LAWRENCE RIVER": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+					"HAUT SAINT-LAURENT": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+					"FLEUVE SAINT-LAURENT": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9}
+				};
+				var key = params.address.split(/\s+/).join(" ").toUpperCase();
+				var result = {
+					latlng: lakeLocations[key].location,
+					zoomLevel: lakeLocations[key].zoomlevel,
+					address: params.address,
+					status: 'OK'
+				};
+				var dfd = new $.Deferred();
+				dfd.resolve(result);
+				return dfd.promise();
+			}
+		}
 	},
-	computeInvalidResultsTable: function () {
-		return globalConfigure.computeValidResultsTable;
-	}, 	
-	generateSearchResultsMarkers: function(results, globalConfigure) {
-		var features = Util.combineFeatures(results);
-		return _.map(features, function(feature) {
-			var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
-			var container = document.createElement('div');
-			container.style.width = globalConfigure.infoWindowWidth;
-			container.style.height = globalConfigure.infoWindowHeight;
-			container.innerHTML = _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: feature.attributes, globalConfigure: globalConfigure, Util: Util});
-			//console.log(container.innerHTML);
-			var marker = new google.maps.Marker({
-				position: gLatLng
-			});		
-			(function (container, marker) {
-				google.maps.event.addListener(marker, 'click', function () {
-					GoogleMapsAdapter.openInfoWindow(marker.getPosition(), container);
-				});
-			})(container, marker);
-			return marker;			
+	preSearchCallbackName: 'OneFeatureNoTabPolygon',
+	searchCallbackName: 'OneFeatureNoTabPolygon',
+	postSearchCallbackName: 'OneFeatureNoTabPolygon',
+	searchZoomLevel: 12,
+	generateMessage: function (results, geocodingResult, searchString) {
+		var latlng = geocodingResult.latlng;
+		var test = _.some([{lat: 42.261049,lng: -81.128540}, {lat: 45.313529,lng: -81.886597}, {lat: 43.651976,lng: -77.997437}, {lat: 47.802087,lng: -86.989746}, {lat: 44.439805,lng: -75.848505}], function (loc) {
+			return Math.abs(latlng.lat - loc.lat) + Math.abs(latlng.lng - loc.lng) < 0.0001;
 		});
-	},	
-	searchChange: function () {}
+		if (test) {
+			geocodingResult.address = searchString;
+		}
+		/*var address = Util.findGreatLakeWithLocation(latlng);
+		if (!address) {
+			address = geocodingResult.address;
+		}*/
+		var address = geocodingResult.address;
+		if (!!results && !!results[0].features && results[0].features.length === 0) {
+			/*English Begins*/
+			return '<strong>' + address + '</strong> located within <strong>No Great Lakes Watershed found.</strong>';
+			/*English Ends*/
+			/*French Begins*/
+			return '<strong>' + address + '</strong> est dans le <strong>Le système n’a pas trouvé de bassin versant des Grands Lacs.</strong>';
+			/*French Ends*/
+		}
+		var lake = results[0].features[0].attributes.LABEL;
+		/*English Begins*/
+		return '<strong>' + address + '</strong> located within <strong>' + lake + ' WATERSHED.</strong>';
+		/*English Ends*/
+		/*French Begins*/
+		var GL = {
+			"LAKE ONTARIO":  "Bassin versant du lac Ontario",
+			"LAKE ERIE": "Bassin versant du lac \u00c9ri\u00e9",
+			"LAKE HURON": "Bassin versant du lac Huron",
+			"LAKE SUPERIOR": "Bassin versant du lac Sup\u00e9rieur",
+			"UPPER ST. LAWRENCE": "Bassin versant du haut Saint-Laurent"
+		};
+		return '<strong>' + address + '</strong> est dans le <strong> ' + GL[lake] + ' .</strong>';
+		/*French Ends*/		
+	}
 });
-
-//globalConfig.chooseLang = function (en, fr) {return (globalConfig.language === "EN") ? en : fr;};
-
-//globalConfig.report_URL = globalConfig.chooseLang("SportFish_Report.htm", "SportFish_Report.htm");
-
-//globalConfig.searchableFieldsList = [{en: "waterbody name", fr: "plan d'eau"}, {en: "location", fr: "un lieu"}, {en: "species name", fr: "une espèce"}];
-
-
-	
-
-//globalConfig.infoWindowWidth = '320px';
-//globalConfig.infoWindowHeight = "140px";
-//globalConfig.infoWindowContentHeight = "200px";
-//globalConfig.infoWindowContentWidth = "300px";
-
-
-//globalConfig.tableSimpleTemplateTitleLang = globalConfig.chooseLang("Note: Data is in English only.", "\u00c0 noter : Les donn\u00e9es sont en anglais seulement.");
-//globalConfig.
-
-
-

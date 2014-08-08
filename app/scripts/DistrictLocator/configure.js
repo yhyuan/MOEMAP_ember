@@ -1,4 +1,10 @@
 /* global _, $, google */
+/*
+	Enhancements: 1) Fix a bug. When the clear button is clicked, the table below the map is still there in the existing application. The new version fixed this issue by removing it when the Clear button is clicked. 
+	Meanwhile, the message information become empty. The new version change the message information back to help information. 
+	2) When the user clicks on the map, it will display the information. 
+*/
+
 'use strict';
 var GoogleMapsAdapter = require('../scripts/GoogleMapsAdapter');
 var Util = require('../scripts/Util');
@@ -56,35 +62,35 @@ GoogleMapsAdapter.init({
 			outFields: ["OBJECTID","MOE_DISTRICT","STREET_NAME","CITY","POSTALCODE","PHONENUMBER","TOLLFREENUMBER","FAXNUMBER","MOE_DISTRICT_NAME"]
 		}],
 
-		identifyTemplate: function (results, Util, geocodingResult) {
+		identifyTemplate: function (results, Util, geocodingResult, searchString) {
 		/*English Begins*/		
 			var template = '<% var featuresLength = Util.computeFeaturesNumber (results); var address = (geocodingResult.hasOwnProperty("address") ? geocodingResult.address : "N/A"); \
 				if (featuresLength === 0) {%>\
 					<i> <%= address %>.</i><br><br><strong>Result located within</strong><br><h3> No MOE District found</h3>\
 				<%} else { var attrs = results[0].features[0].attributes;%>\
-					<i><%= address %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOE District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br>\
+					<i><%= address %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOECC District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br>\
 					<%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Toll Free: <%= attrs.TOLLFREENUMBER %><br>Tel: <%= attrs.PHONENUMBER %> Fax: <%= attrs.FAXNUMBER %>\
 				<% } %>';
 		/*English Ends*/
 		/*French Begins*/
 			var template = '<% var featuresLength = Util.computeFeaturesNumber (results); var address = (geocodingResult.hasOwnProperty("address") ? geocodingResult.address : "N/A");\
 				var MOEDistrict = {\
-					"Barrie":  "District de Barrie du MEO",\
-					"Guelph":  "District de Guelph du MEO",\
-					"Halton-Peel": "District de Halton-Peel du MEO",\
-					"Hamilton":  "District de Hamilton du MEO",\
-					"Kingston":  "District de Kingston du MEO",\
-					"London":  "District de London du MEO",\
-					"Ottawa": "District d\u2019Ottawa du MEO",\
-					"Owen Sound": "District d\u2019Owen Sound du MEO",\
-					"Peterborough": "District de Peterborough du MEO",\
-					"Sarnia": "District de Sarnia du MEO",\
-					"Sudbury": "District de Sudbury du MEO",\
-					"Thunder Bay": "District de Thunder Bay du MEO",\
-					"Timmins": "District de Timmins du MEO",\
-					"Toronto": "District de Toronto du MEO",\
-					"Niagra": "District de Niagara du MEO",\
-					"York-Durham": "District de York-Durham du MEO"\
+					"Barrie":  "District de Barrie du MEACC.",\
+					"Guelph":  "District de Guelph du MEACC.",\
+					"Halton-Peel": "District de Halton-Peel du MEACC.",\
+					"Hamilton":  "District de Hamilton du MEACC.",\
+					"Kingston":  "District de Kingston du MEACC.",\
+					"London":  "District de London du MEACC.",\
+					"Ottawa": "District d\u2019Ottawa du MEACC.",\
+					"Owen Sound": "District d\u2019Owen Sound du MEACC.",\
+					"Peterborough": "District de Peterborough du MEACC.",\
+					"Sarnia": "District de Sarnia du MEACC.",\
+					"Sudbury": "District de Sudbury du MEACC.",\
+					"Thunder Bay": "District de Thunder Bay du MEACC.",\
+					"Timmins": "District de Timmins du MEACC.",\
+					"Toronto": "District de Toronto du MEACC.",\
+					"Niagra": "District de Niagara du MEACC.",\
+					"York-Durham": "District de York-Durham du MEACC."\
 				};\
 				var MOEDistrictStreet = {\
 					"Barrie":  "Bureau 1203, 54, alle Cedar Pointe",\
@@ -125,30 +131,26 @@ GoogleMapsAdapter.init({
 			}; 
 		}
 	},	
-	preSearchCallbackName: 'Geocode',
-	searchCallbackName: 'Geocode',
-	postSearchCallbackName: 'Geocode',
-	searchZoomLevel: 12,
-	searchChange: function () {}
+	preSearchCallbackName: 'OneFeatureNoTabPolygon',
+	searchCallbackName: 'OneFeatureNoTabPolygon',
+	postSearchCallbackName: 'OneFeatureNoTabPolygon',
+	generateMessage: function (results, geocodingResult, searchString) {
+		var address = geocodingResult.address;
+		if (!!results && !!results[0].features && results[0].features.length === 0) {
+			/*English Begins*/
+			return '<strong>' + address + '</strong> located within <strong>No MOECC District found.</strong>';
+			/*English Ends*/
+			/*French Begins*/
+			return '<strong>' + address + '</strong> est dans le <strong>Le système n’a pas trouvé de district du MEACC.</strong>';
+			/*French Ends*/
+		}
+		var district = results[0].features[0].attributes.MOE_DISTRICT;
+		/*English Begins*/
+		return '<strong>' + address + '</strong> located within <strong>' + district + ' MOECC District.</strong>';
+		/*English Ends*/
+		/*French Begins*/
+		return '<strong>' + address + '</strong> est dans le <strong>District de ' + district + ' du MEACC.</strong>';
+		/*French Ends*/		
+	},
+	searchZoomLevel: 12
 });
-
-//globalConfig.chooseLang = function (en, fr) {return (globalConfig.language === "EN") ? en : fr;};
-
-//globalConfig.report_URL = globalConfig.chooseLang("SportFish_Report.htm", "SportFish_Report.htm");
-
-//globalConfig.searchableFieldsList = [{en: "waterbody name", fr: "plan d'eau"}, {en: "location", fr: "un lieu"}, {en: "species name", fr: "une espèce"}];
-
-
-	
-
-//globalConfig.infoWindowWidth = '320px';
-//globalConfig.infoWindowHeight = "140px";
-//globalConfig.infoWindowContentHeight = "200px";
-//globalConfig.infoWindowContentWidth = "300px";
-
-
-//globalConfig.tableSimpleTemplateTitleLang = globalConfig.chooseLang("Note: Data is in English only.", "\u00c0 noter : Les donn\u00e9es sont en anglais seulement.");
-//globalConfig.
-
-
-

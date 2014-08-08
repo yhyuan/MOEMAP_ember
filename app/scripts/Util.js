@@ -327,6 +327,40 @@ var generateMessage = function(params, langs){
 	return message;
 };
 
+var getSearchHelpText = function (searchControlHTML) {
+	var str = searchControlHTML.split('id="information"')[1];
+	var index1 = str.indexOf('>');
+	var index2 = str.indexOf('</div>');
+	return str.substring(index1 + 1, index2);
+};
+/*
+var findGreatLakeWithLocation = function (latlng) {
+	var lakeLocations = {
+		"LAKE ERIE": {location: {lat: 42.261049,lng: -81.128540}, zoomlevel: 8},
+		"LAC \u00c9RI\u00c9": {location: {lat: 42.261049,lng: -81.128540}, zoomlevel: 8},
+		"LAKE HURON": {location: {lat: 45.313529,lng: -81.886597}, zoomlevel: 8},
+		"LAC HURON": {location: {lat: 45.313529,lng: -81.886597}, zoomlevel: 8},
+		"LAKE ONTARIO": {location: {lat: 43.651976,lng: -77.997437}, zoomlevel: 8},
+		"LAC ONTARIO": {location: {lat: 43.651976,lng: -77.997437}, zoomlevel: 8},
+		"LAKE SUPERIOR": {location: {lat: 47.802087,lng: -86.989746}, zoomlevel: 7},	
+		"LAC SUP\u00c9RIEUR": {location: {lat: 47.802087,lng: -86.989746}, zoomlevel: 7},	
+		"UPPER ST. LAWRENCE": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+		"ST. LAWRENCE RIVER": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+		"HAUT SAINT-LAURENT": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+		"FLEUVE SAINT-LAURENT": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9}
+	};
+	var lake = _.find(_.pairs(lakeLocations), function (items) {
+		var lat = items[1].location.lat;
+		var lng = items[1].location.lng;
+		return Math.abs(lat - latlng.lat) + Math.abs(lng - latlng.lng) < 0.0001;
+	});
+	if (!!lake) {
+		return wordCapitalize(lake[0]);
+	} else {
+		return null;
+	}
+};
+*/
 var api = {
 	computeCircle: computeCircle,
 	computeOffset: computeOffset,
@@ -344,7 +378,9 @@ var api = {
 	processNA: processNA,
 	createTabBar: createTabBar,
 	getTableIDFromTableTemplate: getTableIDFromTableTemplate,
-	generateMessage: generateMessage
+	generateMessage: generateMessage,
+	getSearchHelpText: getSearchHelpText/*,
+	findGreatLakeWithLocation: findGreatLakeWithLocation*/
 };
 
 module.exports = api;

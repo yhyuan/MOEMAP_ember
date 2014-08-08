@@ -96,7 +96,10 @@ var clear = function () {
 			overlay.setMap(null);	
 		});
 	}
-
+	$('#' + globalConfigure.searchInputBoxDivId)[0].value = '';
+	$('#' + globalConfigure.searchInputBoxDivId)[0].focus();
+	$("#" + globalConfigure.queryTableDivId).html('');
+	$('#' + globalConfigure.informationDivId).html(globalConfigure.searchHelpText);
 	var center = new google.maps.LatLng(globalConfigure.orgLatitude, globalConfigure.orgLongitude);
 	map.setCenter(center);
 	map.setZoom(globalConfigure.orgzoomLevel);
@@ -142,6 +145,70 @@ var queryLayers = function (searchParams) {
 
 var geocode = function(input) {
 	var geocodeParams = {};
+	var defaultGeocoder = function(params) {
+		var dfd = new $.Deferred();			
+		if (params.address.toUpperCase() === "ONTARIO") {
+			var result = {
+				status: 'No_Result'
+			};
+			dfd.resolve(result);
+		} else {
+			//Private method: test whether the input ends with region names.
+			var regionAddressProcess = function(addressStr, defaultRegionNames){
+				var isAddressEndsWithRegionName = function(address, str) {
+					if (address.length > str.length + 1) {
+						var substr = address.substring(address.length - str.length - 1);
+						if (substr === (" " + str) || substr === ("," + str)) {
+							return true;
+						}
+					}
+					return false;
+				};					
+				var address = addressStr.toUpperCase();
+				var res = _.some(defaultRegionNames, function(regionName) {
+					return isAddressEndsWithRegionName(address, regionName);
+				});
+				if(!res){
+					return addressStr + " Ontario";
+				}
+				return addressStr;
+			};
+
+			var Geocoder = new google.maps.Geocoder();
+			Geocoder.geocode({
+				'address': regionAddressProcess(params.address, params.defaultRegionNames)
+			}, function (results, status) {
+				if (status === google.maps.GeocoderStatus.OK) {
+					var geocodeResult = _.find(results, function(result){
+						var point = result.geometry.location;
+						var failedPositions = _.filter(params.failedLocation.positions, function(position) {
+							return ((Math.abs(point.lat() - position[0]) + Math.abs(point.lng() - position[1])) < params.failedLocation.difference);
+						});
+						return (failedPositions.length === 0) && (params.validateLatLngInPolygon({lat: point.lat(), lng: point.lng()}, params.regionBoundary));
+					});
+					if (geocodeResult) {
+						var point = geocodeResult.geometry.location;
+						var result = {
+							latlng: {
+								lat: point.lat(),
+								lng: point.lng()
+							},
+							address: params.address,
+							geocodedAddress: geocodeResult.formatted_address.toString(),
+							status: 'OK'
+						};
+						dfd.resolve(result);
+					} else {
+						dfd.resolve({status: 'No_Result'});
+					}
+				} else {
+					dfd.resolve({status: 'No_Result'});
+				}
+			});
+		}
+		return dfd.promise();
+	};
+
 	if (input.hasOwnProperty('lat') && input.hasOwnProperty('lng')) {
 		var reverseGeocoder = function(params) {
 			var dfd = new $.Deferred();
@@ -170,69 +237,6 @@ var geocode = function(input) {
 			reverseGeocoder: reverseGeocoder
 		};
 	} else if (typeof input === 'string') {
-		var defaultGeocoder = function(params) {
-			var dfd = new $.Deferred();			
-			if (params.address.toUpperCase() === "ONTARIO") {
-				var result = {
-					status: 'No_Result'
-				};
-				dfd.resolve(result);
-			} else {
-				//Private method: test whether the input ends with region names.
-				var regionAddressProcess = function(addressStr, defaultRegionNames){
-					var isAddressEndsWithRegionName = function(address, str) {
-						if (address.length > str.length + 1) {
-							var substr = address.substring(address.length - str.length - 1);
-							if (substr === (" " + str) || substr === ("," + str)) {
-								return true;
-							}
-						}
-						return false;
-					};					
-					var address = addressStr.toUpperCase();
-					var res = _.some(defaultRegionNames, function(regionName) {
-						return isAddressEndsWithRegionName(address, regionName);
-					});
-					if(!res){
-						return addressStr + " Ontario";
-					}
-					return addressStr;
-				};
-
-				var Geocoder = new google.maps.Geocoder();
-				Geocoder.geocode({
-					'address': regionAddressProcess(params.address, params.defaultRegionNames)
-				}, function (results, status) {
-					if (status === google.maps.GeocoderStatus.OK) {
-						var geocodeResult = _.find(results, function(result){
-							var point = result.geometry.location;
-							var failedPositions = _.filter(params.failedLocation.positions, function(position) {
-								return ((Math.abs(point.lat() - position[0]) + Math.abs(point.lng() - position[1])) < params.failedLocation.difference);
-							});
-							return (failedPositions.length === 0) && (params.validateLatLngInPolygon({lat: point.lat(), lng: point.lng()}, params.regionBoundary));
-						});
-						if (geocodeResult) {
-							var point = geocodeResult.geometry.location;
-							var result = {
-								latlng: {
-									lat: point.lat(),
-									lng: point.lng()
-								},
-								address: params.address,
-								geocodedAddress: geocodeResult.formatted_address.toString(),
-								status: 'OK'
-							};
-							dfd.resolve(result);
-						} else {
-							dfd.resolve({status: 'No_Result'});
-						}
-					} else {
-						dfd.resolve({status: 'No_Result'});
-					}
-				});
-			}
-			return dfd.promise();
-		};
 		geocodeParams = {
 			address: input,
 			defaultRegionNames: ["ON", "ONT", "ONTARIO"], 
@@ -245,7 +249,13 @@ var geocode = function(input) {
 	} else if (input.hasOwnProperty('GeocoderList') && input.hasOwnProperty('address')) {
 		geocodeParams = {
 			address: input.address,
-			GeocoderList: input.GeocoderList
+			defaultRegionNames: ["ON", "ONT", "ONTARIO"], 
+			failedLocation: {
+				positions: [[51.253775,-85.32321389999998], [42.832714, -80.279923]],
+				difference: 0.00001
+			},			
+			GeocoderList: input.GeocoderList,
+			defaultGeocoder: defaultGeocoder
 		};
 	}
 	return Geocoder.geocode(geocodeParams);
@@ -476,8 +486,9 @@ var init = function(initParams) {
 			},
 			/*District locator, watershed locator, source water protection One feature with no tab*/
 			'OneFeatureNoTabPolygon': function(results, identifySettings) {
-				var process = function (results, identifySettings, geocodingResult) {
-					//console.log(results);
+				var process = function (results, identifySettings, geocodingResult) {					
+					var searchString = $('#' + globalConfigure.searchInputBoxDivId).val().trim();
+					$('#' + globalConfigure.informationDivId).html('<i>' + globalConfigure.generateMessage(results, geocodingResult, searchString) + '</i>');
 					if (marker) {
 						marker.setMap(null);
 					}
@@ -486,7 +497,7 @@ var init = function(initParams) {
 					});
 					overlays = [];
 
-					var contents = identifySettings.identifyTemplate(results, Util, geocodingResult);
+					var contents = identifySettings.identifyTemplate(results, Util, geocodingResult, searchString);
 
 					$("#" + globalConfigure.queryTableDivId).html(contents.table);
 
@@ -604,14 +615,21 @@ var init = function(initParams) {
 					//options: options
 				};
 			},
-			'Geocode': function (searchString) {
-				return searchString;
+			'OneFeatureNoTabPolygon': function (searchString) {
+				if (!!globalConfigure.searchGeocoderList) {
+					return {
+						GeocoderList: globalConfigure.searchGeocoderList,
+						address: searchString
+					};
+				} else {
+					return searchString;
+				}
 			}
 		},
 		searchCallbackName: 'Default',
 		searchCallbackList: {
 			'Default': queryLayers,
-			'Geocode': geocode
+			'OneFeatureNoTabPolygon': geocode
 		},
 		postSearchCallbackName: 'OneFeatureNoTab',
 		postSearchCallbackList: {
@@ -706,11 +724,16 @@ var init = function(initParams) {
 				$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');
 			},
 			/*District locator, watershed locator, source water protection One feature with no tab*/
-			'Geocode': function(results) {
+			'OneFeatureNoTabPolygon': function(results) {
 				if(results[0].status === 'OK') {
 					var latlng = new google.maps.LatLng(results[0].latlng.lat, results[0].latlng.lng);
+					_.each(arcGISMapServices, function(arcGISMapService) {
+						arcGISMapService.setMap(null);
+					});
+					//console.log(results);
 					map.setCenter(latlng);
-					map.setZoom(globalConfigure.searchZoomLevel);
+					var zoomLevel = (results[0].hasOwnProperty('zoomLevel')) ? results[0].zoomLevel : globalConfigure.searchZoomLevel;
+					map.setZoom(zoomLevel);
 					google.maps.event.trigger(map, 'click', {latLng: latlng});
 				} else {
 					var messageParams = {
@@ -718,12 +741,14 @@ var init = function(initParams) {
 						maxQueryReturn: globalConfigure.maxQueryReturn,
 						searchString: results[0].address
 					};
-					$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');					
+					$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');
 				}
 			}
 		}		
 	};
 	var params = _.defaults(initParams, defaultParams);
+	params.searchHelpText = Util.getSearchHelpText(params.searchControlHTML);
+	//console.log(params.searchHelpText);
 	globalConfigure = params;
 
 	var url = 'http://files.ontariogovernment.ca/moe_mapping/mapping/js/MOEMap/';
@@ -755,12 +780,14 @@ var init = function(initParams) {
 	}
 	map = new google.maps.Map($('#' + params.mapCanvasDivId)[0], mapOptions);
 	if (globalConfigure.hasOwnProperty('extraImageServices')) {
-		_.each(globalConfigure.extraImageServices, function(extraImageService) {
-			var agsType = new gmaps.ags.MapType(extraImageService.url, {
-				name: extraImageService.name
-			});
-			map.mapTypes.set(extraImageService.id, agsType);			
-		});
+		yepnope({load: 'http://lrcdrrvsdvap002/web/arcgislink.js',callback: function(){
+			_.each(globalConfigure.extraImageServices, function(extraImageService) {
+				var agsType = new gmaps.ags.MapType(extraImageService.url, {
+					name: extraImageService.name
+				});
+				map.mapTypes.set(extraImageService.id, agsType);
+			});			
+		}});
 	}
 
 	/*bounds changed*/	
