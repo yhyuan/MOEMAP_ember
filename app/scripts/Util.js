@@ -273,12 +273,11 @@ var createTabBar = function (tabs, settings){
 };
 
 var getTableIDFromTableTemplate = function (template) {
-	var index = template.indexOf('id');
-	var str = template.substring(index + 2, template.length).trim();
-	str = str.substring(1, str.length).trim();
+	var index = template.indexOf('<table id="');
+	var str = template.substring(index + 11, template.length).trim();
 	index = str.indexOf(' ');
-	str = str.substring(0, index).trim();
-	str = str.substring(1, str.length - 1);
+	str = str.substring(0, index - 1).trim();
+	//str = str.substring(1, str.length - 1);
 	return str;
 };
 
@@ -309,9 +308,9 @@ var generateMessage = function(params, langs){
 		} else if(totalCount === 1){
 			message = langs.oneResultFoundLang  + searchString + regionName + "." + langs.ThisResultDoesNotHaveValidCoordinates;
 		} else if(totalCount >= maxQueryReturn){
-			message = langs.moreThanLang + " " + maxQueryReturn + " " + langs.resultsFoundLang + searchString + regionName + ". " + langs.onlyLang + " " + maxQueryReturn + " " + langs.returnedLang + ". " + langs.seeHelpLang + "." + langs.AmongReturnedResults + ", " + queryParams.invalidCount + invalidResultMsg;
+			message = langs.moreThanLang + " " + maxQueryReturn + " " + langs.resultsFoundLang + searchString + regionName + ". " + langs.onlyLang + " " + maxQueryReturn + " " + langs.returnedLang + ". " + langs.seeHelpLang + "." + langs.AmongReturnedResults + ", " + params.invalidCount + invalidResultMsg;
 		} else {
-			message = totalCount + " " + langs.resultsFoundLang + searchString + regionName + ". " + langs.AmongReturnedResults + ", " + queryParams.invalidCount + invalidResultMsg;
+			message = totalCount + " " + langs.resultsFoundLang + searchString + regionName + ". " + langs.AmongReturnedResults + ", " + params.invalidCount + invalidResultMsg;
 		}	
 	} else {
 		if(totalCount === 0){

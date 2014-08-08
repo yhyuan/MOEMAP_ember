@@ -1,144 +1,71 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 /* global _, $, google */
-
-/*
-	Enhancements: 1) Fix a bug. When the clear button is clicked, the table below the map is still there in the existing application. The new version fixed this issue by removing it when the Clear button is clicked. 
-	Meanwhile, the message information become empty. The new version change the message information back to help information. 
-	2) When the user clicks on the map, it will display the information. 
-*/
-
-
 'use strict';
 var GoogleMapsAdapter = require('../scripts/GoogleMapsAdapter');
 var Util = require('../scripts/Util');
 window.GoogleMapsAdapter = GoogleMapsAdapter;
 GoogleMapsAdapter.init({
-	/*English Begins*/
-	language: "EN",
-	/*English Ends*/
 	/**/
+	/*French Begins*/
+	language: "FR",
+	/*French Ends*/
 	mapServices: [{
-		url: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/GreatLakes_WS_Bnd/MapServer',
+		url: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/lakepartner/MapServer',
 		visibleLayers: [0, 1]
 	}],
-	extraImageServices: [{
-		id: "arcgis",
-		name: "ESRI",
-		url: 'http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer'
-	}],	
-	/*English Begins*/
-	otherInfoHTML: '<br>Data source: Land Information Ontario (LIO).<br>',
-	/*English Ends*/
-	/**/	
-	/*English Begins*/
-	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>		<label class="element-invisible" for="map_query">Search the map</label>		<input id="map_query" type="text" title="Search term" maxlength="100" onkeypress="return GoogleMapsAdapter.entsub(event)" size="50" />		<label class="element-invisible" for="search_submit">Search</label>		<input type="submit" onclick="GoogleMapsAdapter.search()" id="search_submit" value="Search" title="Search" />		<label class="element-invisible" for="search_clear">Clear</label>		<input type="submit" value="&nbsp;Clear&nbsp;" id="search_clear" title="Clear" onclick="GoogleMapsAdapter.clear()" />		<div id="information">You may search by <strong>address</strong>, <strong>city name</strong>, <strong>coordinates</strong> or see help for advanced options.</div>',
-	/*English Ends*/
 	/**/
-	postIdentifyCallbackName: 'OneFeatureNoTabPolygon',
-	
+	/*French Begins*/
+	otherInfoHTML: "<h2>Une erreur sur la carte?</h2>       <p>Il est possible que des impr\u00e9cisions se soient gliss\u00e9es sur les emplacements.</p>       <p>Si vous trouvez une erreur d\u0027emplacement d\u0027un lac, veuillez nous en avertir. Vous pouvez utiliser le lien <a href='mailto:lakepartner@ontario.ca?subject=Erreur de Portail'>Signaler une erreur</a> du menu contextuel de la carte.</p>       <h2>Commentaires</h2>       <p>Veuillez formuler vos commentaires ou vos suggestions par courriel \u00e0 <a href=\"mailto:lakepartner@ontario.ca\">lakepartner@ontario.ca</a>.</p><p>Certaines donn&eacute;es scientifiques et de surveillance n&rsquo;existent qu&rsquo;en anglais.</p>",
+	/*French Ends*/
+	/**/
+	/*French Begins*/
+	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>			<label class="element-invisible" for="map_query">Recherche carte interactive</label>			<input id="map_query" type="text" title="Terme de recherche" maxlength="100" size="50" onkeypress="return GoogleMapsAdapter.entsub(event)"></input>			<label class="element-invisible" for="search_submit">Recherche</label>			<input id="search_submit" type="submit" title="Recherche" onclick="GoogleMapsAdapter.search()" value="Recherche"></input>			<br/>			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Étendue de la carte courante" /> <label for="currentExtent" class=\'option\'>\u00c9tendue de la carte courante</label>			<div id="information">Vous pouvez rechercher par <strong>nom du lac</strong>, <strong>un lieu</strong>, <strong>le numéro de la station (STN)</strong> ou consulter l\'aide pour de l\'information sur les recherches avancées.</div>',
+	/*French Ends*/
 	identifySettings: {
-		radius: 1, /* 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
-		requireReverseGeocoding: true,
+		/* radius: 1, // 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
 		identifyLayersList: [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/GreatLakes_WS_Bnd/MapServer',
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/lakepartner/MapServer',
 			layerID: 0,
-			/*returnGeometry: true,
-			strokeOptions: {
-				color: '#8583f3',
-				opacity: 1, 
-				weight: 4
-			},*/
-			outFields: ["LABEL"]
+			outFields: ['LAKENAME', 'STN', 'SITEID', 'TOWNSHIP', 'SITEDESC', 'SE_COUNT', 'ID', 'PH_COUNT', 'LATITUDE', 'LONGITUDE']
 		}],
-
-		identifyTemplate: function (results, Util, geocodingResult, searchString) {
-			var utm = Util.convertLatLngtoUTM(geocodingResult.latlng.lat, geocodingResult.latlng.lng);
-			var latlng = geocodingResult.latlng;
-			var test = _.some([{lat: 42.261049,lng: -81.128540}, {lat: 45.313529,lng: -81.886597}, {lat: 43.651976,lng: -77.997437}, {lat: 47.802087,lng: -86.989746}, {lat: 44.439805,lng: -75.848505}], function (loc) {
-				return Math.abs(latlng.lat - loc.lat) + Math.abs(latlng.lng - loc.lng) < 0.0001;
-			});
-			if (test) {
-				geocodingResult.address = searchString;
-			}
-			
-			/*var address = Util.findGreatLakeWithLocation(latlng);
-			if (!!address) {
-				geocodingResult.address = address;
-			}*/
-		/*English Begins*/		
-			var template = '<% var featuresLength = Util.computeFeaturesNumber (results); var address = (geocodingResult.hasOwnProperty("address") ? geocodingResult.address : "N/A"); 				if (featuresLength === 0) {%>					<i> <%= address %>.</i><br><br><strong>Result located within</strong><br> No Great Lakes Watershed found				<%} else { var attrs = results[0].features[0].attributes;%>					<i><%= address %></i><br><br><i><strong>Latitude:</strong> <%= geocodingResult.latlng.lat.toFixed(6) %>  <strong>Longitude:</strong> <%= geocodingResult.latlng.lng.toFixed(6) %></i><br>					<i><strong>UTM Zone:</strong>  <%= utm.Zone %> <strong>Easting:</strong>  <%= utm.Easting %>  <strong>Northing:</strong>  <%= utm.Northing %>  </i><br><br>					<strong>Result located within</strong><br><%= attrs.LABEL %> WATERSHED				<% } %>';
-		/*English Ends*/
 		/**/
-			var contain = _.template(template, {results: results, Util: Util, geocodingResult: geocodingResult, utm: utm});			
-			return {
-				infoWindow: contain,
-				table: contain
-			}; 
+		/*French Begins*/
+		identifyTemplate: '<strong><%= Util.wordCapitalize(attrs.LAKENAME)%>, STN <%= attrs.STN %>, N&deg; du lieu <%= attrs.SITEID %></strong><br>			Canton: <%= Util.wordCapitalize(attrs.TOWNSHIP)%><br><%= Util.wordCapitalize(attrs.SITEDESC)%><br><br>			Tableau et donn\u00e9es interactifs: <br><% if (attrs.SE_COUNT > 0) { %>				&nbsp;&nbsp;&nbsp;&nbsp;<a target=\'_blank\' href=\'rapport-de-profondeur-de-secchi?id=<%= attrs.ID %>\'>Disque Secchi</a><br>			<% } %><% if (attrs.PH_COUNT > 0) { %>				&nbsp;&nbsp;&nbsp;&nbsp;<a target=\'_blank\' href=\'bilan-de-phosphore-total?id=<%= attrs.ID %>\'>Concentration de phosphore total</a><br>			<% } %><br>Latitude <strong><%= Util.deciToDegree(attrs.LATITUDE, "FR")%></strong> Longitude <strong><%= Util.deciToDegree(attrs.LONGITUDE, "FR")%></strong><br>			<a href=\'mailto:lakepartner@ontario.ca?subject=Erreur de Portail (<%= Util.wordCapitalize(attrs.LAKENAME)%>, STN <%= attrs.STN %>, N&deg; du lieu <%= attrs.SITEID %>)\'>Signaler une erreur pour ce lieu</a>.<br>',
+		/*French Ends*/
+	},
+	infoWindowHeight: '160px',
+	getSearchParams: function(searchString){
+		var reg = /^\d+$/;
+		var queryParamsList = [{
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/lakepartner/MapServer',
+			layerID: 0,
+			returnGeometry: true,
+			where: (reg.test(searchString) && (searchString.length <= 5)) ? 'STN = ' + searchString : 'UPPER(LAKENAME) LIKE \'%' + searchString.split(/\s+/).join(' ').toUpperCase() + '%\'',
+			outFields: ['LAKENAME', 'STN', 'SITEID', 'TOWNSHIP', 'SITEDESC', 'SE_COUNT', 'ID', 'PH_COUNT', 'LATITUDE', 'LONGITUDE']
+		}];
+		var options = {
+			searchString: searchString,
+			geocodeWhenQueryFail: (reg.test(searchString) && (searchString.length <= 5)) ? false : true,
+			withinExtent: $('#currentMapExtent')[0].checked,
+			invalidFeatureLocations: [{
+				lat: 0,
+				lng: 0,
+				difference: 0.0001
+			}]
+		};
+		return {
+			queryParamsList: queryParamsList,
+			options: options
 		}
 	},
-	searchGeocoderList: {
-		'GreatLakes' : {		
-			'match': function (params) {
-				var lakeLocations = ["LAKE ERIE", "LAC \u00c9RI\u00c9", "LAKE HURON", "LAC HURON", "LAKE ONTARIO", "LAC ONTARIO", "LAKE SUPERIOR", "LAC SUP\u00c9RIEUR", "UPPER ST. LAWRENCE", "ST. LAWRENCE RIVER", "HAUT SAINT-LAURENT", "FLEUVE SAINT-LAURENT"];
-				return _.contains(lakeLocations, params.address.split(/\s+/).join(" ").toUpperCase());
-			},
-			'geocode': function (params) {				
-				var lakeLocations = {
-					"LAKE ERIE": {location: {lat: 42.261049,lng: -81.128540}, zoomlevel: 8},
-					"LAC \u00c9RI\u00c9": {location: {lat: 42.261049,lng: -81.128540}, zoomlevel: 8},
-					"LAKE HURON": {location: {lat: 45.313529,lng: -81.886597}, zoomlevel: 8},
-					"LAC HURON": {location: {lat: 45.313529,lng: -81.886597}, zoomlevel: 8},
-					"LAKE ONTARIO": {location: {lat: 43.651976,lng: -77.997437}, zoomlevel: 8},
-					"LAC ONTARIO": {location: {lat: 43.651976,lng: -77.997437}, zoomlevel: 8},
-					"LAKE SUPERIOR": {location: {lat: 47.802087,lng: -86.989746}, zoomlevel: 7},	
-					"LAC SUP\u00c9RIEUR": {location: {lat: 47.802087,lng: -86.989746}, zoomlevel: 7},	
-					"UPPER ST. LAWRENCE": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
-					"ST. LAWRENCE RIVER": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
-					"HAUT SAINT-LAURENT": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
-					"FLEUVE SAINT-LAURENT": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9}
-				};
-				var key = params.address.split(/\s+/).join(" ").toUpperCase();
-				var result = {
-					latlng: lakeLocations[key].location,
-					zoomLevel: lakeLocations[key].zoomlevel,
-					address: params.address,
-					status: 'OK'
-				};
-				var dfd = new $.Deferred();
-				dfd.resolve(result);
-				return dfd.promise();
-			}
-		}
-	},
-	preSearchCallbackName: 'OneFeatureNoTabPolygon',
-	searchCallbackName: 'OneFeatureNoTabPolygon',
-	postSearchCallbackName: 'OneFeatureNoTabPolygon',
-	searchZoomLevel: 12,
-	generateMessage: function (results, geocodingResult, searchString) {
-		var latlng = geocodingResult.latlng;
-		var test = _.some([{lat: 42.261049,lng: -81.128540}, {lat: 45.313529,lng: -81.886597}, {lat: 43.651976,lng: -77.997437}, {lat: 47.802087,lng: -86.989746}, {lat: 44.439805,lng: -75.848505}], function (loc) {
-			return Math.abs(latlng.lat - loc.lat) + Math.abs(latlng.lng - loc.lng) < 0.0001;
-		});
-		if (test) {
-			geocodingResult.address = searchString;
-		}
-		/*var address = Util.findGreatLakeWithLocation(latlng);
-		if (!address) {
-			address = geocodingResult.address;
-		}*/
-		var address = geocodingResult.address;
-		if (!!results && !!results[0].features && results[0].features.length === 0) {
-			/*English Begins*/
-			return '<strong>' + address + '</strong> located within <strong>No Great Lakes Watershed found.</strong>';
-			/*English Ends*/
-			/**/
-		}
-		var lake = results[0].features[0].attributes.LABEL;
-		/*English Begins*/
-		return '<strong>' + address + '</strong> located within <strong>' + lake + ' WATERSHED.</strong>';
-		/*English Ends*/
-		/**/		
-	}
+	/**/
+	/*French Begins*/
+	tableTemplate: '<table id="myTable" class="tablesorter" width="650" border="0" cellpadding="0" cellspacing="1">		<thead><tr><th><center>Nom du lac</center></th><th><center>STN</center></th><th><center>N&deg; du lieu</center></th><th><center>Canton</center></th><th><center>Description du site</center></th><th><center>Disque Secchi</center></th><th><center>Concentration de phosphore total</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th></tr></thead><tbody>		<% _.each(features, function(feature) {			var attrs = feature.attributes; %> 			<tr><td><%= Util.wordCapitalize(attrs.LAKENAME) %></td><td><%= attrs.STN %></td><td><%= attrs.SITEID %></td><td><%= Util.wordCapitalize(attrs.TOWNSHIP) %></td><td><%= attrs.SITEDESC %></td>			<td><% if (attrs.SE_COUNT === 0) { %>N/A<% } else { %> <a target=\'_blank\' href=\'rapport-de-profondeur-de-secchi?id=<%= attrs.ID %>\'>Rapport</a> <% } %></td>			<td><% if (attrs.PH_COUNT === 0) { %>N/A<% } else { %> <a target=\'_blank\' href=\'bilan-de-phosphore-total?id=<%= attrs.ID %>\'>Rapport</a> <% } %></td>			<td><%= Util.deciToDegree(attrs.LATITUDE, "FR") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "FR") %></td></tr>		<% }); %>		</tbody></table>',
+	/*French Ends*/	
+	/**/
+	/*French Begins*/
+	invalidTableTemplate: 'Le tableau suivant contient des données sans coordonnées valides.  <a href=\'#WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a>		<table id="invalid" class="tablesorter" width="650" border="0" cellpadding="0" cellspacing="1">		<thead><tr><th><center>Nom du lac</center></th><th><center>STN</center></th><th><center>N&deg; du lieu</center></th><th><center>Canton</center></th><th><center>Description du site</center></th><th><center>Disque Secchi</center></th><th><center>Concentration de phosphore total</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th></tr></thead><tbody>		<% _.each(features, function(feature) {			var attrs = feature.attributes; %> 			<tr><td><%= Util.wordCapitalize(attrs.LAKENAME) %></td><td><%= attrs.STN %></td><td><%= attrs.SITEID %></td><td><%= Util.wordCapitalize(attrs.TOWNSHIP) %></td><td><%= attrs.SITEDESC %></td>			<td><% if (attrs.SE_COUNT === 0) { %>N/A<% } else { %> <a target=\'_blank\' href=\'rapport-de-profondeur-de-secchi?id=<%= attrs.ID %>\'>Rapport</a> <% } %></td>			<td><% if (attrs.PH_COUNT === 0) { %>N/A<% } else { %> <a target=\'_blank\' href=\'bilan-de-phosphore-total?id=<%= attrs.ID %>\'>Rapport</a> <% } %></td>			<td><%= Util.deciToDegree(attrs.LATITUDE, "FR") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "FR") %></td></tr>		<% }); %>		</tbody></table>		<a id=\'WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a><br>Les lieux indiqués par des points sur la carte ont été déterminés en fonction d’adresses ou d’autres renseignements servant à calculer un emplacement physique sur la carte. Dans certains cas, ces renseignements étaient incomplets, incorrects ou manquants. Les données fournies dans le deuxième tableau ont été incluses, car il y a une correspondance étroite avec le nom de la ville ou d’autre champ. Ces données peuvent ou non être proches du lieu précisé, et on doit les utiliser avec prudence. Elles ont été incluses seulement parce qu’il peut y avoir une correspondance.'
+	/*French Ends*/		
 });
 },{"../scripts/GoogleMapsAdapter":4,"../scripts/Util":5}],2:[function(require,module,exports){
 /* global _, $, escape */
@@ -1250,8 +1177,8 @@ var init = function(initParams) {
 			CurrentMapDisplayLang: 'Search current map display only',
 			CurrentMapDisplayTitleLang: 'Current Map Display: Limit your search to the area displayed',
 			distanceFieldNote: 'The Distance(KM) column represents the distance between your search location and the permit location in the specific row.',
-			noCoordinatesTableTitleLang: 'The following table contains the records without valid coordinates. <a href=\'#WhyAmISeeingThis\'>Why am I seeing this?</a>',
-			whyAmISeeingThisLang: '<a id=\'WhyAmISeeingThis\'><strong>Why am I seeing this?</strong></a><br>The map locations shown as points have been determined by using addresses or other information to calculate a physical location on the map.  In some cases, the information needed to calculate a location was incomplete, incorrect or missing.  The records provided in the table have been included because there is a close match on the name or city/town or other field(s). These records may or may not be near your specified location, and users are cautioned in using these records. They have been included as potential matches only.',
+//			noCoordinatesTableTitleLang: 'The following table contains the records without valid coordinates. <a href=\'#WhyAmISeeingThis\'>Why am I seeing this?</a>',
+			//whyAmISeeingThisLang: '<a id=\'WhyAmISeeingThis\'><strong>Why am I seeing this?</strong></a><br>The map locations shown as points have been determined by using addresses or other information to calculate a physical location on the map.  In some cases, the information needed to calculate a location was incomplete, incorrect or missing.  The records provided in the table have been included because there is a close match on the name or city/town or other field(s). These records may or may not be near your specified location, and users are cautioned in using these records. They have been included as potential matches only.',
 			ThisResultDoesNotHaveValidCoordinates: 'This result does not have valid coordinates.',
 			AmongReturnedResults: 'Among returned results',
 			ResultDoesNotHaveValidCoordinates: ' result does not have valid coordinates.',
@@ -1296,8 +1223,8 @@ var init = function(initParams) {
 			CurrentMapDisplayLang: '\u00c9tendue de la carte courante',
 			CurrentMapDisplayTitleLang: 'Afficher la carte : Limiter la recherche \u00e0 la carte donn\u00e9e.',
 			distanceFieldNote: 'La colonne de distance (en km) donne la distance entre le lieu de votre recherche et le lieu du puits dans la rang\u00e9e donn\u00e9e.',
-			noCoordinatesTableTitleLang: 'Le tableau suivant contient des données sans coordonnées valides.  <a href=\'#WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a>',
-			whyAmISeeingThisLang: '<a id=\'WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a><br>Les lieux indiqués par des points sur la carte ont été déterminés en fonction d’adresses ou d’autres renseignements servant à calculer un emplacement physique sur la carte. Dans certains cas, ces renseignements étaient incomplets, incorrects ou manquants. Les données fournies dans le deuxième tableau ont été incluses, car il y a une correspondance étroite avec le nom de la ville ou d’autre champ. Ces données peuvent ou non être proches du lieu précisé, et on doit les utiliser avec prudence. Elles ont été incluses seulement parce qu’il peut y avoir une correspondance.',
+//			noCoordinatesTableTitleLang: 'Le tableau suivant contient des données sans coordonnées valides.  <a href=\'#WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a>',
+//			whyAmISeeingThisLang: '<a id=\'WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a><br>Les lieux indiqués par des points sur la carte ont été déterminés en fonction d’adresses ou d’autres renseignements servant à calculer un emplacement physique sur la carte. Dans certains cas, ces renseignements étaient incomplets, incorrects ou manquants. Les données fournies dans le deuxième tableau ont été incluses, car il y a une correspondance étroite avec le nom de la ville ou d’autre champ. Ces données peuvent ou non être proches du lieu précisé, et on doit les utiliser avec prudence. Elles ont été incluses seulement parce qu’il peut y avoir une correspondance.',
 			ThisResultDoesNotHaveValidCoordinates: 'This result does not have valid coordinates.',
 			AmongReturnedResults: 'Parmi les résultats obtenus',
 			ResultDoesNotHaveValidCoordinates: ' résultat n’a pas de coordonnées valides.',
@@ -1345,6 +1272,7 @@ var init = function(initParams) {
 		maxQueryZoomLevel: 17,
 		maxQueryReturn: 500,
 		queryTableDivId: 'query_table',
+		otherInfoDivId: 'otherInfo',
 		infoWindowWidth: '280px',
 		infoWindowHeight: '200px',
 		infoWindowContentHeight: '160px',
@@ -1614,7 +1542,21 @@ var init = function(initParams) {
 				}
 
 				var features = Util.combineFeatures(results);
-				$('#' + globalConfigure.queryTableDivId).html(_.template(globalConfigure.tableTemplate, {features: features, Util: Util}));
+				var splited = Util.splitResults(results, options.invalidFeatureLocations);
+				var invalidNumber = Util.computeFeaturesNumber (splited.invalidResults);
+				var invalidFeatures;
+				if (invalidNumber > 0) {
+					features =Util.combineFeatures(splited.validResults);
+					invalidFeatures = Util.combineFeatures(splited.invalidResults);
+				}
+				if (invalidNumber > 0) {
+					var str1 = _.template(globalConfigure.tableTemplate, {features: features, Util: Util});
+					var str2 = _.template(globalConfigure.invalidTableTemplate, {features: invalidFeatures, Util: Util});
+					$('#' + globalConfigure.queryTableDivId).html(str1 + '<br><br>' + str2);	
+				} else {
+					$('#' + globalConfigure.queryTableDivId).html(_.template(globalConfigure.tableTemplate, {features: features, Util: Util}));	
+				}
+				//console.log("OK");
 				var dataTableOptions = {
 					'bJQueryUI': true,
 					'sPaginationType': 'full_numbers' 
@@ -1624,6 +1566,10 @@ var init = function(initParams) {
 				}
 				var tableID = Util.getTableIDFromTableTemplate(globalConfigure.tableTemplate);
 				$('#' + tableID).dataTable(dataTableOptions);
+				if (invalidNumber > 0) {
+					tableID = Util.getTableIDFromTableTemplate(globalConfigure.invalidTableTemplate);
+					$('#' + tableID).dataTable(dataTableOptions);				
+				}
 
 				var markers = _.map(features, function(feature) {
 					var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
@@ -1671,6 +1617,9 @@ var init = function(initParams) {
 					searchString: options.searchString,
 					withinExtent: options.withinExtent
 				};
+				if (invalidNumber > 0) {
+					messageParams.invalidCount = invalidNumber;
+				}
 				$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');
 			},
 			/*District locator, watershed locator, source water protection One feature with no tab*/
@@ -1700,7 +1649,9 @@ var init = function(initParams) {
 	params.searchHelpText = Util.getSearchHelpText(params.searchControlHTML);
 	//console.log(params.searchHelpText);
 	globalConfigure = params;
-
+	if (globalConfigure.hasOwnProperty('otherInfoHTML')) {
+		$('#' + globalConfigure.otherInfoDivId).html(globalConfigure.otherInfoHTML);
+	}
 	var url = 'http://files.ontariogovernment.ca/moe_mapping/mapping/js/MOEMap/';
 	var urls = [];
 	if(globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTabPolygon') {
@@ -2186,12 +2137,11 @@ var createTabBar = function (tabs, settings){
 };
 
 var getTableIDFromTableTemplate = function (template) {
-	var index = template.indexOf('id');
-	var str = template.substring(index + 2, template.length).trim();
-	str = str.substring(1, str.length).trim();
+	var index = template.indexOf('<table id="');
+	var str = template.substring(index + 11, template.length).trim();
 	index = str.indexOf(' ');
-	str = str.substring(0, index).trim();
-	str = str.substring(1, str.length - 1);
+	str = str.substring(0, index - 1).trim();
+	//str = str.substring(1, str.length - 1);
 	return str;
 };
 
@@ -2222,9 +2172,9 @@ var generateMessage = function(params, langs){
 		} else if(totalCount === 1){
 			message = langs.oneResultFoundLang  + searchString + regionName + "." + langs.ThisResultDoesNotHaveValidCoordinates;
 		} else if(totalCount >= maxQueryReturn){
-			message = langs.moreThanLang + " " + maxQueryReturn + " " + langs.resultsFoundLang + searchString + regionName + ". " + langs.onlyLang + " " + maxQueryReturn + " " + langs.returnedLang + ". " + langs.seeHelpLang + "." + langs.AmongReturnedResults + ", " + queryParams.invalidCount + invalidResultMsg;
+			message = langs.moreThanLang + " " + maxQueryReturn + " " + langs.resultsFoundLang + searchString + regionName + ". " + langs.onlyLang + " " + maxQueryReturn + " " + langs.returnedLang + ". " + langs.seeHelpLang + "." + langs.AmongReturnedResults + ", " + params.invalidCount + invalidResultMsg;
 		} else {
-			message = totalCount + " " + langs.resultsFoundLang + searchString + regionName + ". " + langs.AmongReturnedResults + ", " + queryParams.invalidCount + invalidResultMsg;
+			message = totalCount + " " + langs.resultsFoundLang + searchString + regionName + ". " + langs.AmongReturnedResults + ", " + params.invalidCount + invalidResultMsg;
 		}	
 	} else {
 		if(totalCount === 0){
@@ -2241,9 +2191,7 @@ var generateMessage = function(params, langs){
 };
 
 var getSearchHelpText = function (searchControlHTML) {
-	//console.log(searchControlHTML);
 	var str = searchControlHTML.split('id="information"')[1];
-	console.log(str);
 	var index1 = str.indexOf('>');
 	var index2 = str.indexOf('</div>');
 	return str.substring(index1 + 1, index2);

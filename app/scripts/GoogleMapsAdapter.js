@@ -300,8 +300,8 @@ var init = function(initParams) {
 			CurrentMapDisplayLang: 'Search current map display only',
 			CurrentMapDisplayTitleLang: 'Current Map Display: Limit your search to the area displayed',
 			distanceFieldNote: 'The Distance(KM) column represents the distance between your search location and the permit location in the specific row.',
-			noCoordinatesTableTitleLang: 'The following table contains the records without valid coordinates. <a href=\'#WhyAmISeeingThis\'>Why am I seeing this?</a>',
-			whyAmISeeingThisLang: '<a id=\'WhyAmISeeingThis\'><strong>Why am I seeing this?</strong></a><br>The map locations shown as points have been determined by using addresses or other information to calculate a physical location on the map.  In some cases, the information needed to calculate a location was incomplete, incorrect or missing.  The records provided in the table have been included because there is a close match on the name or city/town or other field(s). These records may or may not be near your specified location, and users are cautioned in using these records. They have been included as potential matches only.',
+//			noCoordinatesTableTitleLang: 'The following table contains the records without valid coordinates. <a href=\'#WhyAmISeeingThis\'>Why am I seeing this?</a>',
+			//whyAmISeeingThisLang: '<a id=\'WhyAmISeeingThis\'><strong>Why am I seeing this?</strong></a><br>The map locations shown as points have been determined by using addresses or other information to calculate a physical location on the map.  In some cases, the information needed to calculate a location was incomplete, incorrect or missing.  The records provided in the table have been included because there is a close match on the name or city/town or other field(s). These records may or may not be near your specified location, and users are cautioned in using these records. They have been included as potential matches only.',
 			ThisResultDoesNotHaveValidCoordinates: 'This result does not have valid coordinates.',
 			AmongReturnedResults: 'Among returned results',
 			ResultDoesNotHaveValidCoordinates: ' result does not have valid coordinates.',
@@ -346,8 +346,8 @@ var init = function(initParams) {
 			CurrentMapDisplayLang: '\u00c9tendue de la carte courante',
 			CurrentMapDisplayTitleLang: 'Afficher la carte : Limiter la recherche \u00e0 la carte donn\u00e9e.',
 			distanceFieldNote: 'La colonne de distance (en km) donne la distance entre le lieu de votre recherche et le lieu du puits dans la rang\u00e9e donn\u00e9e.',
-			noCoordinatesTableTitleLang: 'Le tableau suivant contient des données sans coordonnées valides.  <a href=\'#WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a>',
-			whyAmISeeingThisLang: '<a id=\'WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a><br>Les lieux indiqués par des points sur la carte ont été déterminés en fonction d’adresses ou d’autres renseignements servant à calculer un emplacement physique sur la carte. Dans certains cas, ces renseignements étaient incomplets, incorrects ou manquants. Les données fournies dans le deuxième tableau ont été incluses, car il y a une correspondance étroite avec le nom de la ville ou d’autre champ. Ces données peuvent ou non être proches du lieu précisé, et on doit les utiliser avec prudence. Elles ont été incluses seulement parce qu’il peut y avoir une correspondance.',
+//			noCoordinatesTableTitleLang: 'Le tableau suivant contient des données sans coordonnées valides.  <a href=\'#WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a>',
+//			whyAmISeeingThisLang: '<a id=\'WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a><br>Les lieux indiqués par des points sur la carte ont été déterminés en fonction d’adresses ou d’autres renseignements servant à calculer un emplacement physique sur la carte. Dans certains cas, ces renseignements étaient incomplets, incorrects ou manquants. Les données fournies dans le deuxième tableau ont été incluses, car il y a une correspondance étroite avec le nom de la ville ou d’autre champ. Ces données peuvent ou non être proches du lieu précisé, et on doit les utiliser avec prudence. Elles ont été incluses seulement parce qu’il peut y avoir une correspondance.',
 			ThisResultDoesNotHaveValidCoordinates: 'This result does not have valid coordinates.',
 			AmongReturnedResults: 'Parmi les résultats obtenus',
 			ResultDoesNotHaveValidCoordinates: ' résultat n’a pas de coordonnées valides.',
@@ -395,6 +395,7 @@ var init = function(initParams) {
 		maxQueryZoomLevel: 17,
 		maxQueryReturn: 500,
 		queryTableDivId: 'query_table',
+		otherInfoDivId: 'otherInfo',
 		infoWindowWidth: '280px',
 		infoWindowHeight: '200px',
 		infoWindowContentHeight: '160px',
@@ -664,7 +665,21 @@ var init = function(initParams) {
 				}
 
 				var features = Util.combineFeatures(results);
-				$('#' + globalConfigure.queryTableDivId).html(_.template(globalConfigure.tableTemplate, {features: features, Util: Util}));
+				var splited = Util.splitResults(results, options.invalidFeatureLocations);
+				var invalidNumber = Util.computeFeaturesNumber (splited.invalidResults);
+				var invalidFeatures;
+				if (invalidNumber > 0) {
+					features =Util.combineFeatures(splited.validResults);
+					invalidFeatures = Util.combineFeatures(splited.invalidResults);
+				}
+				if (invalidNumber > 0) {
+					var str1 = _.template(globalConfigure.tableTemplate, {features: features, Util: Util});
+					var str2 = _.template(globalConfigure.invalidTableTemplate, {features: invalidFeatures, Util: Util});
+					$('#' + globalConfigure.queryTableDivId).html(str1 + '<br><br>' + str2);	
+				} else {
+					$('#' + globalConfigure.queryTableDivId).html(_.template(globalConfigure.tableTemplate, {features: features, Util: Util}));	
+				}
+				//console.log("OK");
 				var dataTableOptions = {
 					'bJQueryUI': true,
 					'sPaginationType': 'full_numbers' 
@@ -674,6 +689,10 @@ var init = function(initParams) {
 				}
 				var tableID = Util.getTableIDFromTableTemplate(globalConfigure.tableTemplate);
 				$('#' + tableID).dataTable(dataTableOptions);
+				if (invalidNumber > 0) {
+					tableID = Util.getTableIDFromTableTemplate(globalConfigure.invalidTableTemplate);
+					$('#' + tableID).dataTable(dataTableOptions);				
+				}
 
 				var markers = _.map(features, function(feature) {
 					var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
@@ -721,6 +740,9 @@ var init = function(initParams) {
 					searchString: options.searchString,
 					withinExtent: options.withinExtent
 				};
+				if (invalidNumber > 0) {
+					messageParams.invalidCount = invalidNumber;
+				}
 				$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');
 			},
 			/*District locator, watershed locator, source water protection One feature with no tab*/
@@ -750,7 +772,9 @@ var init = function(initParams) {
 	params.searchHelpText = Util.getSearchHelpText(params.searchControlHTML);
 	//console.log(params.searchHelpText);
 	globalConfigure = params;
-
+	if (globalConfigure.hasOwnProperty('otherInfoHTML')) {
+		$('#' + globalConfigure.otherInfoDivId).html(globalConfigure.otherInfoHTML);
+	}
 	var url = 'http://files.ontariogovernment.ca/moe_mapping/mapping/js/MOEMap/';
 	var urls = [];
 	if(globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTabPolygon') {

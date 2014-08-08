@@ -36,7 +36,7 @@ GoogleMapsAdapter.init({
 			<input id="search_submit" type="submit" title="Search" onclick="GoogleMapsAdapter.search()" value="Search"></input>\
 			<br/>\
 			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Current Map Display" /> <label for="currentExtent" class=\'option\'>Search current map display only</label>\
-			<div id="information"></div>',
+			<div id="information">You may search by <strong>lake name</strong>, <strong>location</strong>, <strong>station number (STN)</strong> or see help for advanced options.</div>',
 	/*English Ends*/
 	/*French Begins*/
 	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
@@ -46,262 +46,111 @@ GoogleMapsAdapter.init({
 			<input id="search_submit" type="submit" title="Recherche" onclick="GoogleMapsAdapter.search()" value="Recherche"></input>\
 			<br/>\
 			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Étendue de la carte courante" /> <label for="currentExtent" class=\'option\'>\u00c9tendue de la carte courante</label>\
-			<div id="information"></div>',
+			<div id="information">Vous pouvez rechercher par <strong>nom du lac</strong>, <strong>un lieu</strong>, <strong>le numéro de la station (STN)</strong> ou consulter l\'aide pour de l\'information sur les recherches avancées.</div>',
 	/*French Ends*/
-	pointBufferTool: {available: false},
-	extraImageService: {visible: false},
-	usejQueryUITable: true,  //Avoid loading extra javascript files
-	usePredefinedMultipleTabs: false, //Avoid loading extra javascript files
-	allowMultipleIdentifyResult: false,
-	displayTotalIdentifyCount: false,
-	locationServicesList: [],
-	maxQueryZoomLevel: 11,
-	displayDisclaimer: true,
-	InformationLang: "Information",
-	//postIdentifyCallbackName: "SportFish",
-	//infoWindowWidth: '280px',
-	tableSimpleTemplateTitleLang: "",
-	/*English Begins*/
-	tableFieldList: [
-		{name: "Waterbody", value: "{LOCNAME_EN}"}, 
-		{name: "Location", value: "{globalConfig.addBRtoLongText(GUIDELOC_EN)}"}, 
-		{name: "Latitude", value: "{globalConfig.deciToDegree(LATITUDE)}"}, 
-		{name: "Longitude", value: "{globalConfig.deciToDegree(LONGITUDE)}"}, 	
-		{name: "Consumption Advisory Table", value: "<a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Consumption Advisory Table</a>"}
-	],
-	/*English Ends*/
-	/*French Begins*/
-	tableFieldList: [
-		{name: "Plan d'eau", value: "{LOCNAME_FR}"}, 
-		{name: "Lieu", value: "{globalConfig.addBRtoLongText(GUIDELOC_FR)}"}, 
-		{name: "Latitude", value: "{globalConfig.deciToDegree(LATITUDE)}"}, 
-		{name: "Longitude", value: "{globalConfig.deciToDegree(LONGITUDE)}"}, 	
-		{name: "Tableau des mises en garde en mati\u00e8re de consommation", value: "<a target='_blank' href='" + this.report_URL + "?id={WATERBODYC}'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a>"}
-	],
-	/*French Ends*/
-	postIdentifyCallbackName: 'ManyFeaturesOneTab',
-	/*English Begins*/
 	identifySettings: {
 		/* radius: 1, // 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
 		identifyLayersList: [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/wells/MapServer',
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/lakepartner/MapServer',
 			layerID: 0,
-			outFields: ['BORE_HOLE_ID', 'WELL_ID', 'DEPTH_M', 'YEAR_COMPLETED', 'WELL_COMPLETED_DATE', 'AUDIT_NO', 'TAG_NO', 'CONTRACTOR', 'PATH']
+			outFields: ['LAKENAME', 'STN', 'SITEID', 'TOWNSHIP', 'SITEDESC', 'SE_COUNT', 'ID', 'PH_COUNT', 'LATITUDE', 'LONGITUDE']
 		}],
-		identifyTemplate: 'Total features returned: <strong><%= features.length %><strong><br>\
-			<table class=\'tabtable\'><tr><th>Well ID</th><th>Well Tag # (since 2003)</th><th>Audit # (since 1986)</th><th>Contractor Lic#</th><th>Well Depth (m)</th><th>Date of Completion (MM/DD/YYYY)</th><th>Well Record Information</th></tr>\
-			<%  var convertDepthFormat = function (val){if (val === "N/A") {	return "N/A";}	var res = parseFloat(val);	return res.toFixed(1);};\
-				var convertDateFormat = function (str){	if (str === "N/A") {		return "N/A";	}	var strArray = str.split("/");	if(strArray.length == 3){		str = strArray[1] + "/" + strArray[2] + "/" + strArray[0];	}	return str;};\
-				var calculatePDFURL = function(PATH, WELL_ID) {	if((!!PATH) && (PATH.length > 0) && (PATH !== "N/A")) {		return "| <a target=\'_blank\' href=\'http://files.ontario.ca/moe_mapping/downloads/2Water/Wells_pdfs/" + WELL_ID.substring(0,3) + "/" + WELL_ID + ".pdf\'>PDF</a>";	}	return "";};\
-			_.each(features, function(feature) {\
-					var attrs = feature.attributes; %> \
-				<tr><td><%= Util.processNA(attrs.WELL_ID) %></td><td><%= Util.processNA(attrs.TAG_NO) %></td><td><%= Util.processNA(attrs.AUDIT_NO) %></td><td><%= Util.processNA(attrs.CONTRACTOR) %></td><td><%= convertDepthFormat(attrs.DEPTH_M) %></td><td><%= convertDateFormat(attrs.WELL_COMPLETED_DATE) %></td><td><a target=\'_blank\' href=\'well-record-information?id=<%= attrs.BORE_HOLE_ID %>\'>HTML</a><%= calculatePDFURL(attrs.PATH, attrs.WELL_ID) %></td></tr>\
-			<% }); %>\
-			</tbody></table>'
+		/*English Begins*/
+		identifyTemplate: '<strong><%= Util.wordCapitalize(attrs.LAKENAME)%>, STN <%= attrs.STN %>, Site ID <%= attrs.SITEID %></strong><br>\
+			<%= Util.wordCapitalize(attrs.TOWNSHIP)%> Township      <br><%= Util.wordCapitalize(attrs.SITEDESC)%><br><br>\
+			Interactive Chart and Data: <br><% if (attrs.SE_COUNT > 0) { %>\
+				&nbsp;&nbsp;&nbsp;&nbsp;<a target=\'_blank\' href=\'secchi-depth-report?id=<%= attrs.ID %>\'>Secchi Depth</a><br>\
+			<% } %><% if (attrs.PH_COUNT > 0) { %>\
+				&nbsp;&nbsp;&nbsp;&nbsp;<a target=\'_blank\' href=\'total-phosphorus-report?id=<%= attrs.ID %>\'>Total Phosphorus Concentration</a><br>\
+			<% } %><br>Latitude <strong><%= Util.deciToDegree(attrs.LATITUDE, "EN")%></strong> Longitude <strong><%= Util.deciToDegree(attrs.LONGITUDE, "EN")%></strong><br>\
+			<a href=\'mailto:lakepartner@ontario.ca?subject=Report Issue (Submission <%= Util.wordCapitalize(attrs.LAKENAME)%>, STN <%= attrs.STN %>, Site ID <%= attrs.SITEID %>)\'>Report an issue for this location</a>.<br>',
+		/*English Ends*/
+		/*French Begins*/
+		identifyTemplate: '<strong><%= Util.wordCapitalize(attrs.LAKENAME)%>, STN <%= attrs.STN %>, N&deg; du lieu <%= attrs.SITEID %></strong><br>\
+			Canton: <%= Util.wordCapitalize(attrs.TOWNSHIP)%><br><%= Util.wordCapitalize(attrs.SITEDESC)%><br><br>\
+			Tableau et donn\u00e9es interactifs: <br><% if (attrs.SE_COUNT > 0) { %>\
+				&nbsp;&nbsp;&nbsp;&nbsp;<a target=\'_blank\' href=\'rapport-de-profondeur-de-secchi?id=<%= attrs.ID %>\'>Disque Secchi</a><br>\
+			<% } %><% if (attrs.PH_COUNT > 0) { %>\
+				&nbsp;&nbsp;&nbsp;&nbsp;<a target=\'_blank\' href=\'bilan-de-phosphore-total?id=<%= attrs.ID %>\'>Concentration de phosphore total</a><br>\
+			<% } %><br>Latitude <strong><%= Util.deciToDegree(attrs.LATITUDE, "FR")%></strong> Longitude <strong><%= Util.deciToDegree(attrs.LONGITUDE, "FR")%></strong><br>\
+			<a href=\'mailto:lakepartner@ontario.ca?subject=Erreur de Portail (<%= Util.wordCapitalize(attrs.LAKENAME)%>, STN <%= attrs.STN %>, N&deg; du lieu <%= attrs.SITEID %>)\'>Signaler une erreur pour ce lieu</a>.<br>',
+		/*French Ends*/
 	},
-	/*English Ends*/
-	/*French Begins*/
-	identifySettings: {
-		/* radius: 1, // 1 meter If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
-		identifyLayersList: [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
-			layerID: 0,
-			outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
-		}],
-		identifyTemplate: '<strong><%= attrs.LOCNAME_FR %></strong><br><%= Util.addBRtoLongText(s.GUIDELOC_FR) %><br><br>\
-			<a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC %>\'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>\
-			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "FR") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "FR") %></b><br>\
-			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission <%= s.LOCNAME_FR %>)\'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>'
-	},
-	/*French Ends*/
-	queryLayerList: [{
-		url: this.url + "/0",
-		tabsTemplate: [{
-			label: this.InformationLang,
-			content:this.tabsTemplateContent
-		}], 
-		tableSimpleTemplate: {
-			title: this.tableSimpleTemplateTitleLang, 
-			content: this.tableFieldList
-		} 
-	}],
-	getSearchParams: function(searchString, globalConfigure){
-		var getLakeNameSearchCondition = function(searchString) {
-			var coorsArray = searchString.split(/\s+/);
-			var str = coorsArray.join(" ").toUpperCase();
-			str = Util.replaceChar(str, "'", "''");
-			str = Util.replaceChar(str, "\u2019", "''");
-			/*English Begins*/
-			return "UPPER(LOCNAME_EN) LIKE '%" + str + "%'";
-			/*English Ends*/
-			/*French Begins*/
-			return "UPPER(LOCNAME_FR) LIKE '%" + str + "%'";
-			/*French Ends*/
-		};
-		var getQueryCondition = function(name){
-			var str = name.toUpperCase();
-			str = Util.replaceChar(str, '&', ', ');
-			str = Util.replaceChar(str, ' AND ', ', '); 
-			str = str.trim();
-			var nameArray = str.split(',');
-			var max = nameArray.length;
-			var res = [];
-			var inform = [];
-			var processAliasFishName = function(fishname){
-				var aliasList = {
-					GERMAN_TROUT: ["BROWN_TROUT"],
-					SHEEPHEAD:	["FRESHWATER_DRUM"],
-					STEELHEAD:	["RAINBOW_TROUT"],
-					SUNFISH:	["PUMPKINSEED"],
-					BARBOTTE:	["BROWN_BULLHEAD"],
-					BLACK_BASS:	["LARGEMOUTH_BASS","SMALLMOUTH_BASS"],
-					CALICO_BASS:	["BLACK_CRAPPIE"],
-					CRAWPIE:	["BLACK_CRAPPIE","WHITE_CRAPPIE"],
-					GREY_TROUT:	["LAKE_TROUT"],
-					HUMPBACK_SALMON:	["PINK_SALMON"],
-					KING_SALMON:	["CHINOOK_SALMON"],
-					LAKER:	["LAKE_TROUT"],
-					MENOMINEE:	["ROUND_WHITEFISH"],
-					MUDCAT:	["BROWN_BULLHEAD"],
-					MULLET:	["WHITE_SUCKER"],
-					PANFISH:	["BLUEGILL","ROCK_BASS","PUMPKINSEED"],
-					PICKEREL:	["WALLEYE"],
-					SILVER_BASS:	["WHITE_BASS"],
-					SILVER_SALMON:	["COHO_SALMON"],
-					SPECKLED_TROUT:	["BROOK_TROUT"],
-					SPRING_SALMON:	["CHINOOK_SALMON"]
-				};
-				var alias = aliasList[fishname];
-				var fish = Util.wordCapitalize(Util.replaceChar(fishname, '_', ' '));
-				if (typeof(alias) === "undefined"){
-					var result = {
-						/*English Begins*/
-						condition: "(SPECIES_EN like '%" + fishname +"%')",
-						/*English Ends*/
-						/*French Begins*/
-						condition: "(SPECIES_FR like '%" + fishname +"%')",
-						/*French Ends*/
-						information: fish
-					};
-					return result;
-				}else{
-					var res = [];
-					var fishArray = [];
-					for (var i = 0; i < alias.length; i++){
-						/*English Begins*/
-						res.push("(SPECIES_EN like '%" + alias[i] +"%')");
-						/*English Ends*/
-						/*French Begins*/
-						res.push("(SPECIES_FR like '%" + alias[i] +"%')");
-						/*French Ends*/
-						var str = Util.wordCapitalize(Util.replaceChar(alias[i], '_', ' '));
-						fishArray.push(str.trim());
-					}
-					var result = {
-						condition: "(" + res.join(" OR ") + ")",
-						information: fish + " ("  + fishArray.join(", ") + ")"
-					};
-					return result;
-				}
-			}
-			for (var i = 0; i < max; i++){
-				var str1 = (nameArray[i]).trim();
-				if(str1.length > 0){
-					var coorsArray = str1.split(/\s+/);
-					str1 = coorsArray.join("_");
-					var temp = processAliasFishName(str1);
-					res.push(temp.condition);
-					inform.push(temp.information);
-				}
-			}		
-			var result = {
-				condition: res.join(" AND "),
-				information: inform.join(", ")
-			};
-			return result;
-		};
+	infoWindowHeight: '160px',
+	getSearchParams: function(searchString){
+		var reg = /^\d+$/;
 		var queryParamsList = [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/lakepartner/MapServer',
 			layerID: 0,
 			returnGeometry: true,
-			where: ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition,
-			//infoWindowTemplate: globalConfigure.identifyTemplate,
-			/*English Begins*/
-			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
-			/*English Ends*/
-			/*French Begins*/
-			outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
-			/*French Ends*/
+			where: (reg.test(searchString) && (searchString.length <= 5)) ? 'STN = ' + searchString : 'UPPER(LAKENAME) LIKE \'%' + searchString.split(/\s+/).join(' ').toUpperCase() + '%\'',
+			outFields: ['LAKENAME', 'STN', 'SITEID', 'TOWNSHIP', 'SITEDESC', 'SE_COUNT', 'ID', 'PH_COUNT', 'LATITUDE', 'LONGITUDE']
 		}];
 		var options = {
 			searchString: searchString,
-			geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
-			withinExtent: $('#currentMapExtent')[0].checked/*,
+			geocodeWhenQueryFail: (reg.test(searchString) && (searchString.length <= 5)) ? false : true,
+			withinExtent: $('#currentMapExtent')[0].checked,
 			invalidFeatureLocations: [{
 				lat: 0,
 				lng: 0,
 				difference: 0.0001
-			}]*/
+			}]
 		};
 		return {
 			queryParamsList: queryParamsList,
 			options: options
 		}
 	},
-	computeValidResultsTable: function(results, globalConfigure) {
-		var features = Util.combineFeatures(results);
-		var template = '<table id=\"<%= globalConfigure.tableID %>\" class=\"<%= globalConfigure.tableClassName %>\" width=\"<%= globalConfigure.tableWidth %>\" border=\"0\" cellpadding=\"0\" cellspacing=\"1\"><thead>\
-			<tr><th><center>Waterbody</center></th><th><center>Location</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Consumption Advisory Table</center></th></tr></thead><tbody>\
-			<% _.each(features, function(feature) {\
-				var attrs = feature.attributes; %> \
-				<tr><td><%= attrs.LOCNAME_EN %></td><td><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td><td><a target=\'_blank\' href=\'<%= globalConfigure.report_URL %>?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>\
-			<% }); %>\
-			</tbody></table>';
-		return _.template(template, {features: features, globalConfigure: globalConfigure, Util: Util});
-	},
-	computeInvalidResultsTable: function () {
-		return globalConfigure.computeValidResultsTable;
-	}, 	
-	generateSearchResultsMarkers: function(results, globalConfigure) {
-		var features = Util.combineFeatures(results);
-		return _.map(features, function(feature) {
-			var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
-			var container = document.createElement('div');
-			container.style.width = globalConfigure.infoWindowWidth;
-			container.style.height = globalConfigure.infoWindowHeight;
-			container.innerHTML = _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: feature.attributes, globalConfigure: globalConfigure, Util: Util});
-			//console.log(container.innerHTML);
-			var marker = new google.maps.Marker({
-				position: gLatLng
-			});		
-			(function (container, marker) {
-				google.maps.event.addListener(marker, 'click', function () {
-					GoogleMapsAdapter.openInfoWindow(marker.getPosition(), container);
-				});
-			})(container, marker);
-			return marker;			
-		});
-	},	
-	searchChange: function () {}
+	/*English Begins*/	
+	tableTemplate: '<table id="myTable" class="tablesorter" width="650" border="0" cellpadding="0" cellspacing="1">\
+		<thead><tr><th><center>Lake Name</center></th><th><center>STN</center></th><th><center>Site ID</center></th><th><center>Township</center></th><th><center>Site Description</center></th><th><center>Secchi Depth</center></th><th><center>Total Phosphorus Concentration</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th></tr></thead><tbody>\
+		<% _.each(features, function(feature) {\
+			var attrs = feature.attributes; %> \
+			<tr><td><%= Util.wordCapitalize(attrs.LAKENAME) %></td><td><%= attrs.STN %></td><td><%= attrs.SITEID %></td><td><%= Util.wordCapitalize(attrs.TOWNSHIP) %></td><td><%= attrs.SITEDESC %></td>\
+			<td><% if (attrs.SE_COUNT === 0) { %>N/A<% } else { %> <a target=\'_blank\' href=\'secchi-depth-report?id=<%= attrs.ID %>\'>Report</a> <% } %></td>\
+			<td><% if (attrs.PH_COUNT === 0) { %>N/A<% } else { %> <a target=\'_blank\' href=\'total-phosphorus-report?id=<%= attrs.ID %>\'>Report</a> <% } %></td>\
+			<td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td></tr>\
+		<% }); %>\
+		</tbody></table>',
+	/*English Ends*/
+	/*French Begins*/
+	tableTemplate: '<table id="myTable" class="tablesorter" width="650" border="0" cellpadding="0" cellspacing="1">\
+		<thead><tr><th><center>Nom du lac</center></th><th><center>STN</center></th><th><center>N&deg; du lieu</center></th><th><center>Canton</center></th><th><center>Description du site</center></th><th><center>Disque Secchi</center></th><th><center>Concentration de phosphore total</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th></tr></thead><tbody>\
+		<% _.each(features, function(feature) {\
+			var attrs = feature.attributes; %> \
+			<tr><td><%= Util.wordCapitalize(attrs.LAKENAME) %></td><td><%= attrs.STN %></td><td><%= attrs.SITEID %></td><td><%= Util.wordCapitalize(attrs.TOWNSHIP) %></td><td><%= attrs.SITEDESC %></td>\
+			<td><% if (attrs.SE_COUNT === 0) { %>N/A<% } else { %> <a target=\'_blank\' href=\'rapport-de-profondeur-de-secchi?id=<%= attrs.ID %>\'>Rapport</a> <% } %></td>\
+			<td><% if (attrs.PH_COUNT === 0) { %>N/A<% } else { %> <a target=\'_blank\' href=\'bilan-de-phosphore-total?id=<%= attrs.ID %>\'>Rapport</a> <% } %></td>\
+			<td><%= Util.deciToDegree(attrs.LATITUDE, "FR") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "FR") %></td></tr>\
+		<% }); %>\
+		</tbody></table>',
+	/*French Ends*/	
+	/*English Begins*/	
+	invalidTableTemplate: 'The following table contains the records without valid coordinates. <a href=\'#WhyAmISeeingThis\'>Why am I seeing this?</a>\
+		<table id="invalid" class="tablesorter" width="650" border="0" cellpadding="0" cellspacing="1">\
+		<thead><tr><th><center>Lake Name</center></th><th><center>STN</center></th><th><center>Site ID</center></th><th><center>Township</center></th><th><center>Site Description</center></th><th><center>Secchi Depth</center></th><th><center>Total Phosphorus Concentration</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th></tr></thead><tbody>\
+		<% _.each(features, function(feature) {\
+			var attrs = feature.attributes; %> \
+			<tr><td><%= Util.wordCapitalize(attrs.LAKENAME) %></td><td><%= attrs.STN %></td><td><%= attrs.SITEID %></td><td><%= Util.wordCapitalize(attrs.TOWNSHIP) %></td><td><%= attrs.SITEDESC %></td>\
+			<td><% if (attrs.SE_COUNT === 0) { %>N/A<% } else { %> <a target=\'_blank\' href=\'secchi-depth-report?id=<%= attrs.ID %>\'>Report</a> <% } %></td>\
+			<td><% if (attrs.PH_COUNT === 0) { %>N/A<% } else { %> <a target=\'_blank\' href=\'total-phosphorus-report?id=<%= attrs.ID %>\'>Report</a> <% } %></td>\
+			<td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td></tr>\
+		<% }); %>\
+		</tbody></table>\
+		<a id=\'WhyAmISeeingThis\'><strong>Why am I seeing this?</strong></a><br>The map locations shown as points have been determined by using addresses or other information to calculate a physical location on the map.  In some cases, the information needed to calculate a location was incomplete, incorrect or missing.  The records provided in the table have been included because there is a close match on the name or city/town or other field(s). These records may or may not be near your specified location, and users are cautioned in using these records. They have been included as potential matches only.'
+	/*English Ends*/
+	/*French Begins*/
+	invalidTableTemplate: 'Le tableau suivant contient des données sans coordonnées valides.  <a href=\'#WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a>\
+		<table id="invalid" class="tablesorter" width="650" border="0" cellpadding="0" cellspacing="1">\
+		<thead><tr><th><center>Nom du lac</center></th><th><center>STN</center></th><th><center>N&deg; du lieu</center></th><th><center>Canton</center></th><th><center>Description du site</center></th><th><center>Disque Secchi</center></th><th><center>Concentration de phosphore total</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th></tr></thead><tbody>\
+		<% _.each(features, function(feature) {\
+			var attrs = feature.attributes; %> \
+			<tr><td><%= Util.wordCapitalize(attrs.LAKENAME) %></td><td><%= attrs.STN %></td><td><%= attrs.SITEID %></td><td><%= Util.wordCapitalize(attrs.TOWNSHIP) %></td><td><%= attrs.SITEDESC %></td>\
+			<td><% if (attrs.SE_COUNT === 0) { %>N/A<% } else { %> <a target=\'_blank\' href=\'rapport-de-profondeur-de-secchi?id=<%= attrs.ID %>\'>Rapport</a> <% } %></td>\
+			<td><% if (attrs.PH_COUNT === 0) { %>N/A<% } else { %> <a target=\'_blank\' href=\'bilan-de-phosphore-total?id=<%= attrs.ID %>\'>Rapport</a> <% } %></td>\
+			<td><%= Util.deciToDegree(attrs.LATITUDE, "FR") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "FR") %></td></tr>\
+		<% }); %>\
+		</tbody></table>\
+		<a id=\'WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a><br>Les lieux indiqués par des points sur la carte ont été déterminés en fonction d’adresses ou d’autres renseignements servant à calculer un emplacement physique sur la carte. Dans certains cas, ces renseignements étaient incomplets, incorrects ou manquants. Les données fournies dans le deuxième tableau ont été incluses, car il y a une correspondance étroite avec le nom de la ville ou d’autre champ. Ces données peuvent ou non être proches du lieu précisé, et on doit les utiliser avec prudence. Elles ont été incluses seulement parce qu’il peut y avoir une correspondance.'
+	/*French Ends*/		
 });
-
-//globalConfig.chooseLang = function (en, fr) {return (globalConfig.language === "EN") ? en : fr;};
-
-//globalConfig.report_URL = globalConfig.chooseLang("SportFish_Report.htm", "SportFish_Report.htm");
-
-//globalConfig.searchableFieldsList = [{en: "waterbody name", fr: "plan d'eau"}, {en: "location", fr: "un lieu"}, {en: "species name", fr: "une espèce"}];
-
-
-	
-
-//globalConfig.infoWindowWidth = '320px';
-//globalConfig.infoWindowHeight = "140px";
-//globalConfig.infoWindowContentHeight = "200px";
-//globalConfig.infoWindowContentWidth = "300px";
-
-
-//globalConfig.tableSimpleTemplateTitleLang = globalConfig.chooseLang("Note: Data is in English only.", "\u00c0 noter : Les donn\u00e9es sont en anglais seulement.");
-//globalConfig.
-
-
-
