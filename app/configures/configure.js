@@ -1,163 +1,215 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 /* global _, $, google */
-/*
-	Enhancements: 1) Fix a bug. When the clear button is clicked, the table below the map is still there in the existing application. The new version fixed this issue by removing it when the Clear button is clicked. 
-	Meanwhile, the message information become empty. The new version change the message information back to help information. 
-	2) When the user clicks on the map, it will display the information. 
-*/
-
 'use strict';
 var GoogleMapsAdapter = require('../scripts/GoogleMapsAdapter');
 var Util = require('../scripts/Util');
 window.GoogleMapsAdapter = GoogleMapsAdapter;
-GoogleMapsAdapter.init({
-	/*English Begins*/
-	language: "EN",
-	/*English Ends*/
-	/**/
-	mapServices: [{
-		url: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-		visibleLayers: [0,1,2,3,4,6,7,8,9,10,11,12]
-	}],
-	extraImageServices: [{
-		id: "arcgis",
-		name: "ESRI",
-		url: 'http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer'
-	}],
-	/*English Begins*/
-	searchControlHTML: '<input id = "map_query" type="text" title="Term" size="50" onkeypress="return GoogleMapsAdapter.entsub(event)" maxlength="100" autocomplete="off"></input>		&nbsp;&nbsp;<input type="submit" onclick="GoogleMapsAdapter.search()" value="Search" title="Search"></input>		<input type="submit" onclick="GoogleMapsAdapter.clear()" title="Clear" value="&nbsp;Clear&nbsp;"></input>		<div id="information">"Search by <STRONG>Address</STRONG>, <STRONG>City Name</STRONG>, <STRONG>Postal Code</STRONG> or see help for more advanced options.</div>',
-	/*English Ends*/
-	/**/
-	postIdentifyCallbackName: 'OneFeatureNoTabPolygon',
 
-	identifySettings: {
-		radius: 1, /* 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
-		requireReverseGeocoding: true,
-		identifyLayersList: 	[{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: "Source Protection Area - 2011",
-			layerID: 0,
-			outFields: ["LABEL", "SPP_ID"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: "Municipal Boundaries - Upper Tier",
-			layerID: 1,
-			outFields: ["LEGAL_NAME"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: "Municipal Boundaries - Single and Lower Tier",
-			layerID: 2,
-			outFields: ["LEGAL_NAME"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: "Lots and Concessions",
-			layerID: 3,
-			outFields: ["LABEL"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: 	"Assessment Parcels",
-			//mapService: "http://intra.giscoeservices.lrc.gov.on.ca/ArcGIS/rest/services/MNR/GIB_AssessmentParcel/MapServer",
-			//layerID: 2,
-			//outFields: ["ASSESSMENT_ROLL_NUMBER", "MPAC_STREET_ADDRESS", "MUNICIPALITY_NAME"]
-			layerID: 4,
-			returnFields: ["ARN", "MPAC_STREET_ADDRESS", "MUNICIPALITY_NAME"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: 	"Ownership Parcels",
-			layerID: 5,
-			outFields: ["PIN"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: 	"Issue Contributing Areas",
-			layerID: 6,
-			returnFields: ["OBJECTID", "IssueContributingGlobalID"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: "Well Head Protection Zones",
-			layerID: 7,
-			outFields: ["ZoneName"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: 	"WHPA Groundwater Under Direct Influence: WHPA-E)",
-			layerID: 8,
-			outFields: ["ZoneName"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: 	"Intake Protection Zones",
-			layerID: 9,
-			outFields: ["IPZType"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: 	"Vulnerable Scoring Area - Groundwater",
-			layerID: 10,
-			outFields: ["vsg_vulnerabilityScore", "vsg_whpa_id", "vsg_spp_id"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: 	"Vulnerable Scoring Area - Groundwater Under Direct Influence",
-			layerID: 11,
-			outFields: ["vsu_vulnerabilityScore_GUDI"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: 	"Vulnerable Scoring Area - Surface Water",
-			layerID: 12,
-			outFields: ["vss_vulnerabilityScore", "vss_spp_id", "vss_ipz_id"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: 	"Highly Vulnerable Areas",
-			layerID: 13,
-			outFields: ["IntrinsicVulnerabilityLevel"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: 	"Significant Groundwater Recharge Area - SPPID NO BORDERS",
-			layerID: 14,
-			outFields: ["OBJECTID"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: 	"Niagara Escarpment Area of Development Control",
-			layerID: 15,
-			outFields: ["OBJECTID"]
-		},{
-			mapService: 'http://lrcprrvspaap007/ArcGIS/rest/services/Interactive_Map_Internal/SourceProtectionLocationandPolicySearchMap/MapServer',
-			name: 	"OakRidgesMorainePlanningArea",
-			layerID: 16,
-			outFields: ["OBJECTID"]
-		}],
-		identifyTemplate: function (results, Util, geocodingResult, searchString) {
-
-			console.log(results);
-			console.log(geocodingResult);
-			/*English Begins*/			
-			var infoWindowTemplate = '<% if (results[0].features.length > 0) { %> Source Protection Area Name: <strong><%= _.map(results[0].features, function(feature) {return feature.attributes.LABEL;}).join(", ") %> </strong><br><% } %>			MPAC Address: <strong><% if (results[4].features.length > 0 && (results[4].features[0].attributes.ARN)) { %> <%= _.map(results[4].features, function(feature) {return feature.attributes.MPAC_STREET_ADDRESS;}).join(", ") + _.map(results[4].features, function(feature) {return feature.attributes.MUNICIPALITY_NAME;}).join(", ") %> <% } else { %> "N/A" <% } %></strong><br>';
-
-			/*
-			var queryTableTemplate = '<table class="lakepartner" border="1">				<caption>Search Results</caption>				<tbody>					<tr><td>Latitude: <strong><%= globalConfig.identifyResults["LatLng"].lat().toFixed(6) %></strong>  Longitude:<strong><%= globalConfig.identifyResults["LatLng"].lng().toFixed(6) %></strong></td>						<td>UTM Zone: <strong><%= globalConfig.identifyResults["UTM"].Zone %></strong>   Easting: <strong><%= parseFloat(globalConfig.identifyResults["UTM"].Easting).toFixed(0) %></strong>     Northing: <strong><%= parseFloat(globalConfig.identifyResults["UTM"].Northing).toFixed(0) %></strong></td></tr>					<tr><td>Municipal - Upper Tier: <strong><%= (globalConfig.identifyResults.hasOwnProperty("Municipal Boundaries - Upper Tier")) ? globalConfig.concatenateAttributes("Municipal Boundaries - Upper Tier", "LEGAL_NAME") : "N/A" %></strong></td>						<td>Municipal - Single and Lower Tier: <strong><%= (globalConfig.identifyResults.hasOwnProperty("Municipal Boundaries - Single and Lower Tier")) ? globalConfig.concatenateAttributes("Municipal Boundaries - Single and Lower Tier", "LEGAL_NAME") : "N/A" %></strong></td></tr>					<tr><td>MPAC Street Address: <strong><%= (globalConfig.identifyResults.hasOwnProperty("Assessment Parcels")) ? globalConfig.concatenateAttributes("Assessment Parcels", "MPAC_STREET_ADDRESS") + " " + globalConfig.concatenateAttributes("Assessment Parcels", "MUNICIPALITY_NAME"): "N/A" %></strong></td>						<td>Township, Concession and Lot: <strong><%= (globalConfig.identifyResults.hasOwnProperty("Lots and Concessions")) ? globalConfig.concatenateAttributes("Lots and Concessions", "LABEL") : "N/A" %></strong></td></tr>					<tr><td>Assessment Roll Number: <strong><%= (globalConfig.identifyResults.hasOwnProperty("Assessment Parcels")) ? globalConfig.concatenateAttributes("Assessment Parcels", "ASSESSMENT_ROLL_NUMBER") : "N/A" %></strong></td>						<td>Property Information Number: <strong><%= (globalConfig.identifyResults.hasOwnProperty("Ownership Parcels")) ?  globalConfig.concatenateAttributes("Ownership Parcels", "PIN") : "N/A" %></strong></td></tr>					<tr><td colspan = "2">Source Protection Area Name: <strong><%= (globalConfig.identifyResults.hasOwnProperty("Source Protection Area - 2011")) ? globalConfig.concatenateAttributes("Source Protection Area - 2011", "LABEL") : "N/A" %></strong></td>						</tr>					<tr><td>Wellhead Protection Area (WHPA): <strong><%= (globalConfig.identifyResults.hasOwnProperty("Well Head Protection Zones")) ? globalConfig.concatenateAttributes("Well Head Protection Zones", "ZoneName") : "No" %></strong></td>						<td>Groundwater Vulnerability Score: <strong><%= (globalConfig.identifyResults.hasOwnProperty("Vulnerable Scoring Area - Groundwater")) ? globalConfig.concatenateAttributes("Vulnerable Scoring Area - Groundwater", "vsg_vulnerabilityScore") : "N/A" %></strong></td></tr>					<%= (globalConfig.identifyResults.hasOwnProperty("Vulnerable Scoring Area - Groundwater")) ? "<tr><td colspan = \'2\'>" + _.map(globalConfig.identifyResults["Vulnerable Scoring Area - Groundwater"],   function(feature) {return "<a target=\'_blank\' href=\'http://maps.thamesriver.on.ca/swpPolicyEntry/parseLink/parse.aspx?zone=" + feature.attributes["vsg_whpa_id"]+ "&score=" + feature.attributes["vsg_vulnerabilityScore"] + "&sppid=" + feature.attributes["vsg_spp_id"] + "\'>Groundwater Policies – Score " + feature.attributes["vsg_vulnerabilityScore"] + " (link to external site)</a>";}).join("<br>")  + "<br></td></tr>": "" %>					<tr><td>Intake Protection Zone 1 or 2: <strong><%= (globalConfig.identifyResults.hasOwnProperty("Intake Protection Zones")) ? globalConfig.concatenateAttributes("Intake Protection Zones", "IPZType") : "No" %></strong></td>						<td>Surface Water Vulnerability Score (if &ge; 8) : <strong><%= (globalConfig.identifyResults.hasOwnProperty("Vulnerable Scoring Area - Surface Water")) ? globalConfig.concatenateAttributes("Vulnerable Scoring Area - Surface Water", "vss_vulnerabilityScore") : "N/A" %></strong></td></tr>					<%= (globalConfig.identifyResults.hasOwnProperty("Vulnerable Scoring Area - Surface Water")) ? "<tr><td colspan = \'2\'>" + _.map(globalConfig.identifyResults["Vulnerable Scoring Area - Surface Water"], function(feature) {return "<a target=\'_blank\' href=\'http://maps.thamesriver.on.ca/swpPolicyEntry/parseLink/parse.aspx?zone=" + feature.attributes["vss_ipz_id"] + "&score=" + feature.attributes["vss_vulnerabilityScore"] + "&sppid=" + feature.attributes["vss_spp_id"] + "&source=sw\'>Surface Water Policies – Score " + feature.attributes["vss_vulnerabilityScore"] + " (link to external site)</a>";}).join("<br>") + "<br></td></tr>": "" %>					<tr><td>WHPA – Groundwater Under Direct Influence (GUDI): <strong><%= (globalConfig.identifyResults.hasOwnProperty("WHPA Groundwater Under Direct Influence: WHPA-E)")) ? globalConfig.concatenateAttributes("WHPA Groundwater Under Direct Influence: WHPA-E)", "ZoneName") : "No" %></strong></td>						<td>GUDI Vulnerability Score: <strong><%= (globalConfig.identifyResults.hasOwnProperty("Vulnerable Scoring Area - Groundwater Under Direct Influence")) ? globalConfig.concatenateAttributes("Vulnerable Scoring Area - Groundwater Under Direct Influence", "vsu_vulnerabilityScore_GUDI") : "N/A" %></strong></td></tr>					<tr><td>Significant Groundwater Recharge Area: <strong><%= (globalConfig.identifyResults.hasOwnProperty("Significant Groundwater Recharge Area - SPPID NO BORDERS")) ? "Yes" : "No" %></strong></td>						<td>Highly Vulnerable Aquifer: <strong><%= (globalConfig.identifyResults.hasOwnProperty("Highly Vulnerable Areas")) ? globalConfig.concatenateAttributes("Highly Vulnerable Areas", "IntrinsicVulnerabilityLevel") : "N/A" %></strong></td></tr>					<tr><td>Issue Contributing areas (ICA): <strong><%= (globalConfig.identifyResults.hasOwnProperty("Issue Contributing Areas")) ? "Yes" : "No" %></strong></td>						<td>ICA Issues: <strong><%= (globalConfig.identifyResults.hasOwnProperty("ICA_ISSUES")) ? globalConfig.identifyResults["ICA_ISSUES"] : "N/A" %></strong></td></tr>					<tr><td>Niagara Escarpment Development Control Area: <strong><%= (globalConfig.identifyResults.hasOwnProperty("Niagara Escarpment Area of Development Control")) ? "Yes" : "No" %></strong></td>						<td>Oak Ridges Moraine Planning Area: <strong><%= (globalConfig.identifyResults.hasOwnProperty("OakRidgesMorainePlanningArea")) ? "Yes" : "No" %></strong></td></tr>				</tbody>			</table>';*/
+GoogleMapsAdapter.queryLayers({queryParamsList: [{
+		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/TRAIS/MapServer',
+		layerID: 7,
+		/*English Begins*/
+		outFields: ["ID", "sectorNameEn"],
 		/*English Ends*/
 		/**/
-			return {
-				infoWindow: _.template(infoWindowTemplate, {results: results, Util: Util, geocodingResult: geocodingResult}),
-				table: ''//_.template(queryTableTemplate, {results: results, Util: Util, geocodingResult: geocodingResult})
-			}; 
-		}
-	},	
-	preSearchCallbackName: 'OneFeatureNoTabPolygon',
-	searchCallbackName: 'OneFeatureNoTabPolygon',
-	postSearchCallbackName: 'OneFeatureNoTabPolygon',
-	generateMessage: function (results, geocodingResult, searchString) {
-		var address = geocodingResult.address;
-		if (!!results && !!results[0].features && results[0].features.length === 0) {
+		returnGeometry: false,
+		where: '1=1'
+	},{
+		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/TRAIS/MapServer',
+		layerID: 3,
+		/*English Begins*/
+		outFields: ["CODE", "SUBSTANCE_EN", "CASNumber"],
+		/*English Ends*/
+		/**/
+		returnGeometry: false,
+		where: '1=1'
+}]}).done(function() {
+	var sectorNames = _.map(arguments[0].features, function(feature) {
+		/*English Begins*/
+		return feature.attributes.ID + " - " + feature.attributes.sectorNameEn;
+		/*English Ends*/
+		/**/
+	});
+	var substancesNames = _.map(arguments[1].features, function(feature) {
+		/*English Begins*/
+		return feature.attributes.SUBSTANCE_EN + " " + feature.attributes.CASNumber;
+		/*English Ends*/
+		/**/
+	});
+	var substancesDict = _.object(substancesNames, _.map(arguments[1].features, function(feature) {
+		return feature.attributes.CODE;
+	}));
+	
+	GoogleMapsAdapter.init({
+		sectorNames: sectorNames,
+		substancesNames: substancesNames,
+		substancesDict: substancesDict,
+		/*English Begins*/
+		language: "EN",
+		/*English Ends*/
+		/**/
+		mapServices: [{
+			url: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/TRAIS/MapServer',
+			visibleLayers: [0, 1]
+		}],
+		/*English Begins*/
+		otherInfoHTML: '<strong>Note: The information and data reflected in this report is a consolidation of data reported by facilities regulated under Toxics Reduction Act, 2009 and is up to date as of December 20, 2013. The facilities have the opportunity to notify the ministry of errors.</strong>',
+		/*English Ends*/
+		/**/
+		/*English Begins*/
+		searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>			<label class="element-invisible" for="map_query">Search the map</label>			<input id="map_query" type="text" title="Search term" maxlength="100" size="50" onkeypress="return GoogleMapsAdapter.entsub(event)"></input>			<label class="element-invisible" for="search_submit">Search</label>			<input id="search_submit" type="submit" title="Search" onclick="GoogleMapsAdapter.search()" value="Search"></input>			<fieldset>				<input type="radio" id="searchLocation" name="searchGroup" checked="checked" title="Search Map Location or Facility" name="location" value="location" onclick="GoogleMapsAdapter.searchChange(\'Location\')"></input>				<span class="tooltip" title="Search Map Location or Facility: Enter facility name or street address to find facilities">				<label class="option" for="searchLocation">Search Map Location or Facility</label>				</span>				<br/>				<input type="radio" id="searchSubstance" name="searchGroup" title="Search Substance" value="substance" onclick="GoogleMapsAdapter.searchChange(\'Substance\')"></input>				<span class="tooltip" title="Search Substance: Enter the name of a substance to find facilities">				<label class="option" for="searchSubstance">Search Substance</label>				</span>				<br/>				<input type="radio" id="searchSector" name="searchGroup" title="Search Sector" value="secteur" onclick="GoogleMapsAdapter.searchChange(\'Sector\')"></input>				<span class="tooltip" title="Search Sector: Enter the name of a sector to find facilities">				<label class="option" for="searchSector">Search Sector</label>				</span>				<br/>				<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Current Map Display" /> <label for="currentExtent" class=\'option\'>Search current map display only</label>			</fieldset>			<div id="information">You may search by <strong>city</strong>, <strong>facility name</strong>, <strong>company</strong>, <strong>sector</strong>, <strong>substance</strong> or see help for advanced options.</div>',
+		/*English Ends*/
+		/**/
+		identifySettings: {
+			/* radius: 1, // 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
+			identifyLayersList: [{
+				mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/TRAIS/MapServer',
+				layerID: 0,
+				outFields: ['Facility', 'Organisation', 'StreetAddress', 'City', 'NPRI_ID', 'Sector', 'NUMsubst', 'UniqueID', 'NUMPlanSummary', 'NUMRecord']
+			}],
 			/*English Begins*/
-			return '<strong>' + address + '</strong> located within <strong>No MOECC District found.</strong>';
+			identifyTemplate: '<% var displaySector = function (sector) {					var str = sector.toString().substring(0, 3);					for (var i = 0; i < globalConfigure.sectorNames.length; i++){						var arrayName = globalConfigure.sectorNames[i].split(" - ");						if(str === arrayName[0]) {							return arrayName[1];						}					}					return str;				}; %>				Facility: <strong><%= attrs.Facility %></strong><br>Organization: <strong><%= attrs.Organisation %></strong><br>				Adresse: <strong><%= attrs.StreetAddress %> / <%= attrs.City %></strong><br>N&deg; INRP: <strong><%= parseInt(attrs.NPRI_ID, 10) %></strong><br>				Sector: <strong><%= displaySector(attrs.Sector) %></strong><br>Toxic Substances: <strong><%= attrs.NUMsubst %></strong><br><br>				<% if (attrs.NUMsubst === 0) {%> No Annual Report submitted. <% } else {%> <a target=\'_blank\' href=\'annual-report?id=<%= attrs.UniqueID %>\'>Links to Annual Reports</a> <% } %><br>				<% if (attrs.NUMPlanSummary === 0) {%> No Plan Summary submitted. <% } else {%> <a target=\'_blank\' href=\'plan-summary-report?id=<%= attrs.UniqueID %>\'>Links to Plan Summaries</a> <% } %><br>				<% if (attrs.NUMRecord === 0) {%> No Record submitted. <% } else {%> <a target=\'_blank\' href=\'record-report?id=<%= attrs.UniqueID %>\'>Links to Records</a> <% } %><br>				<i>These links will open in a new browser window.</i><br>'
 			/*English Ends*/
 			/**/
-		}
-		var district = results[0].features[0].attributes.MOE_DISTRICT;
-		/*English Begins*/
-		return '<strong>' + address + '</strong> located within <strong>' + district + ' MOECC District.</strong>';
-		/*English Ends*/
-		/**/		
-	},
-	searchZoomLevel: 12
+		},
+		infoWindowHeight: '200px',
+		getSearchParams: function(searchString){
+			var getLakeNameSearchCondition = function(searchString) {
+				var coorsArray = searchString.split(/\s+/);
+				var str = coorsArray.join(" ").toUpperCase();
+				str = Util.replaceChar(str, "'", "''");
+				str = Util.replaceChar(str, "\u2019", "''");
+				/*English Begins*/
+				return "UPPER(LOCNAME_EN) LIKE '%" + str + "%'";
+				/*English Ends*/
+				/**/
+			};
+			var getQueryCondition = function(name){
+				var str = name.toUpperCase();
+				str = Util.replaceChar(str, '&', ', ');
+				str = Util.replaceChar(str, ' AND ', ', '); 
+				str = str.trim();
+				var nameArray = str.split(',');
+				var max = nameArray.length;
+				var res = [];
+				var inform = [];
+				var processAliasFishName = function(fishname){
+					var aliasList = {
+						GERMAN_TROUT: ["BROWN_TROUT"],
+						SHEEPHEAD:	["FRESHWATER_DRUM"],
+						STEELHEAD:	["RAINBOW_TROUT"],
+						SUNFISH:	["PUMPKINSEED"],
+						BARBOTTE:	["BROWN_BULLHEAD"],
+						BLACK_BASS:	["LARGEMOUTH_BASS","SMALLMOUTH_BASS"],
+						CALICO_BASS:	["BLACK_CRAPPIE"],
+						CRAWPIE:	["BLACK_CRAPPIE","WHITE_CRAPPIE"],
+						GREY_TROUT:	["LAKE_TROUT"],
+						HUMPBACK_SALMON:	["PINK_SALMON"],
+						KING_SALMON:	["CHINOOK_SALMON"],
+						LAKER:	["LAKE_TROUT"],
+						MENOMINEE:	["ROUND_WHITEFISH"],
+						MUDCAT:	["BROWN_BULLHEAD"],
+						MULLET:	["WHITE_SUCKER"],
+						PANFISH:	["BLUEGILL","ROCK_BASS","PUMPKINSEED"],
+						PICKEREL:	["WALLEYE"],
+						SILVER_BASS:	["WHITE_BASS"],
+						SILVER_SALMON:	["COHO_SALMON"],
+						SPECKLED_TROUT:	["BROOK_TROUT"],
+						SPRING_SALMON:	["CHINOOK_SALMON"]
+					};
+					var alias = aliasList[fishname];
+					var fish = Util.wordCapitalize(Util.replaceChar(fishname, '_', ' '));
+					if (typeof(alias) === "undefined"){
+						var result = {
+							/*English Begins*/
+							condition: "(SPECIES_EN like '%" + fishname +"%')",
+							/*English Ends*/
+							/**/
+							information: fish
+						};
+						return result;
+					}else{
+						var res = [];
+						var fishArray = [];
+						for (var i = 0; i < alias.length; i++){
+							/*English Begins*/
+							res.push("(SPECIES_EN like '%" + alias[i] +"%')");
+							/*English Ends*/
+							/**/
+							var str = Util.wordCapitalize(Util.replaceChar(alias[i], '_', ' '));
+							fishArray.push(str.trim());
+						}
+						var result = {
+							condition: "(" + res.join(" OR ") + ")",
+							information: fish + " ("  + fishArray.join(", ") + ")"
+						};
+						return result;
+					}
+				}
+				for (var i = 0; i < max; i++){
+					var str1 = (nameArray[i]).trim();
+					if(str1.length > 0){
+						var coorsArray = str1.split(/\s+/);
+						str1 = coorsArray.join("_");
+						var temp = processAliasFishName(str1);
+						res.push(temp.condition);
+						inform.push(temp.information);
+					}
+				}		
+				var result = {
+					condition: res.join(" AND "),
+					information: inform.join(", ")
+				};
+				return result;
+			};
+			var queryParamsList = [{
+				mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
+				layerID: 0,
+				returnGeometry: true,
+				where: ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition,
+				/*English Begins*/
+				outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
+				/*English Ends*/
+				/**/
+			}];
+			var options = {
+				searchString: searchString,
+				geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
+				withinExtent: $('#currentMapExtent')[0].checked/*,
+				invalidFeatureLocations: [{
+					lat: 0,
+					lng: 0,
+					difference: 0.0001
+				}]*/
+			};
+			return {
+				queryParamsList: queryParamsList,
+				options: options
+			}
+		},
+		tableTemplate: '<table id="myTable" class="tablesorter" width="650" border="0" cellpadding="0" cellspacing="1">			<thead><tr><th><center>Waterbody</center></th><th><center>Location</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Consumption Advisory Table</center></th></tr></thead><tbody>			<% _.each(features, function(feature) {				var attrs = feature.attributes; %> 				<tr><td><%= attrs.LOCNAME_EN %></td><td><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td><td><a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>			<% }); %>			</tbody></table>',
+		searchChange: function () {}
+	});
+	
 });
+
+//globalConfig.chooseLang = function (en, fr) {return (globalConfig.language === "EN") ? en : fr;};
+
+//globalConfig.report_URL = globalConfig.chooseLang("SportFish_Report.htm", "SportFish_Report.htm");
+
+//globalConfig.searchableFieldsList = [{en: "waterbody name", fr: "plan d'eau"}, {en: "location", fr: "un lieu"}, {en: "species name", fr: "une espèce"}];
+
+
+	
+
+//globalConfig.infoWindowWidth = '320px';
+//globalConfig.infoWindowHeight = "140px";
+//globalConfig.infoWindowContentHeight = "200px";
+//globalConfig.infoWindowContentWidth = "300px";
+
+
+//globalConfig.tableSimpleTemplateTitleLang = globalConfig.chooseLang("Note: Data is in English only.", "\u00c0 noter : Les donn\u00e9es sont en anglais seulement.");
+//globalConfig.
 },{"../scripts/GoogleMapsAdapter":4,"../scripts/Util":5}],2:[function(require,module,exports){
 /* global _, $, escape */
 'use strict';
