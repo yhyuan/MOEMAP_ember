@@ -100,7 +100,7 @@ GoogleMapsAdapter.queryLayers({queryParamsList: [{
 			<div id="information">You may search by <strong>city</strong>, <strong>facility name</strong>, <strong>company</strong>, <strong>sector</strong>, <strong>substance</strong> or see help for advanced options.</div>',
 		/*English Ends*/
 		/*French Begins*/
-		searchControlHTML = '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
+		searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
 			<label class="element-invisible" for="map_query">Recherche carte interactive</label>\
 			<input id="map_query" type="text" title="Terme de recherche" maxlength="100" size="50" onkeypress="return GoogleMapsAdapter.entsub(event)"></input>\
 			<label class="element-invisible" for="search_submit">Recherche</label>\

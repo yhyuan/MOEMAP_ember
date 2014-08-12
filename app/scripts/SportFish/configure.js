@@ -95,10 +95,10 @@ GoogleMapsAdapter.init({
 			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>'
 		/*English Ends*/
 		/*French Begins*/
-		identifyTemplate: '<strong><%= attrs.LOCNAME_FR %></strong><br><%= Util.addBRtoLongText(s.GUIDELOC_FR) %><br><br>\
+		identifyTemplate: '<strong><%= attrs.LOCNAME_FR %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_FR) %><br><br>\
 			<a target=\'_blank\' href=\'rapport-de-consommation-de-poisson?id=<%= attrs.WATERBODYC %>\'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>\
 			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "FR") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "FR") %></b><br>\
-			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission <%= s.LOCNAME_FR %>)\'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>'
+			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission <%= attrs.LOCNAME_FR %>)\'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>'
 		/*French Ends*/
 	},
 	infoWindowHeight: '140px',
@@ -224,28 +224,45 @@ GoogleMapsAdapter.init({
 			options: options
 		}
 	},
-	tableTemplate: '<table id="myTable" class="tablesorter" width="650" border="0" cellpadding="0" cellspacing="1">\
+	/*English Begins*/	
+	tableTemplate: '<table id="myTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
 		<thead><tr><th><center>Waterbody</center></th><th><center>Location</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Consumption Advisory Table</center></th></tr></thead><tbody>\
 		<% _.each(features, function(feature) {\
 			var attrs = feature.attributes; %> \
 			<tr><td><%= attrs.LOCNAME_EN %></td><td><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td><td><a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>\
 		<% }); %>\
 		</tbody></table>',
-		
-	pointBufferTool: {available: false},
-	extraImageService: {visible: false},
-	usejQueryUITable: true,  //Avoid loading extra javascript files
-	usePredefinedMultipleTabs: false, //Avoid loading extra javascript files
-	allowMultipleIdentifyResult: false,
-	displayTotalIdentifyCount: false,
-	locationServicesList: [],
-	maxQueryZoomLevel: 11,
-	displayDisclaimer: true,
-	InformationLang: "Information",
-	//postIdentifyCallbackName: "SportFish",
-	//infoWindowWidth: '280px',
-	tableSimpleTemplateTitleLang: "",
-	searchChange: function () {}
+		/*English Ends*/
+		/*French Begins*/
+	tableTemplate: '<table id="myTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
+		<thead><tr><th><center>Plan d\'eau</center></th><th><center>Lieu</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Tableau des mises en garde en mati\u00e8re de consommation</center></th></tr></thead><tbody>\
+		<% _.each(features, function(feature) {\
+			var attrs = feature.attributes; %> \
+			<tr><td><%= attrs.LOCNAME_FR %></td><td><%= Util.addBRtoLongText(attrs.GUIDELOC_FR) %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "FR") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "FR") %></td><td><a target=\'_blank\' href=\'rapport-de-consommation-de-poisson?id=<%= attrs.WATERBODYC  %>\'>Tableau des mises en garde en mati\u00e8re de consommation</a></td></tr>\
+		<% }); %>\
+		</tbody></table>',		
+		/*French Ends*/
+	searchChange: function (type) {
+		$('#' + this.searchInputBoxDivId)[0].value = '';
+		if(type === "Substance"){
+			$('#' + this.searchInputBoxDivId).autocomplete({
+				source: this.substancesNames,
+				select: function(e, ui) {
+					GoogleMapsAdapter.search(ui.item.value);
+				},
+				disabled: false});
+		}else if(type === "Sector"){
+			$('#' + this.searchInputBoxDivId).autocomplete({
+				source: this.sectorNames,
+				select: function(e, ui) {
+					GoogleMapsAdapter.search(ui.item.value);
+				},			
+				disabled: false });
+		}else{
+			$('#' + this.searchInputBoxDivId).autocomplete({source: [], 
+				disabled: true });
+		}
+	}
 });
 
 
