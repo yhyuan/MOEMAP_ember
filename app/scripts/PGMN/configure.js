@@ -28,7 +28,7 @@ GoogleMapsAdapter.init({
 			<input id="search_submit" type="submit" title="Search" onclick="GoogleMapsAdapter.search()" value="Search"></input>\
 			<br/>\
 			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Current Map Display" /> <label for="currentExtent" class=\'option\'>Search current map display only</label>\
-			<div id="information"></div>',
+			<div id="information">You may search by <strong>PGMN well ID</strong>, <strong>well depth</strong>, <strong>address</strong> or see help for advanced options.</div>',
 	/*English Ends*/
 	/*French Begins*/
 	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
@@ -38,8 +38,46 @@ GoogleMapsAdapter.init({
 			<input id="search_submit" type="submit" title="Recherche" onclick="GoogleMapsAdapter.search()" value="Recherche"></input>\
 			<br/>\
 			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Étendue de la carte courante" /> <label for="currentExtent" class=\'option\'>\u00c9tendue de la carte courante</label>\
-			<div id="information"></div>',
+			<div id="information">Vous pouvez rechercher par <strong>num\u00e9ro du puits du r\u00e9seau</strong>, <strong>profondeur du puits</strong>, <strong>adresse</strong> ou consulter l\'aide pour de l\'information sur les recherches avancées.</div>',
 	/*French Ends*/
+	postIdentifyCallbackName: 'OneFeatureManyTabs',
+	identifySettings: {
+		/* radius: 1, // 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
+		identifyLayersList: [{
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/PGMN/MapServer',
+			layerID: 0,
+			outFields: ['LAKENAME', 'STN', 'SITEID', 'TOWNSHIP', 'SITEDESC', 'SE_COUNT', 'ID', 'PH_COUNT', 'LATITUDE', 'LONGITUDE']
+		},{
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/PGMN/MapServer',
+			layerID: 1,
+			outFields: ['LAKENAME', 'STN', 'SITEID', 'TOWNSHIP', 'SITEDESC', 'SE_COUNT', 'ID', 'PH_COUNT', 'LATITUDE', 'LONGITUDE']
+		}],
+		/*English Begins*/
+		identifyTemplate: [{
+			label: '',
+			content:'',
+		},{
+			label: '',
+			content:'',
+		},{
+			label: '',
+			content:'',
+		},{
+			label: '',
+			content:'',
+		},],
+		/*English Ends*/
+		/*French Begins*/
+		identifyTemplate: '<strong><%= Util.wordCapitalize(attrs.LAKENAME)%>, STN <%= attrs.STN %>, N&deg; du lieu <%= attrs.SITEID %></strong><br>\
+			Canton: <%= Util.wordCapitalize(attrs.TOWNSHIP)%><br><%= Util.wordCapitalize(attrs.SITEDESC)%><br><br>\
+			Tableau et donn\u00e9es interactifs: <br><% if (attrs.SE_COUNT > 0) { %>\
+				&nbsp;&nbsp;&nbsp;&nbsp;<a target=\'_blank\' href=\'rapport-de-profondeur-de-secchi?id=<%= attrs.ID %>\'>Disque Secchi</a><br>\
+			<% } %><% if (attrs.PH_COUNT > 0) { %>\
+				&nbsp;&nbsp;&nbsp;&nbsp;<a target=\'_blank\' href=\'bilan-de-phosphore-total?id=<%= attrs.ID %>\'>Concentration de phosphore total</a><br>\
+			<% } %><br>Latitude <strong><%= Util.deciToDegree(attrs.LATITUDE, "FR")%></strong> Longitude <strong><%= Util.deciToDegree(attrs.LONGITUDE, "FR")%></strong><br>\
+			<a href=\'mailto:lakepartner@ontario.ca?subject=Erreur de Portail (<%= Util.wordCapitalize(attrs.LAKENAME)%>, STN <%= attrs.STN %>, N&deg; du lieu <%= attrs.SITEID %>)\'>Signaler une erreur pour ce lieu</a>.<br>',
+		/*French Ends*/
+	},	
 	pointBufferTool: {available: false},
 	extraImageService: {visible: false},
 	usejQueryUITable: true,  //Avoid loading extra javascript files
