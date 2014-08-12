@@ -673,11 +673,11 @@ var init = function(initParams) {
 					invalidFeatures = Util.combineFeatures(splited.invalidResults);
 				}
 				if (invalidNumber > 0) {
-					var str1 = _.template(globalConfigure.tableTemplate, {features: features, Util: Util});
-					var str2 = _.template(globalConfigure.invalidTableTemplate, {features: invalidFeatures, Util: Util});
+					var str1 = _.template(globalConfigure.tableTemplate, {features: features, Util: Util, globalConfigure: globalConfigure});
+					var str2 = _.template(globalConfigure.invalidTableTemplate, {features: invalidFeatures, Util: Util, globalConfigure: globalConfigure});
 					$('#' + globalConfigure.queryTableDivId).html(str1 + '<br><br>' + str2);	
 				} else {
-					$('#' + globalConfigure.queryTableDivId).html(_.template(globalConfigure.tableTemplate, {features: features, Util: Util}));	
+					$('#' + globalConfigure.queryTableDivId).html(_.template(globalConfigure.tableTemplate, {features: features, Util: Util, globalConfigure: globalConfigure}));	
 				}
 				//console.log("OK");
 				var dataTableOptions = {
@@ -699,7 +699,7 @@ var init = function(initParams) {
 					var container = document.createElement('div');
 					container.style.width = globalConfigure.infoWindowWidth;
 					container.style.height = globalConfigure.infoWindowHeight;
-					container.innerHTML = _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: feature.attributes, Util: Util});
+					container.innerHTML = _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: feature.attributes, Util: Util, globalConfigure: globalConfigure});
 					var marker = new google.maps.Marker({
 						position: gLatLng
 					});		
@@ -902,8 +902,9 @@ var init = function(initParams) {
 	/*mouse click*/
 };
 
-var search = function() {
-	var searchString = $('#' + globalConfigure.searchInputBoxDivId).val().trim();
+var search = function(input) {
+	var searchString = (!!input) ? input : $('#' + globalConfigure.searchInputBoxDivId).val().trim();
+
 	if(searchString.length === 0){
 		return;
 	}
@@ -970,7 +971,9 @@ var entsub = function(event){
 	}
 };
 
-var searchChange = function () {};
+var searchChange = function (type) {
+	globalConfigure.searchChange(type);
+};
 var api = {
 	init: init,
     geocode: geocode,

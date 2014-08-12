@@ -4,6 +4,12 @@ var GoogleMapsAdapter = require('../scripts/GoogleMapsAdapter');
 var Util = require('../scripts/Util');
 window.GoogleMapsAdapter = GoogleMapsAdapter;
 
+yepnope({load: 'bower_components/jquery.ui/themes/base/jquery.ui.all.css',callback: function(){}});
+yepnope({load: 'bower_components/jquery.ui/ui/jquery.ui.core.js',callback: function(){}});
+yepnope({load: 'bower_components/jquery.ui/ui/jquery.ui.widget.js',callback: function(){}});
+yepnope({load: 'bower_components/jquery.ui/ui/jquery.ui.position.js',callback: function(){}});
+yepnope({load: 'bower_components/jquery.ui/ui/jquery.ui.autocomplete.js',callback: function(){}});
+
 GoogleMapsAdapter.queryLayers({queryParamsList: [{
 		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/TRAIS/MapServer',
 		layerID: 7,
@@ -127,207 +133,143 @@ GoogleMapsAdapter.queryLayers({queryParamsList: [{
 				outFields: ['Facility', 'Organisation', 'StreetAddress', 'City', 'NPRI_ID', 'Sector', 'NUMsubst', 'UniqueID', 'NUMPlanSummary', 'NUMRecord']
 			}],
 			/*English Begins*/
-			identifyTemplate: '<% var displaySector = function (sector) {\
-					var str = sector.toString().substring(0, 3);\
-					for (var i = 0; i < globalConfigure.sectorNames.length; i++){\
-						var arrayName = globalConfigure.sectorNames[i].split(" - ");\
-						if(str === arrayName[0]) {\
-							return arrayName[1];\
-						}\
-					}\
-					return str;\
-				}; %>\
-				Facility: <strong><%= attrs.Facility %></strong><br>Organization: <strong><%= attrs.Organisation %></strong><br>\
+			identifyTemplate: 'Facility: <strong><%= attrs.Facility %></strong><br>Organization: <strong><%= attrs.Organisation %></strong><br>\
 				Adresse: <strong><%= attrs.StreetAddress %> / <%= attrs.City %></strong><br>N&deg; INRP: <strong><%= parseInt(attrs.NPRI_ID, 10) %></strong><br>\
-				Sector: <strong><%= displaySector(attrs.Sector) %></strong><br>Toxic Substances: <strong><%= attrs.NUMsubst %></strong><br><br>\
+				Sector: <strong><%= globalConfigure.displaySector(attrs.Sector) %></strong><br>Toxic Substances: <strong><%= attrs.NUMsubst %></strong><br><br>\
 				<% if (attrs.NUMsubst === 0) {%> No Annual Report submitted. <% } else {%> <a target=\'_blank\' href=\'annual-report?id=<%= attrs.UniqueID %>\'>Links to Annual Reports</a> <% } %><br>\
 				<% if (attrs.NUMPlanSummary === 0) {%> No Plan Summary submitted. <% } else {%> <a target=\'_blank\' href=\'plan-summary-report?id=<%= attrs.UniqueID %>\'>Links to Plan Summaries</a> <% } %><br>\
 				<% if (attrs.NUMRecord === 0) {%> No Record submitted. <% } else {%> <a target=\'_blank\' href=\'record-report?id=<%= attrs.UniqueID %>\'>Links to Records</a> <% } %><br>\
 				<i>These links will open in a new browser window.</i><br>'
 			/*English Ends*/
 			/*French Begins*/
-			identifyTemplate: '<% var displaySector = function (sector) {\
-					var str = sector.toString().substring(0, 3);\
-					for (var i = 0; i < globalConfigure.sectorNames.length; i++){\
-						var arrayName = globalConfigure.sectorNames[i].split(" - ");\
-						if(str === arrayName[0]) {\
-							return arrayName[1];\
-						}\
-					}\
-					return str;\
-				}; %>\
-				Installation: <strong><%= attrs.Facility %></strong><br>Entreprise: <strong><%= attrs.Organisation %></strong><br>\
+			identifyTemplate: 'Installation: <strong><%= attrs.Facility %></strong><br>Entreprise: <strong><%= attrs.Organisation %></strong><br>\
 				Physical Address: <strong><%= attrs.StreetAddress %> / <%= attrs.City %></strong><br>NPRI ID: <strong><%= parseInt(attrs.NPRI_ID, 10) %></strong><br>\
-				Secteur: <strong><%= displaySector(attrs.Sector) %></strong><br>Substances toxiques: <strong><%= attrs.NUMsubst %></strong><br><br>\
+				Secteur: <strong><%= globalConfigure.displaySector(attrs.Sector) %></strong><br>Substances toxiques: <strong><%= attrs.NUMsubst %></strong><br><br>\
 				<% if (attrs.NUMsubst === 0) {%> Aucun rapport annuel pr&eacute;sent&eacute;. <% } else {%> <a target=\'_blank\' href=\'annual-report?id=<%= attrs.UniqueID %>\'>Lien aux rapports annuels</a> <% } %><br>\
 				<% if (attrs.NUMPlanSummary === 0) {%> Aucun sommaire de plan pr&eacute;sent&eacute;. <% } else {%> <a target=\'_blank\' href=\'plan-summary-report?id=<%= attrs.UniqueID %>\'>Lien aux sommaires de plan</a> <% } %><br>\
 				<% if (attrs.NUMRecord === 0) {%> Aucun document pr&eacute;sent&eacute;. <% } else {%> <a target=\'_blank\' href=\'record-report?id=<%= attrs.UniqueID %>\'>Lien aux documents</a> <% } %><br>\
 				<i>En cliquant sur ces liens, vous ouvrirez une nouvelle fen&ecirc;tre dans votre navigateur.</i><br>'
 			/*French Ends*/
 		},
+		displaySector: function (sector) {
+			var str = sector.toString().substring(0, 3);
+			for (var i = 0; i < this.sectorNames.length; i++){
+				var arrayName = this.sectorNames[i].split(" - ");
+				if(str === arrayName[0]) {
+					return arrayName[1];
+				}
+			}
+			return str;
+		},
 		infoWindowHeight: '200px',
 		getSearchParams: function(searchString){
-			var getLakeNameSearchCondition = function(searchString) {
-				var coorsArray = searchString.split(/\s+/);
-				var str = coorsArray.join(" ").toUpperCase();
-				str = Util.replaceChar(str, "'", "''");
-				str = Util.replaceChar(str, "\u2019", "''");
-				/*English Begins*/
-				return "UPPER(LOCNAME_EN) LIKE '%" + str + "%'";
-				/*English Ends*/
-				/*French Begins*/
-				return "UPPER(LOCNAME_FR) LIKE '%" + str + "%'";
-				/*French Ends*/
+			//console.log(searchString);
+			var isNPRIID = function (searchString){
+				var reg = /^\d+$/;
+				return reg.test(searchString) && (searchString.length <= 10);
 			};
-			var getQueryCondition = function(name){
-				var str = name.toUpperCase();
-				str = Util.replaceChar(str, '&', ', ');
-				str = Util.replaceChar(str, ' AND ', ', '); 
-				str = str.trim();
-				var nameArray = str.split(',');
-				var max = nameArray.length;
-				var res = [];
-				var inform = [];
-				var processAliasFishName = function(fishname){
-					var aliasList = {
-						GERMAN_TROUT: ["BROWN_TROUT"],
-						SHEEPHEAD:	["FRESHWATER_DRUM"],
-						STEELHEAD:	["RAINBOW_TROUT"],
-						SUNFISH:	["PUMPKINSEED"],
-						BARBOTTE:	["BROWN_BULLHEAD"],
-						BLACK_BASS:	["LARGEMOUTH_BASS","SMALLMOUTH_BASS"],
-						CALICO_BASS:	["BLACK_CRAPPIE"],
-						CRAWPIE:	["BLACK_CRAPPIE","WHITE_CRAPPIE"],
-						GREY_TROUT:	["LAKE_TROUT"],
-						HUMPBACK_SALMON:	["PINK_SALMON"],
-						KING_SALMON:	["CHINOOK_SALMON"],
-						LAKER:	["LAKE_TROUT"],
-						MENOMINEE:	["ROUND_WHITEFISH"],
-						MUDCAT:	["BROWN_BULLHEAD"],
-						MULLET:	["WHITE_SUCKER"],
-						PANFISH:	["BLUEGILL","ROCK_BASS","PUMPKINSEED"],
-						PICKEREL:	["WALLEYE"],
-						SILVER_BASS:	["WHITE_BASS"],
-						SILVER_SALMON:	["COHO_SALMON"],
-						SPECKLED_TROUT:	["BROOK_TROUT"],
-						SPRING_SALMON:	["CHINOOK_SALMON"]
-					};
-					var alias = aliasList[fishname];
-					var fish = Util.wordCapitalize(Util.replaceChar(fishname, '_', ' '));
-					if (typeof(alias) === "undefined"){
-						var result = {
-							/*English Begins*/
-							condition: "(SPECIES_EN like '%" + fishname +"%')",
-							/*English Ends*/
-							/*French Begins*/
-							condition: "(SPECIES_FR like '%" + fishname +"%')",
-							/*French Ends*/
-							information: fish
-						};
-						return result;
-					}else{
-						var res = [];
-						var fishArray = [];
-						for (var i = 0; i < alias.length; i++){
-							/*English Begins*/
-							res.push("(SPECIES_EN like '%" + alias[i] +"%')");
-							/*English Ends*/
-							/*French Begins*/
-							res.push("(SPECIES_FR like '%" + alias[i] +"%')");
-							/*French Ends*/
-							var str = Util.wordCapitalize(Util.replaceChar(alias[i], '_', ' '));
-							fishArray.push(str.trim());
-						}
-						var result = {
-							condition: "(" + res.join(" OR ") + ")",
-							information: fish + " ("  + fishArray.join(", ") + ")"
-						};
-						return result;
-					}
+			var where = '';
+			var requireGeocoding = true;			
+			if($('#searchSubstance')[0].checked) {
+				where = '(UPPER(Substance_List) LIKE \'%' + this.substancesDict[searchString] + '%\')';
+				requireGeocoding = false;
+			} else if($('#searchSector')[0].checked) {
+				var arrayName = searchString.split(" - ");
+				var code = parseInt(arrayName[0]);
+				var max = 0;
+				var min = 0;
+				if(code<100){
+					min = code * 10000;
+					max = min + 9999;
+				}else if(code<1000){
+					min = code * 1000;
+					max = min + 999;
+				}else if(code<10000){
+					min = code * 100;
+					max = min + 99;
+				}else if(code<100000){
+					min = code * 10;
+					max = min + 9;
+				}else{
+					min = code;
+					max = code;
 				}
-				for (var i = 0; i < max; i++){
-					var str1 = (nameArray[i]).trim();
-					if(str1.length > 0){
-						var coorsArray = str1.split(/\s+/);
-						str1 = coorsArray.join("_");
-						var temp = processAliasFishName(str1);
-						res.push(temp.condition);
-						inform.push(temp.information);
-					}
-				}		
-				var result = {
-					condition: res.join(" AND "),
-					information: inform.join(", ")
-				};
-				return result;
-			};
+				where = "((Sector >= " + min + ") AND (Sector <= " + max + "))";
+				requireGeocoding = false;
+			} else if(isNPRIID(searchString)) {
+				var name = searchString;
+				while (name.length != 10){
+					name = '0' + name;
+				}
+				where = 'NPRI_ID = \'' + name + '\'';
+				requireGeocoding = false;
+			} else {
+				requireGeocoding = true;
+				var str = searchString.toUpperCase().split(/\s+/).join(' ');
+				where = '(UPPER(Facility) LIKE \'%' + str + '%\') OR (UPPER(Organisation) LIKE \'%' + str + '%\')';
+			}
+			
 			var queryParamsList = [{
-				mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
+				mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/TRAIS/MapServer',
 				layerID: 0,
 				returnGeometry: true,
-				where: ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition,
-				/*English Begins*/
-				outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
-				/*English Ends*/
-				/*French Begins*/
-				outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
-				/*French Ends*/
+				where: where,
+				outFields: ['Facility', 'Organisation', 'StreetAddress', 'City', 'NPRI_ID', 'Sector', 'NUMsubst', 'UniqueID', 'NUMPlanSummary', 'NUMRecord']
 			}];
 			var options = {
 				searchString: searchString,
-				geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
-				withinExtent: $('#currentMapExtent')[0].checked/*,
-				invalidFeatureLocations: [{
-					lat: 0,
-					lng: 0,
-					difference: 0.0001
-				}]*/
+				geocodeWhenQueryFail: requireGeocoding,
+				withinExtent: $('#currentMapExtent')[0].checked
 			};
 			return {
 				queryParamsList: queryParamsList,
 				options: options
-			}
+			};
 		},
-		tableTemplate: '<table id="myTable" class="tablesorter" width="650" border="0" cellpadding="0" cellspacing="1">\
-			<thead><tr><th><center>Waterbody</center></th><th><center>Location</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Consumption Advisory Table</center></th></tr></thead><tbody>\
+		/*English Begins*/		
+		tableTemplate: '<table id="myTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
+			<thead><tr><th><center>Facility</center></th><th><center>Organization</center></th><th><center>Physical Address</center></th><th><center>NPRI ID</center></th><th><center>Sector</center></th><th><center>Toxic Substances</center></th><th><center>Annual Reports</center></th><th><center>Plan Summary</center></th><th><center>Record</center></th></tr></thead><tbody>\
 			<% _.each(features, function(feature) {\
 				var attrs = feature.attributes; %> \
-				<tr><td><%= attrs.LOCNAME_EN %></td><td><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td><td><a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>\
+				<tr><td><%= attrs.Facility %></td><td><%= attrs.Organisation %></td><td><%= attrs.StreetAddress %></td><td><%= parseInt(attrs.NPRI_ID, 10) %></td><td><%= globalConfigure.displaySector(attrs.Sector) %></td><td><%= attrs.NUMsubst %></td>\
+				<td> <% if (attrs.NUMsubst === 0) { %> N/A <% } else { %><a target=\'_blank\' href=\'annual-report?id=<%= attrs.UniqueID %>\'>Link</a> <% } %></td>\
+				<td> <% if (attrs.NUMPlanSummary === 0) { %> N/A <% } else { %><a target=\'_blank\' href=\'plan-summary-report?id=<%= attrs.UniqueID %>\'>Link</a> <% } %></td>\
+				<td> <% if (attrs.NUMRecord === 0) { %> N/A <% } else { %><a target=\'_blank\' href=\'record-report?id=<%= attrs.UniqueID %>\'>Link</a> <% } %></td></tr>\
 			<% }); %>\
 			</tbody></table>',
+		/*English Ends*/
+		/*French Begins*/
+		tableTemplate: '<table id="myTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
+			<thead><tr><th><center>Installation</center></th><th><center>Entreprise</center></th><th><center>Adresse</center></th><th><center>N&deg; INRP</center></th><th><center>Secteur</center></th><th><center>Substances toxiques</center></th><th><center>Rapports annuels</center></th><th><center>Sommaires de plan</center></th><th><center>Documents</center></th></tr></thead><tbody>\
+			<% _.each(features, function(feature) {\
+				var attrs = feature.attributes; %> \
+				<tr><td><%= attrs.Facility %></td><td><%= attrs.Organisation %></td><td><%= attrs.StreetAddress %></td><td><%= parseInt(attrs.NPRI_ID, 10) %></td><td><%= globalConfigure.displaySector(attrs.Sector) %></td><td><%= attrs.NUMsubst %></td>\
+				<td> <% if (attrs.NUMsubst === 0) { %> N/A <% } else { %><a target=\'_blank\' href=\'rapport-annuel?id=<%= attrs.UniqueID %>\'>Lien</a> <% } %></td>\
+				<td> <% if (attrs.NUMPlanSummary === 0) { %> N/A <% } else { %><a target=\'_blank\' href=\'sommaires-de-plan?id=<%= attrs.UniqueID %>\'>Lien</a> <% } %></td>\
+				<td> <% if (attrs.NUMRecord === 0) { %> N/A <% } else { %><a target=\'_blank\' href=\'rapport-record?id=<%= attrs.UniqueID %>\'>Lien</a> <% } %></td></tr>\
+			<% }); %>\
+			</tbody></table>',		
+		/*French Ends*/
 		searchChange: function (type) {
-			document.getElementById('map_query').value = "";
+			$('#' + this.searchInputBoxDivId)[0].value = '';
 			if(type === "Substance"){
-				$( "#map_query" ).autocomplete({source: substancesNames,
+				$('#' + this.searchInputBoxDivId).autocomplete({
+					source: this.substancesNames,
 					select: function(e, ui) {
-						var queryParams = {
-							searchString: ui.item.value
-						};	
-						if (!globalConfig.accessible) {
-							queryParams.withinExtent = document.getElementById(globalConfig.currentMapExtentDivId).checked;
-						}
-						MOEMAP.clearOverlays();			
-						mapConfig.searchSubstances(queryParams);
+						GoogleMapsAdapter.search(ui.item.value);
 					},
-					disabled: false });
+					disabled: false});
 			}else if(type === "Sector"){
-				$( "#map_query" ).autocomplete({source: sectorNames,
+				$('#' + this.searchInputBoxDivId).autocomplete({
+					source: this.sectorNames,
 					select: function(e, ui) {
-						var queryParams = {
-							searchString: ui.item.value
-						};	
-						if (!globalConfig.accessible) {
-							queryParams.withinExtent = document.getElementById(globalConfig.currentMapExtentDivId).checked;
-						}
-						MOEMAP.clearOverlays();
-						mapConfig.searchSector(queryParams);
+						GoogleMapsAdapter.search(ui.item.value);
 					},			
 					disabled: false });
 			}else{
-				$( "#map_query" ).autocomplete({source: [], 
+				$('#' + this.searchInputBoxDivId).autocomplete({source: [], 
 					disabled: true });
 			}
 		}
 	});
-	
 });
