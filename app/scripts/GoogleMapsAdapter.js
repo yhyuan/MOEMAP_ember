@@ -692,7 +692,6 @@ var init = function(initParams) {
 					tableID = Util.getTableIDFromTableTemplate(globalConfigure.invalidTableTemplate);
 					$('#' + tableID).dataTable(dataTableOptions);				
 				}
-				console.log("TAble is OK");
 				var markers = _.map(features, function(feature) {
 					var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
 					var container = document.createElement('div');
@@ -708,7 +707,7 @@ var init = function(initParams) {
 							infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
 							infoWindowContentWidth: globalConfigure.infoWindowContentWidth
 						};
-						container.innerHTML = Util.createTabBar (_.map(identifyTemplate, function(template) {
+						container = Util.createTabBar (_.map(identifyTemplate, function(template) {
 							return {
 								label: _.template(template.label,  {attrs: feature.attributes, Util: Util, globalConfigure: globalConfigure}),
 								content: _.template(template.content,  {attrs: feature.attributes, Util: Util, globalConfigure: globalConfigure})
@@ -726,7 +725,6 @@ var init = function(initParams) {
 					})(container, marker);
 					return marker;
 				});
-				console.log("Markers is OK");
 				_.each(markers, function(marker){
 					marker.setMap(map);
 					overlays.push(marker);
