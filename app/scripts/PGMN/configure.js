@@ -319,8 +319,8 @@ GoogleMapsAdapter.init({
 		<% _.each(features, function(feature) {\
 			var attrs = feature.attributes; %> \
 			<tr><td><%= attrs.PGMN_WELL %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td>\
-			<td> <% if (attrs.Level_Avai === 0) { %> N/A <% } else { %> <a target=\'_blank\' href=\'http://files.ontariogovernment.ca/moe_mapping/mapping/PGMN/WaterLevel/csv/<%= attrs.PGMN_WELL %>.zip\'>Zipped CSV</a> <% } %></td></tr>\
-			<td> <% if (attrs.Chem_Avai === 0) { %> N/A <% } else { %> <a target=\'_blank\' href=\'water-chemistry-report?id=<%= attrs.PGMN_WELL %>\'>HTML</a> <% } %></td></tr>\
+			<td> <% if (attrs.Level_Avai === 0) { %> N/A <% } else { %> <a target=\'_blank\' href=\'http://files.ontariogovernment.ca/moe_mapping/mapping/PGMN/WaterLevel/csv/<%= attrs.PGMN_WELL %>.zip\'>Zipped CSV</a> <% } %></td>\
+			<td> <% if (attrs.Chem_Avai === 0) { %> N/A <% } else { %> <a target=\'_blank\' href=\'water-chemistry-report?id=<%= attrs.PGMN_WELL %>\'>HTML</a> <% } %></td>\
 			<td> <% if (attrs.Prep_Avai === 0) { %> N/A <% } else { %> <a target=\'_blank\' href=\'http://files.ontariogovernment.ca/moe_mapping/mapping/PGMN/Precipitation/csv/<%= attrs.Site_ID %>.csv\'>CSV</a> <% } %></td></tr>\
 		<% }); %>\
 		</tbody></table>'
@@ -331,8 +331,8 @@ GoogleMapsAdapter.init({
 		<% _.each(features, function(feature) {\
 			var attrs = feature.attributes; %> \
 			<tr><td><%= attrs.PGMN_WELL %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "FR") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "FR") %></td>\
-			<td> <% if (attrs.Level_Avai === 0) { %> N/A <% } else { %> <a target=\'_blank\' href=\'http://files.ontariogovernment.ca/moe_mapping/mapping/PGMN/WaterLevel/csv/<%= attrs.PGMN_WELL %>.zip\'>Zipped CSV</a> <% } %></td></tr>\
-			<td> <% if (attrs.Chem_Avai === 0) { %> N/A <% } else { %> <a target=\'_blank\' href=\'water-chemistry-report?id=<%= attrs.PGMN_WELL %>\'>HTML</a> <% } %></td></tr>\
+			<td> <% if (attrs.Level_Avai === 0) { %> N/A <% } else { %> <a target=\'_blank\' href=\'http://files.ontariogovernment.ca/moe_mapping/mapping/PGMN/WaterLevel/csv/<%= attrs.PGMN_WELL %>.zip\'>Zipped CSV</a> <% } %></td>\
+			<td> <% if (attrs.Chem_Avai === 0) { %> N/A <% } else { %> <a target=\'_blank\' href=\'water-chemistry-report?id=<%= attrs.PGMN_WELL %>\'>HTML</a> <% } %></td>\
 			<td> <% if (attrs.Prep_Avai === 0) { %> N/A <% } else { %> <a target=\'_blank\' href=\'http://files.ontariogovernment.ca/moe_mapping/mapping/PGMN/Precipitation/csv/<%= attrs.Site_ID %>.csv\'>CSV</a> <% } %></td></tr>\
 		<% }); %>\
 		</tbody></table>'		

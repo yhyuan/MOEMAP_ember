@@ -679,7 +679,6 @@ var init = function(initParams) {
 				} else {
 					$('#' + globalConfigure.queryTableDivId).html(_.template(globalConfigure.tableTemplate, {features: features, Util: Util, globalConfigure: globalConfigure}));	
 				}
-				//console.log("OK");
 				var dataTableOptions = {
 					'bJQueryUI': true,
 					'sPaginationType': 'full_numbers' 
@@ -693,13 +692,30 @@ var init = function(initParams) {
 					tableID = Util.getTableIDFromTableTemplate(globalConfigure.invalidTableTemplate);
 					$('#' + tableID).dataTable(dataTableOptions);				
 				}
-
+				console.log("TAble is OK");
 				var markers = _.map(features, function(feature) {
 					var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
 					var container = document.createElement('div');
 					container.style.width = globalConfigure.infoWindowWidth;
 					container.style.height = globalConfigure.infoWindowHeight;
-					container.innerHTML = _.template(globalConfigure.identifySettings.identifyTemplate, {attrs: feature.attributes, Util: Util, globalConfigure: globalConfigure});
+					var identifyTemplate = globalConfigure.identifySettings.identifyTemplate;
+					if (typeof identifyTemplate == 'string' || identifyTemplate instanceof String) {
+						container.innerHTML = _.template(identifyTemplate, {attrs: feature.attributes, Util: Util, globalConfigure: globalConfigure});
+					} else if($.isArray(identifyTemplate)) {
+						var settings = {
+							infoWindowWidth: globalConfigure.infoWindowWidth,
+							infoWindowHeight: globalConfigure.infoWindowHeight,
+							infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
+							infoWindowContentWidth: globalConfigure.infoWindowContentWidth
+						};
+						container.innerHTML = Util.createTabBar (_.map(identifyTemplate, function(template) {
+							return {
+								label: _.template(template.label,  {attrs: feature.attributes, Util: Util, globalConfigure: globalConfigure}),
+								content: _.template(template.content,  {attrs: feature.attributes, Util: Util, globalConfigure: globalConfigure})
+							};
+						}), settings);
+					}
+
 					var marker = new google.maps.Marker({
 						position: gLatLng
 					});		
@@ -710,6 +726,7 @@ var init = function(initParams) {
 					})(container, marker);
 					return marker;
 				});
+				console.log("Markers is OK");
 				_.each(markers, function(marker){
 					marker.setMap(map);
 					overlays.push(marker);
