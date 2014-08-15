@@ -282,12 +282,12 @@ GoogleMapsAdapter.init({
 			if (isFromAndToDepth(strArray)) {
 				var minDepth = (strArray[0]).split(/\s+/)[0];
 				var maxDepth = (strArray[1]).split(/\s+/)[0];
-				//queryParams.requireGeocode = false;
 				where = "((WELL_DEPTH >= " + minDepth +  ") AND (WELL_DEPTH <= " +  maxDepth + "))";
-			} /*else{
+			} else{
 				queryParams.totalCount = 0;
 				globalConfig.resultFoundSimple(queryParams);
-			}*/
+				Util.generateMessage({totalCount: 0}, this.langs);
+			}
 		}else{
 			var coorsArray = name.split(/\s+/);
 			var str = coorsArray.join(" ").toUpperCase();
