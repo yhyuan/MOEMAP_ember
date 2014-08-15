@@ -479,8 +479,8 @@ var init = function(initParams) {
 				};
 				var container = Util.createTabBar (_.map(identifySettings.identifyTemplate, function(template) {
 					return {
-						label: _.template(template.label,  {attrs: attrs, Util: Util}),
-						content: _.template(template.content,  {attrs: attrs, Util: Util})
+						label: _.template(template.label,  {attrs: attrs, Util: Util, globalConfigure: globalConfigure}),
+						content: _.template(template.content,  {attrs: attrs, Util: Util, globalConfigure: globalConfigure})
 					};
 				}), settings);
 				openInfoWindow(identifySettings.gLatLng, container);			

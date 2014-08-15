@@ -264,10 +264,3 @@ GoogleMapsAdapter.init({
 		}
 	}
 });
-
-
-//globalConfig.infoWindowWidth = '320px';
-//globalConfig.infoWindowHeight = "140px";
-
-
-
