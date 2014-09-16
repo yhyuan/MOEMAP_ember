@@ -4,7 +4,7 @@ var Geocoder = require('./Geocoder');
 var Util = require('./Util');
 var ArcGISServerAdapter = require('./ArcGISServerAdapter');
 var ImageOverlay = require('./GoogleMaps/ImageOverlay');
-
+var PubSub = require('./PubSub');
 
 var map;
 var overlays = [];
