@@ -890,6 +890,28 @@ var globalConfigure;
 var arcGISMapServices = [];
 var previousBounds;
 var infoWindow;
+var marker;
+
+var clear = function () {
+	if (infoWindow) {
+		infoWindow.setMap(null);
+	}
+	if (marker) {
+		marker.setMap(null);
+	}
+	if (overlays) {
+		_.each(overlays,function (overlay) {
+			overlay.setMap(null);	
+		});
+	}
+	$('#' + globalConfigure.searchInputBoxDivId)[0].value = '';
+	$('#' + globalConfigure.searchInputBoxDivId)[0].focus();
+	$("#" + globalConfigure.queryTableDivId).html('');
+	$('#' + globalConfigure.informationDivId).html(globalConfigure.searchHelpText);
+	var center = new google.maps.LatLng(globalConfigure.orgLatitude, globalConfigure.orgLongitude);
+	map.setCenter(center);
+	map.setZoom(globalConfigure.orgzoomLevel);
+};
 
 var openInfoWindow = function (latlng, container){
 	if (!infoWindow) {
@@ -912,7 +934,7 @@ var closeInfoWindow = function (){
 
 var queryLayers = function (searchParams) {
 	var queryParamsList = searchParams.queryParamsList;
-	var options = searchParams.options;
+	//var options = searchParams.options;
 	var promises = _.map(queryParamsList, function(queryParams) {
 		var result = {
 			mapService: queryParams.mapService,
@@ -923,22 +945,6 @@ var queryLayers = function (searchParams) {
 		};
 		if (queryParams.hasOwnProperty('geometry')) {
 			result.geometry = queryParams.geometry;
-		} else if(!!options && options.withinExtent) {
-			var getCurrentMapExtent = function () {
-				var b = map.getBounds();
-				var ne = b.getNorthEast();
-				var sw = b.getSouthWest();
-				var nLat = ne.lat();
-				var eLng = ne.lng();
-				var sLat = sw.lat();
-				var wLng = sw.lng();
-				var swLatLng = {lat: sLat, lng: wLng};
-				var seLatLng = {lat: sLat, lng: eLng};
-				var neLatLng = {lat: nLat, lng: eLng};
-				var nwLatLng = {lat: nLat, lng: wLng};
-				return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
-			};
-			result.geometry = getCurrentMapExtent();
 		}
 		return ArcGISServerAdapter.query(result);
 	});
@@ -947,6 +953,70 @@ var queryLayers = function (searchParams) {
 
 var geocode = function(input) {
 	var geocodeParams = {};
+	var defaultGeocoder = function(params) {
+		var dfd = new $.Deferred();			
+		if (params.address.toUpperCase() === "ONTARIO") {
+			var result = {
+				status: 'No_Result'
+			};
+			dfd.resolve(result);
+		} else {
+			//Private method: test whether the input ends with region names.
+			var regionAddressProcess = function(addressStr, defaultRegionNames){
+				var isAddressEndsWithRegionName = function(address, str) {
+					if (address.length > str.length + 1) {
+						var substr = address.substring(address.length - str.length - 1);
+						if (substr === (" " + str) || substr === ("," + str)) {
+							return true;
+						}
+					}
+					return false;
+				};					
+				var address = addressStr.toUpperCase();
+				var res = _.some(defaultRegionNames, function(regionName) {
+					return isAddressEndsWithRegionName(address, regionName);
+				});
+				if(!res){
+					return addressStr + " Ontario";
+				}
+				return addressStr;
+			};
+
+			var Geocoder = new google.maps.Geocoder();
+			Geocoder.geocode({
+				'address': regionAddressProcess(params.address, params.defaultRegionNames)
+			}, function (results, status) {
+				if (status === google.maps.GeocoderStatus.OK) {
+					var geocodeResult = _.find(results, function(result){
+						var point = result.geometry.location;
+						var failedPositions = _.filter(params.failedLocation.positions, function(position) {
+							return ((Math.abs(point.lat() - position[0]) + Math.abs(point.lng() - position[1])) < params.failedLocation.difference);
+						});
+						return (failedPositions.length === 0) && (params.validateLatLngInPolygon({lat: point.lat(), lng: point.lng()}, params.regionBoundary));
+					});
+					if (geocodeResult) {
+						var point = geocodeResult.geometry.location;
+						var result = {
+							latlng: {
+								lat: point.lat(),
+								lng: point.lng()
+							},
+							address: params.address,
+							geocodedAddress: geocodeResult.formatted_address.toString(),
+							status: 'OK'
+						};
+						dfd.resolve(result);
+					} else {
+						dfd.resolve({status: 'No_Result'});
+					}
+				} else {
+					dfd.resolve({status: 'No_Result'});
+				}
+			});
+		}
+		return dfd.promise();
+	};
+
 	if (input.hasOwnProperty('lat') && input.hasOwnProperty('lng')) {
 		var reverseGeocoder = function(params) {
 			var dfd = new $.Deferred();
@@ -975,69 +1045,6 @@ var geocode = function(input) {
 			reverseGeocoder: reverseGeocoder
 		};
 	} else if (typeof input === 'string') {
-		var defaultGeocoder = function(params) {
-			var dfd = new $.Deferred();			
-			if (params.address.toUpperCase() === "ONTARIO") {
-				var result = {
-					status: 'No_Result'
-				};
-				dfd.resolve(result);
-			} else {
-				//Private method: test whether the input ends with region names.
-				var regionAddressProcess = function(addressStr, defaultRegionNames){
-					var isAddressEndsWithRegionName = function(address, str) {
-						if (address.length > str.length + 1) {
-							var substr = address.substring(address.length - str.length - 1);
-							if (substr === (" " + str) || substr === ("," + str)) {
-								return true;
-							}
-						}
-						return false;
-					};					
-					var address = addressStr.toUpperCase();
-					var res = _.some(defaultRegionNames, function(regionName) {
-						return isAddressEndsWithRegionName(address, regionName);
-					});
-					if(!res){
-						return addressStr + " Ontario";
-					}
-					return addressStr;
-				};
-
-				var Geocoder = new google.maps.Geocoder();
-				Geocoder.geocode({
-					'address': regionAddressProcess(params.address, params.defaultRegionNames)
-				}, function (results, status) {
-					if (status === google.maps.GeocoderStatus.OK) {
-						var geocodeResult = _.find(results, function(result){
-							var point = result.geometry.location;
-							var failedPositions = _.filter(params.failedLocation.positions, function(position) {
-								return ((Math.abs(point.lat() - position[0]) + Math.abs(point.lng() - position[1])) < params.failedLocation.difference);
-							});
-							return (failedPositions.length === 0) && (params.validateLatLngInPolygon({lat: point.lat(), lng: point.lng()}, params.regionBoundary));
-						});
-						if (geocodeResult) {
-							var point = geocodeResult.geometry.location;
-							var result = {
-								latlng: {
-									lat: point.lat(),
-									lng: point.lng()
-								},
-								address: params.address,
-								geocodedAddress: geocodeResult.formatted_address.toString(),
-								status: 'OK'
-							};
-							dfd.resolve(result);
-						} else {
-							dfd.resolve({status: 'No_Result'});
-						}
-					} else {
-						dfd.resolve({status: 'No_Result'});
-					}
-				});
-			}
-			return dfd.promise();
-		};
 		geocodeParams = {
 			address: input,
 			defaultRegionNames: ["ON", "ONT", "ONTARIO"], 
@@ -1050,44 +1057,18 @@ var geocode = function(input) {
 	} else if (input.hasOwnProperty('GeocoderList') && input.hasOwnProperty('address')) {
 		geocodeParams = {
 			address: input.address,
-			GeocoderList: input.GeocoderList
+			defaultRegionNames: ["ON", "ONT", "ONTARIO"], 
+			failedLocation: {
+				positions: [[51.253775,-85.32321389999998], [42.832714, -80.279923]],
+				difference: 0.00001
+			},			
+			GeocoderList: input.GeocoderList,
+			defaultGeocoder: defaultGeocoder
 		};
 	}
 	return Geocoder.geocode(geocodeParams);
 };
 
-var createTabBar = function (tabs, settings){
-	// the following code based on ESRI sample
-	// create and show the info-window with tabs, one for each map service layer		  
-	var container = document.createElement('div');
-	container.style.width = settings.infoWindowWidth;
-	container.style.height = settings.infoWindowHeight;
-
-        // =======START  TAB UI ================             
-	var tabBar = new goog.ui.TabBar();
-	for (var i = 0; i < tabs.length; i++) {
-		var tab = new goog.ui.Tab(tabs[i].label);
-		tab.content = tabs[i].content;
-		tabBar.addChild(tab, true);
-	}
-	tabBar.render(container);
-	goog.dom.appendChild(container, goog.dom.createDom('div', {
-		'class': 'goog-tab-bar-clear'
-	}));
-	var contentDiv = goog.dom.createDom('div', {
-		'class': 'goog-tab-content'
-	});
-	contentDiv.style.height = settings.infoWindowContentHeight;
-	contentDiv.style.width = settings.infoWindowContentWidth;
-			
-	goog.dom.appendChild(container, contentDiv);            
-	goog.events.listen(tabBar, goog.ui.Component.EventType.SELECT, function(e) {
-		contentDiv.innerHTML = e.target.content;
-	});
-	tabBar.setSelectedTabIndex(0);
-	return container;
-        // =======END  TAB UI ================
-};
 
 var init = function(initParams) {
 	var globalConfigLanguage = {
@@ -1127,8 +1108,8 @@ var init = function(initParams) {
 			CurrentMapDisplayLang: 'Search current map display only',
 			CurrentMapDisplayTitleLang: 'Current Map Display: Limit your search to the area displayed',
 			distanceFieldNote: 'The Distance(KM) column represents the distance between your search location and the permit location in the specific row.',
-			noCoordinatesTableTitleLang: 'The following table contains the records without valid coordinates. <a href=\'#WhyAmISeeingThis\'>Why am I seeing this?</a>',
-			whyAmISeeingThisLang: '<a id=\'WhyAmISeeingThis\'><strong>Why am I seeing this?</strong></a><br>The map locations shown as points have been determined by using addresses or other information to calculate a physical location on the map.  In some cases, the information needed to calculate a location was incomplete, incorrect or missing.  The records provided in the table have been included because there is a close match on the name or city/town or other field(s). These records may or may not be near your specified location, and users are cautioned in using these records. They have been included as potential matches only.',
+//			noCoordinatesTableTitleLang: 'The following table contains the records without valid coordinates. <a href=\'#WhyAmISeeingThis\'>Why am I seeing this?</a>',
+			//whyAmISeeingThisLang: '<a id=\'WhyAmISeeingThis\'><strong>Why am I seeing this?</strong></a><br>The map locations shown as points have been determined by using addresses or other information to calculate a physical location on the map.  In some cases, the information needed to calculate a location was incomplete, incorrect or missing.  The records provided in the table have been included because there is a close match on the name or city/town or other field(s). These records may or may not be near your specified location, and users are cautioned in using these records. They have been included as potential matches only.',
 			ThisResultDoesNotHaveValidCoordinates: 'This result does not have valid coordinates.',
 			AmongReturnedResults: 'Among returned results',
 			ResultDoesNotHaveValidCoordinates: ' result does not have valid coordinates.',
@@ -1173,8 +1154,8 @@ var init = function(initParams) {
 			CurrentMapDisplayLang: '\u00c9tendue de la carte courante',
 			CurrentMapDisplayTitleLang: 'Afficher la carte : Limiter la recherche \u00e0 la carte donn\u00e9e.',
 			distanceFieldNote: 'La colonne de distance (en km) donne la distance entre le lieu de votre recherche et le lieu du puits dans la rang\u00e9e donn\u00e9e.',
-			noCoordinatesTableTitleLang: 'Le tableau suivant contient des données sans coordonnées valides.  <a href=\'#WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a>',
-			whyAmISeeingThisLang: '<a id=\'WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a><br>Les lieux indiqués par des points sur la carte ont été déterminés en fonction d’adresses ou d’autres renseignements servant à calculer un emplacement physique sur la carte. Dans certains cas, ces renseignements étaient incomplets, incorrects ou manquants. Les données fournies dans le deuxième tableau ont été incluses, car il y a une correspondance étroite avec le nom de la ville ou d’autre champ. Ces données peuvent ou non être proches du lieu précisé, et on doit les utiliser avec prudence. Elles ont été incluses seulement parce qu’il peut y avoir une correspondance.',
+//			noCoordinatesTableTitleLang: 'Le tableau suivant contient des données sans coordonnées valides.  <a href=\'#WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a>',
+//			whyAmISeeingThisLang: '<a id=\'WhyAmISeeingThis\'>Pourquoi cela s’affiche-t-il?</a><br>Les lieux indiqués par des points sur la carte ont été déterminés en fonction d’adresses ou d’autres renseignements servant à calculer un emplacement physique sur la carte. Dans certains cas, ces renseignements étaient incomplets, incorrects ou manquants. Les données fournies dans le deuxième tableau ont été incluses, car il y a une correspondance étroite avec le nom de la ville ou d’autre champ. Ces données peuvent ou non être proches du lieu précisé, et on doit les utiliser avec prudence. Elles ont été incluses seulement parce qu’il peut y avoir une correspondance.',
 			ThisResultDoesNotHaveValidCoordinates: 'This result does not have valid coordinates.',
 			AmongReturnedResults: 'Parmi les résultats obtenus',
 			ResultDoesNotHaveValidCoordinates: ' résultat n’a pas de coordonnées valides.',
@@ -1218,13 +1199,15 @@ var init = function(initParams) {
 		maxMapScale: 21,
 		disallowMouseClick: false,
 		searchInputBoxDivId: 'map_query',
+		informationDivId: 'information',
 		maxQueryZoomLevel: 17,
-		tableID: 'myTable',
-		tableWidth: 650, //The total width of the table below the map
-		tableClassName: 'tablesorter',
+		maxQueryReturn: 500,
 		queryTableDivId: 'query_table',
+		otherInfoDivId: 'otherInfo',
 		infoWindowWidth: '280px',
-		infoWindowHeight: '140px',
+		infoWindowHeight: '200px',
+		infoWindowContentHeight: '160px',
+		infoWindowContentWidth: '240px',
 		preIdentifyCallbackName: 'Default',
 		preIdentifyCallbackList: {
 			'Default': function (identifySettings) {
@@ -1237,7 +1220,7 @@ var init = function(initParams) {
 						return {
 							mapService: layer.mapService,
 							layerID: layer.layerID,
-							returnGeometry: false,
+							returnGeometry: layer.hasOwnProperty('returnGeometry') ? layer.returnGeometry : false,
 							outFields: layer.outFields,
 							geometry: circle
 						};
@@ -1275,13 +1258,20 @@ var init = function(initParams) {
 					return;
 				}
 				var features = Util.combineFeatures(results);
-				var container = document.createElement('div');
-				container.style.width = globalConfigure.infoWindowWidth;
-				container.style.height = globalConfigure.infoWindowHeight;
-				container.innerHTML = _.template(identifySettings.identifyTemplate, {attrs: features, Util: Util, globalConfigure: globalConfigure});
+				var content = _.template(identifySettings.identifyTemplate, {features: features, Util: Util});
+				var settings = {
+					infoWindowWidth: globalConfigure.infoWindowWidth,
+					infoWindowHeight: globalConfigure.infoWindowHeight,
+					infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
+					infoWindowContentWidth: globalConfigure.infoWindowContentWidth
+				};
+				var container = Util.createTabBar ([{
+					label: globalConfigure.langs.InformationLang,
+					content: content
+				}], settings);
 				openInfoWindow(identifySettings.gLatLng, container);
 			},
-			/*PWQMN, PGMN, many tabs with one features*/
+			/*PWQMN, PGMN, many tabs with one features. identifyTemplate is an array with objects. Each object contains two perperties: label and content*/
 			'OneFeatureManyTabs': function(results, identifySettings) {
 				var featuresLength = Util.computeFeaturesNumber (results);
 				if (featuresLength === 0) {
@@ -1289,20 +1279,331 @@ var init = function(initParams) {
 				}
 				var features = Util.combineFeatures(results);
 				var attrs = features[0].attributes;  // The attributes for the first feature. 
-				var container = document.createElement('div');
-				container.style.width = globalConfigure.infoWindowWidth;
-				container.style.height = globalConfigure.infoWindowHeight;
-				container.innerHTML = _.template(identifySettings.identifyTemplate, {attrs: features[0].attributes, Util: Util, globalConfigure: globalConfigure});
-				openInfoWindow(identifySettings.gLatLng, container);
-			}			
+				var settings = {
+					infoWindowWidth: globalConfigure.infoWindowWidth,
+					infoWindowHeight: globalConfigure.infoWindowHeight,
+					infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
+					infoWindowContentWidth: globalConfigure.infoWindowContentWidth
+				};
+				var container = Util.createTabBar (_.map(identifySettings.identifyTemplate, function(template) {
+					return {
+						label: _.template(template.label,  {attrs: attrs, Util: Util, globalConfigure: globalConfigure}),
+						content: _.template(template.content,  {attrs: attrs, Util: Util, globalConfigure: globalConfigure})
+					};
+				}), settings);
+				openInfoWindow(identifySettings.gLatLng, container);			
+			},
+			/*District locator, watershed locator, source water protection One feature with no tab*/
+			'OneFeatureNoTabPolygon': function(results, identifySettings) {
+				var process = function (results, identifySettings, geocodingResult) {					
+					var searchString = $('#' + globalConfigure.searchInputBoxDivId).val().trim();
+					$('#' + globalConfigure.informationDivId).html('<i>' + globalConfigure.generateMessage(results, geocodingResult, searchString) + '</i>');
+					if (marker) {
+						marker.setMap(null);
+					}
+					_.each(overlays, function(overlay){
+						overlay.setMap(null);
+					});
+					overlays = [];
+
+					var contents = identifySettings.identifyTemplate(results, Util, geocodingResult, searchString);
+
+					$("#" + globalConfigure.queryTableDivId).html(contents.table);
+
+					marker = new google.maps.Marker({
+						map: map,
+						draggable: true,
+						position: identifySettings.gLatLng,
+						visible: true
+					});
+
+					var boxText = document.createElement("div");
+					boxText.style.cssText = "border: 1px solid black; margin-top: 8px; background: white; padding: 5px;";
+					boxText.innerHTML = contents.infoWindow;
+
+					var myOptions = {
+						 content: boxText
+						,disableAutoPan: false
+						,maxWidth: 0
+						,pixelOffset: new google.maps.Size(-140, 0)
+						,zIndex: null
+						,boxStyle: { 
+						  background: "url('http://google-maps-utility-library-v3.googlecode.com/svn/trunk/infobox/examples/tipbox.gif') no-repeat"
+						  ,opacity: 0.75
+						  ,width: "280px"
+						 }
+						,closeBoxMargin: "10px 2px 2px 2px"
+						,closeBoxURL: "http://www.google.com/intl/en_us/mapfiles/close.gif"
+						,infoBoxClearance: new google.maps.Size(1, 1)
+						,isHidden: false
+						,pane: "floatPane"
+						,enableEventPropagation: false
+					};
+
+					google.maps.event.addListener(marker, "click", function (e) {
+						infoWindow.open(map, this);
+					});
+					google.maps.event.addListener(marker, 'dragend', function (e) {
+						$('#' + globalConfigure.searchInputBoxDivId)[0].value = '';
+						$('#' + globalConfigure.searchInputBoxDivId)[0].focus();
+						$("#" + globalConfigure.queryTableDivId).html('');
+						var latlng = marker.getPosition();
+						map.setCenter(latlng);
+						google.maps.event.trigger(map, 'click', {latLng: latlng});
+					});
+					infoWindow = new InfoBox(myOptions);
+
+					infoWindow.open(map, marker);
+
+					var isReturnGeometryTrue = _.some(identifySettings.identifyLayersList, function(setting) {return setting.returnGeometry;});
+					if (isReturnGeometryTrue) {
+						var polylinesOnMap = _.reduce(_.range(identifySettings.identifyLayersList.length), function(totalPolylines, i) {
+							if (identifySettings.identifyLayersList[i].returnGeometry) {
+								var strokeOptions = identifySettings.identifyLayersList[i].strokeOptions;
+								var polylines = _.reduce(results[i].features, function(total, feature) {
+									if(feature.hasOwnProperty('geometry')) {
+										return total.concat(createPolylines(feature.geometry.rings, strokeOptions));
+									} else {
+										return total;
+									}
+								}, []);
+								return totalPolylines.concat(polylines);
+							} else {
+								return totalPolylines;
+							}
+						}, []);
+						_.each(polylinesOnMap, function(line){
+							line.setMap(map);
+							overlays.push(line);
+						});
+					}
+				};
+
+				if (identifySettings.hasOwnProperty('requireReverseGeocoding') && identifySettings.requireReverseGeocoding) {
+					var geocodePromise = geocode(identifySettings.latlng);
+					geocodePromise.done(function (result) {
+						if (result.status === 'OK') {
+							process (results, identifySettings, result);
+						} else {
+							process (results, identifySettings);
+						}
+					});
+				} else {
+					process (results, identifySettings);
+				}
+			}
 		},
+		preSearchCallbackName: 'Default',
+		preSearchCallbackList: {
+			'Default': function (searchString) {
+				var searchParams = globalConfigure.getSearchParams(searchString);
+				var queryParamsList = searchParams.queryParamsList;
+				var options = searchParams.options;
+				if(!!options && options.withinExtent) {
+					var getCurrentMapExtent = function () {
+						var b = map.getBounds();
+						var ne = b.getNorthEast();
+						var sw = b.getSouthWest();
+						var nLat = ne.lat();
+						var eLng = ne.lng();
+						var sLat = sw.lat();
+						var wLng = sw.lng();
+						var swLatLng = {lat: sLat, lng: wLng};
+						var seLatLng = {lat: sLat, lng: eLng};
+						var neLatLng = {lat: nLat, lng: eLng};
+						var nwLatLng = {lat: nLat, lng: wLng};
+						return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
+					};
+					var geometry = getCurrentMapExtent();
+					_.each(queryParamsList, function(queryParams) {
+						queryParams.geometry = geometry;
+					});
+				}
+				return {
+					queryParamsList: queryParamsList//, 
+					//options: options
+				};
+			},
+			'OneFeatureNoTabPolygon': function (searchString) {
+				if (!!globalConfigure.searchGeocoderList) {
+					return {
+						GeocoderList: globalConfigure.searchGeocoderList,
+						address: searchString
+					};
+				} else {
+					return searchString;
+				}
+			}
+		},
+		searchCallbackName: 'Default',
+		searchCallbackList: {
+			'Default': queryLayers,
+			'OneFeatureNoTabPolygon': geocode
+		},
+		postSearchCallbackName: 'OneFeatureNoTab',
+		postSearchCallbackList: {
+			/* If there is no returned result, it is allowed to call geocoding to geocode the location. 
+
+			are more than one layer, they must have the same structure. Or there is only one layer. 
+			Get the first result from query results and use it to create the info window. The info window contains no tabs and no tables inside. 
+			Sport Fish, Lake Partner, TRAIS, 
+			*/
+			'OneFeatureNoTab': function(results) {
+				var featuresLength = Util.computeFeaturesNumber (results);
+				var searchString = $('#' + globalConfigure.searchInputBoxDivId).val().trim();
+				var searchParams = globalConfigure.getSearchParams(searchString);
+				var options = searchParams.options;
+				if ((featuresLength === 0) && options.hasOwnProperty('geocodeWhenQueryFail') && options.geocodeWhenQueryFail && options.hasOwnProperty('searchString')) {
+					var geocodingParams = options.searchString;
+					if (options.hasOwnProperty('GeocoderList')) {
+						geocodingParams = {
+							GeocoderList: options.GeocoderList,
+							address: options.searchString
+						};
+					}
+					var geocodePromise = geocode(geocodingParams);
+					geocodePromise.done(function(result){
+						if (result.status === "OK") {
+							//result.latlng result.geocodedAddress, map zoom to specific area, add a location pin to the location, update search message.
+						} else {
+							//update search meesage
+						}
+					});
+					return;
+				}
+
+				var features = Util.combineFeatures(results);
+				var splited = Util.splitResults(results, options.invalidFeatureLocations);
+				var invalidNumber = Util.computeFeaturesNumber (splited.invalidResults);
+				var invalidFeatures;
+				if (invalidNumber > 0) {
+					features =Util.combineFeatures(splited.validResults);
+					invalidFeatures = Util.combineFeatures(splited.invalidResults);
+				}
+				if (invalidNumber > 0) {
+					var str1 = _.template(globalConfigure.tableTemplate, {features: features, Util: Util, globalConfigure: globalConfigure});
+					var str2 = _.template(globalConfigure.invalidTableTemplate, {features: invalidFeatures, Util: Util, globalConfigure: globalConfigure});
+					$('#' + globalConfigure.queryTableDivId).html(str1 + '<br><br>' + str2);	
+				} else {
+					$('#' + globalConfigure.queryTableDivId).html(_.template(globalConfigure.tableTemplate, {features: features, Util: Util, globalConfigure: globalConfigure}));	
+				}
+				var dataTableOptions = {
+					'bJQueryUI': true,
+					'sPaginationType': 'full_numbers' 
+				};
+				if (globalConfigure.language !== 'EN') {
+					dataTableOptions['oLanguage'] = globalConfigure.langs.dataTableLang;
+				}
+				var tableID = Util.getTableIDFromTableTemplate(globalConfigure.tableTemplate);
+				$('#' + tableID).dataTable(dataTableOptions);
+				if (invalidNumber > 0) {
+					tableID = Util.getTableIDFromTableTemplate(globalConfigure.invalidTableTemplate);
+					$('#' + tableID).dataTable(dataTableOptions);				
+				}
+				var markers = _.map(features, function(feature) {
+					var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
+					var container = document.createElement('div');
+					container.style.width = globalConfigure.infoWindowWidth;
+					container.style.height = globalConfigure.infoWindowHeight;
+					var identifyTemplate = globalConfigure.identifySettings.identifyTemplate;
+					if (typeof identifyTemplate == 'string' || identifyTemplate instanceof String) {
+						container.innerHTML = _.template(identifyTemplate, {attrs: feature.attributes, Util: Util, globalConfigure: globalConfigure});
+					} else if($.isArray(identifyTemplate)) {
+						var settings = {
+							infoWindowWidth: globalConfigure.infoWindowWidth,
+							infoWindowHeight: globalConfigure.infoWindowHeight,
+							infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
+							infoWindowContentWidth: globalConfigure.infoWindowContentWidth
+						};
+						container = Util.createTabBar (_.map(identifyTemplate, function(template) {
+							return {
+								label: _.template(template.label,  {attrs: feature.attributes, Util: Util, globalConfigure: globalConfigure}),
+								content: _.template(template.content,  {attrs: feature.attributes, Util: Util, globalConfigure: globalConfigure})
+							};
+						}), settings);
+					}
+
+					var marker = new google.maps.Marker({
+						position: gLatLng
+					});		
+					(function (container, marker) {
+						google.maps.event.addListener(marker, 'click', function () {
+							openInfoWindow(marker.getPosition(), container);
+						});
+					})(container, marker);
+					return marker;
+				});
+				_.each(markers, function(marker){
+					marker.setMap(map);
+					overlays.push(marker);
+				});
+
+				if(options.hasOwnProperty('withinExtent') && !options.withinExtent) {
+					var convertToGBounds = function(b) {
+						var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
+						var ne = new google.maps.LatLng(b.northEast.lat, b.northEast.lng);			 
+						var bounds = new google.maps.LatLngBounds(sw, ne);
+						return bounds;
+					};
+					var bounds = convertToGBounds(Util.computePointsBounds(_.map(features, function(feature) {
+						return {lng: feature.geometry.x, lat: feature.geometry.y};
+					})));
+					_.each(arcGISMapServices, function(arcGISMapService) {
+						arcGISMapService.setMap(null);
+					});
+					map.fitBounds(bounds);
+					var maxQueryZoomLevel = globalConfigure.maxQueryZoomLevel;
+					if (map.getZoom() > maxQueryZoomLevel) {
+						map.setZoom(maxQueryZoomLevel);
+					}
+				}
+				var messageParams = {
+					totalCount: featuresLength,
+					maxQueryReturn: globalConfigure.maxQueryReturn,
+					searchString: options.searchString,
+					withinExtent: options.withinExtent
+				};
+				if (invalidNumber > 0) {
+					messageParams.invalidCount = invalidNumber;
+				}
+				$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');
+			},
+			/*District locator, watershed locator, source water protection One feature with no tab*/
+			'OneFeatureNoTabPolygon': function(results) {
+				if(results[0].status === 'OK') {
+					var latlng = new google.maps.LatLng(results[0].latlng.lat, results[0].latlng.lng);
+					_.each(arcGISMapServices, function(arcGISMapService) {
+						arcGISMapService.setMap(null);
+					});
+					//console.log(results);
+					map.setCenter(latlng);
+					var zoomLevel = (results[0].hasOwnProperty('zoomLevel')) ? results[0].zoomLevel : globalConfigure.searchZoomLevel;
+					map.setZoom(zoomLevel);
+					google.maps.event.trigger(map, 'click', {latLng: latlng});
+				} else {
+					var messageParams = {
+						totalCount: 0,
+						maxQueryReturn: globalConfigure.maxQueryReturn,
+						searchString: results[0].address
+					};
+					$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(messageParams, globalConfigure.langs) + '</i>');
+				}
+			}
+		}		
 	};
 	var params = _.defaults(initParams, defaultParams);
+	params.searchHelpText = Util.getSearchHelpText(params.searchControlHTML);
+	//console.log(params.searchHelpText);
 	globalConfigure = params;
-
+	if (globalConfigure.hasOwnProperty('otherInfoHTML')) {
+		$('#' + globalConfigure.otherInfoDivId).html(globalConfigure.otherInfoHTML);
+	}
 	var url = 'http://files.ontariogovernment.ca/moe_mapping/mapping/js/MOEMap/';
-	var urls = [url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js'];
-	if(globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTab') {
+	var urls = [];
+	if(globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTabPolygon') {
+		urls = urls.concat([url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js']);
+	}	
+	if(globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTab' && globalConfigure.postIdentifyCallbackName !== 'OneFeatureNoTabPolygon') {
 		urls = urls.concat([url + 'css/multipletabs.css', url + 'js/closure-library-multipletabs-min.js']);
 	}
 	_.each(urls, function(url) {yepnope({load: url,callback: function(){}});});
@@ -1318,7 +1619,23 @@ var init = function(initParams) {
 		streetViewControl: true,
 		mapTypeId: params.defaultMapTypeId
 	};
+	if (globalConfigure.hasOwnProperty('extraImageServices')) {
+		var ids = _.map(globalConfigure.extraImageServices, function(extraImageService) {return extraImageService.id;});
+		mapOptions.mapTypeControlOptions = {
+			mapTypeIds: ids.concat([google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.HYBRID, google.maps.MapTypeId.TERRAIN])
+		};
+	}
 	map = new google.maps.Map($('#' + params.mapCanvasDivId)[0], mapOptions);
+	if (globalConfigure.hasOwnProperty('extraImageServices')) {
+		yepnope({load: 'http://lrcdrrvsdvap002/web/arcgislink.js',callback: function(){
+			_.each(globalConfigure.extraImageServices, function(extraImageService) {
+				var agsType = new gmaps.ags.MapType(extraImageService.url, {
+					name: extraImageService.name
+				});
+				map.mapTypes.set(extraImageService.id, agsType);
+			});			
+		}});
+	}
 
 	/*bounds changed*/	
 	var boundsChangedHandler = function() {
@@ -1408,8 +1725,9 @@ var init = function(initParams) {
 	/*mouse click*/
 };
 
-var search = function() {
-	var searchString = $('#' + globalConfigure.searchInputBoxDivId).val().trim();
+var search = function(input) {
+	var searchString = (!!input) ? input : $('#' + globalConfigure.searchInputBoxDivId).val().trim();
+
 	if(searchString.length === 0){
 		return;
 	}
@@ -1418,70 +1736,10 @@ var search = function() {
 	});
 	overlays = [];
 
-	var searchParams = globalConfigure.getSearchParams(searchString, globalConfigure);	
-	var promise = queryLayers(searchParams);
-
-	promise.done(function() {
-		var featuresLength = Util.computeFeaturesNumber (arguments);
-		var options = searchParams.options;
-		if ((featuresLength === 0) && options.hasOwnProperty('geocodeWhenQueryFail') && options.geocodeWhenQueryFail && options.hasOwnProperty('searchString')) {
-			var geocodingParams = options.searchString;
-			if (options.hasOwnProperty('GeocoderList')) {
-				geocodingParams = {
-					GeocoderList: options.GeocoderList,
-					address: options.searchString
-				};
-			}
-			var geocodePromise = geocode(geocodingParams);
-			geocodePromise.done(function(result){
-				if (result.status === "OK") {
-					//result.latlng result.geocodedAddress, map zoom to specific area, add a location pin to the location, update search message.
-				} else {
-					//update search meesage
-				}
-			});
-			return;
-		}
-		var validResults = arguments;
-		var validTable = '';
-		if (options.hasOwnProperty('invalidFeatureLocations') && options.invalidFeatureLocations) {
-			var splittedResults = Util.splitResults(arguments, options.invalidFeatureLocations);
-			validResults = splittedResults.validResults;
-			var invalidResults = splittedResults.invalidResults;
-			var validFeaturesLength = Util.computeFeaturesNumber(validResults);
-			var invalidFeaturesLength = Util.computeFeaturesNumber(invalidResults);
-			validTable = globalConfigure.computeValidResultsTable(validResults, globalConfigure);
-			var invalidTable = globalConfigure.computeInvalidResultsTable(invalidResults, globalConfigure);
-			//console.log(validTable);			
-		}
-		validTable = globalConfigure.computeValidResultsTable(validResults, globalConfigure);
-		$("#" + globalConfigure.queryTableDivId).html(validTable);
-
-		var markers = globalConfigure.generateSearchResultsMarkers(validResults, globalConfigure);
-		_.each(markers, function(marker){
-			marker.setMap(map);
-			overlays.push(marker);
-		});
-
-		if(options.hasOwnProperty('withinExtent') && !options.withinExtent) {
-			var convertToGBounds = function(b) {
-				var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
-				var ne = new google.maps.LatLng(b.northEast.lat, b.northEast.lng);			 
-				var bounds = new google.maps.LatLngBounds(sw, ne);
-				return bounds;
-			};
-			var bounds = convertToGBounds(Util.computePointsBounds(_.map(Util.combineFeatures(validResults), function(feature) {
-				return {lng: feature.geometry.x, lat: feature.geometry.y};
-			})));
-			_.each(arcGISMapServices, function(arcGISMapService) {
-				arcGISMapService.setMap(null);
-			});
-			map.fitBounds(bounds);
-			var maxQueryZoomLevel = globalConfigure.maxQueryZoomLevel;
-			if (map.getZoom() > maxQueryZoomLevel) {
-				map.setZoom(maxQueryZoomLevel);
-			}
-		}
+	var searchParams = globalConfigure.preSearchCallbackList[globalConfigure.preSearchCallbackName](searchString);
+	var promise = globalConfigure.searchCallbackList[globalConfigure.searchCallbackName](searchParams);
+	promise.done(function () {
+		globalConfigure.postSearchCallbackList[globalConfigure.postSearchCallbackName](arguments);
 	});
 };
 
@@ -1536,7 +1794,9 @@ var entsub = function(event){
 	}
 };
 
-var searchChange = function () {};
+var searchChange = function (type) {
+	globalConfigure.searchChange(type);
+};
 var api = {
 	init: init,
     geocode: geocode,
@@ -1545,7 +1805,8 @@ var api = {
 	entsub: entsub,
 	searchChange: searchChange,
 	openInfoWindow: openInfoWindow,
-	queryLayers: queryLayers
+	queryLayers: queryLayers,
+	clear: clear
 };
 
 module.exports = api;
@@ -1791,6 +2052,127 @@ var processNA = function (str) {
 	return str;
 };	
 
+var createTabBar = function (tabs, settings){
+	// the following code based on ESRI sample
+	// create and show the info-window with tabs, one for each map service layer
+	var container = document.createElement('div');
+	container.style.width = settings.infoWindowWidth;
+	container.style.height = settings.infoWindowHeight;
+
+        // =======START  TAB UI ================             
+	var tabBar = new goog.ui.TabBar();
+	for (var i = 0; i < tabs.length; i++) {
+		var tab = new goog.ui.Tab(tabs[i].label);
+		tab.content = tabs[i].content;
+		tabBar.addChild(tab, true);
+	}
+	tabBar.render(container);
+	goog.dom.appendChild(container, goog.dom.createDom('div', {
+		'class': 'goog-tab-bar-clear'
+	}));
+	var contentDiv = goog.dom.createDom('div', {
+		'class': 'goog-tab-content'
+	});
+	contentDiv.style.height = settings.infoWindowContentHeight;
+	contentDiv.style.width = settings.infoWindowContentWidth;
+			
+	goog.dom.appendChild(container, contentDiv);            
+	goog.events.listen(tabBar, goog.ui.Component.EventType.SELECT, function(e) {
+		contentDiv.innerHTML = e.target.content;
+	});
+	tabBar.setSelectedTabIndex(0);
+	return container;
+        // =======END  TAB UI ================
+};
+
+var getTableIDFromTableTemplate = function (template) {
+	var index = template.indexOf('<table id="');
+	var str = template.substring(index + 11, template.length).trim();
+	index = str.indexOf(' ');
+	str = str.substring(0, index - 1).trim();
+	//str = str.substring(1, str.length - 1);
+	return str;
+};
+
+/*
+	params
+		requried: totalCount, maxQueryReturn
+		optional: searchString, withinExtent, invalidCount
+
+*/
+var generateMessage = function(params, langs){
+	var totalCount = params.totalCount;
+	var maxQueryReturn = params.maxQueryReturn;
+
+	var regionName = "";
+	if (typeof(params.withinExtent) !== "undefined") {
+		regionName = " " + (params.withinExtent ? langs.inCurrentMapExtentLang : langs.inGobalRegionLang);
+	}
+	var searchString = " ";
+	if (typeof(params.searchString) !== "undefined") {
+		searchString = " " + langs.forLang + " <strong>"  + params.searchString + "</strong> ";
+	}
+	
+	var message = "";
+	if (params.hasOwnProperty("invalidCount") && (params.invalidCount > 0)) {
+		var invalidResultMsg = (params.invalidCount === 1) ? langs.ResultDoesNotHaveValidCoordinates : langs.ResultsDoNotHaveValidCoordinates;
+		if(totalCount === 0){
+			message = langs.yourSearchLang + searchString + langs.returnedNoResultLang + regionName + ". " + langs.pleaseRefineSearchLang + ".";
+		} else if(totalCount === 1){
+			message = langs.oneResultFoundLang  + searchString + regionName + "." + langs.ThisResultDoesNotHaveValidCoordinates;
+		} else if(totalCount >= maxQueryReturn){
+			message = langs.moreThanLang + " " + maxQueryReturn + " " + langs.resultsFoundLang + searchString + regionName + ". " + langs.onlyLang + " " + maxQueryReturn + " " + langs.returnedLang + ". " + langs.seeHelpLang + "." + langs.AmongReturnedResults + ", " + params.invalidCount + invalidResultMsg;
+		} else {
+			message = totalCount + " " + langs.resultsFoundLang + searchString + regionName + ". " + langs.AmongReturnedResults + ", " + params.invalidCount + invalidResultMsg;
+		}	
+	} else {
+		if(totalCount === 0){
+			message = langs.yourSearchLang + searchString + langs.returnedNoResultLang + regionName + ". " + langs.pleaseRefineSearchLang + ".";
+		} else if(totalCount === 1){
+			message = langs.oneResultFoundLang  + searchString + regionName + ".";
+		} else if(totalCount >= maxQueryReturn){
+			message = langs.moreThanLang + " " + maxQueryReturn + " " + langs.resultsFoundLang + searchString + regionName + ". " + langs.onlyLang + " " + maxQueryReturn + " " + langs.returnedLang + ". " + langs.seeHelpLang + ".";
+		} else {
+			message = totalCount + " " + langs.resultsFoundLang + searchString + regionName + ".";
+		}
+	}
+	return message;
+};
+
+var getSearchHelpText = function (searchControlHTML) {
+	var str = searchControlHTML.split('id="information"')[1];
+	var index1 = str.indexOf('>');
+	var index2 = str.indexOf('</div>');
+	return str.substring(index1 + 1, index2);
+};
+/*
+var findGreatLakeWithLocation = function (latlng) {
+	var lakeLocations = {
+		"LAKE ERIE": {location: {lat: 42.261049,lng: -81.128540}, zoomlevel: 8},
+		"LAC \u00c9RI\u00c9": {location: {lat: 42.261049,lng: -81.128540}, zoomlevel: 8},
+		"LAKE HURON": {location: {lat: 45.313529,lng: -81.886597}, zoomlevel: 8},
+		"LAC HURON": {location: {lat: 45.313529,lng: -81.886597}, zoomlevel: 8},
+		"LAKE ONTARIO": {location: {lat: 43.651976,lng: -77.997437}, zoomlevel: 8},
+		"LAC ONTARIO": {location: {lat: 43.651976,lng: -77.997437}, zoomlevel: 8},
+		"LAKE SUPERIOR": {location: {lat: 47.802087,lng: -86.989746}, zoomlevel: 7},	
+		"LAC SUP\u00c9RIEUR": {location: {lat: 47.802087,lng: -86.989746}, zoomlevel: 7},	
+		"UPPER ST. LAWRENCE": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+		"ST. LAWRENCE RIVER": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+		"HAUT SAINT-LAURENT": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+		"FLEUVE SAINT-LAURENT": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9}
+	};
+	var lake = _.find(_.pairs(lakeLocations), function (items) {
+		var lat = items[1].location.lat;
+		var lng = items[1].location.lng;
+		return Math.abs(lat - latlng.lat) + Math.abs(lng - latlng.lng) < 0.0001;
+	});
+	if (!!lake) {
+		return wordCapitalize(lake[0]);
+	} else {
+		return null;
+	}
+};
+*/
 var api = {
 	computeCircle: computeCircle,
 	computeOffset: computeOffset,
@@ -1805,7 +2187,12 @@ var api = {
 	splitResults: splitResults,
 	deciToDegree: deciToDegree,
 	addBRtoLongText: addBRtoLongText,
-	processNA: processNA
+	processNA: processNA,
+	createTabBar: createTabBar,
+	getTableIDFromTableTemplate: getTableIDFromTableTemplate,
+	generateMessage: generateMessage,
+	getSearchHelpText: getSearchHelpText/*,
+	findGreatLakeWithLocation: findGreatLakeWithLocation*/
 };
 
 module.exports = api;
@@ -1885,7 +2272,7 @@ var Util = require('../../app/scripts/Util');
 	    });
 	    describe('ArcGISServerAdapter can query the Sport Fish layer', function () {
 	        this.timeout(150000);
-			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer';
+			var sportfishMapService = 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer';
 	        it('should query the lake name for the sport fish layer', function (done) {
 				var queryParams = {
 					mapService: sportfishMapService,
@@ -1939,7 +2326,7 @@ var Util = require('../../app/scripts/Util');
 	    });
 	    describe('ArcGISServerAdapter can export the Sport Fish map', function () {
 	        this.timeout(150000);
-			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer';
+			var sportfishMapService = 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer';
 	        it('should query the lake name for the sport fish layer', function (done) {
 				var exportParams = {
 					bounds: {
@@ -1948,7 +2335,7 @@ var Util = require('../../app/scripts/Util');
 					},
 					width: 1920,
 					height: 105,
-					mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer',
+					mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
 					visibleLayers: [0, 1, 2]
 				};
 				var exportMapPromise = ArcGISServerAdapter.exportMap(exportParams);

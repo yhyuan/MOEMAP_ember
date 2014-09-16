@@ -73,7 +73,7 @@ var Util = require('../../app/scripts/Util');
 	    });
 	    describe('ArcGISServerAdapter can query the Sport Fish layer', function () {
 	        this.timeout(150000);
-			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer';
+			var sportfishMapService = 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer';
 	        it('should query the lake name for the sport fish layer', function (done) {
 				var queryParams = {
 					mapService: sportfishMapService,
@@ -127,7 +127,7 @@ var Util = require('../../app/scripts/Util');
 	    });
 	    describe('ArcGISServerAdapter can export the Sport Fish map', function () {
 	        this.timeout(150000);
-			var sportfishMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer';
+			var sportfishMapService = 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer';
 	        it('should query the lake name for the sport fish layer', function (done) {
 				var exportParams = {
 					bounds: {
@@ -136,7 +136,7 @@ var Util = require('../../app/scripts/Util');
 					},
 					width: 1920,
 					height: 105,
-					mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/sportfish/MapServer',
+					mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
 					visibleLayers: [0, 1, 2]
 				};
 				var exportMapPromise = ArcGISServerAdapter.exportMap(exportParams);
