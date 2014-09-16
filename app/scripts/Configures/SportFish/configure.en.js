@@ -1,5 +1,5 @@
 var langSetting = require('../../Languages/English');
-var configure = {
+var configureLanguage = {
 	language: "EN",
 	langSetting: langSetting,
 	otherInfoHTML: "<h2>Find a map error?</h2> \
@@ -33,5 +33,16 @@ var configure = {
 			<tr><td><%= attrs.LOCNAME_EN %></td><td><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %></td><td><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></td><td><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></td><td><a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>\
 		<% }); %>\
 		</tbody></table>',
-
+	identifySettings: {
+		/* radius: 1, // 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
+		identifyLayersList: [{
+			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
+			layerID: 0,
+			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
+		}],
+		identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>\
+			<a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>\
+			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></b><br>\
+			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>'
+	}
 };

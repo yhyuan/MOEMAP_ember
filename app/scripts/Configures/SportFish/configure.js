@@ -3,49 +3,20 @@
 var GoogleMapsAdapter = require('../scripts/GoogleMapsAdapter');
 var Util = require('../scripts/Util');
 window.GoogleMapsAdapter = GoogleMapsAdapter;
-GoogleMapsAdapter.init({
+var configure = {
 	mapServices: [{
 		url: "http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer",
 		visibleLayers: [0, 1, 2]
 	}],
-	identifySettings: {
-		/* radius: 1, // 1 meter. If the target layer is a polygon layer, it is useful to set the radius as a small value. If the target layer is a point layer, it is useful to increase the radius according to zoom level. */
-		identifyLayersList: [{
-			mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
-			layerID: 0,
-			/*English Begins*/
-			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
-			/*English Ends*/
-			/*French Begins*/
-			outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
-			/*French Ends*/
-		}],
-		/*English Begins*/		
-		identifyTemplate: '<strong><%= attrs.LOCNAME_EN %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_EN) %><br><br>\
-			<a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>\
-			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "EN") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "EN") %></b><br>\
-			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>'
-		/*English Ends*/
-		/*French Begins*/
-		identifyTemplate: '<strong><%= attrs.LOCNAME_FR %></strong><br><%= Util.addBRtoLongText(attrs.GUIDELOC_FR) %><br><br>\
-			<a target=\'_blank\' href=\'rapport-de-consommation-de-poisson?id=<%= attrs.WATERBODYC %>\'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>\
-			Latitude <b><%= Util.deciToDegree(attrs.LATITUDE, "FR") %></b> Longitude <b><%= Util.deciToDegree(attrs.LONGITUDE, "FR") %></b><br>\
-			<a href=\'mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission <%= attrs.LOCNAME_FR %>)\'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>'
-		/*French Ends*/
-	},
 	infoWindowHeight: '140px',
 	getSearchParams: function(searchString){
+		var lang = this.language;
 		var getLakeNameSearchCondition = function(searchString) {
 			var coorsArray = searchString.split(/\s+/);
 			var str = coorsArray.join(" ").toUpperCase();
 			str = Util.replaceChar(str, "'", "''");
 			str = Util.replaceChar(str, "\u2019", "''");
-			/*English Begins*/
-			return "UPPER(LOCNAME_EN) LIKE '%" + str + "%'";
-			/*English Ends*/
-			/*French Begins*/
-			return "UPPER(LOCNAME_FR) LIKE '%" + str + "%'";
-			/*French Ends*/
+			return "UPPER(LOCNAME_" + lang + ") LIKE '%" + str + "%'";
 		};
 		var getQueryCondition = function(name){
 			var str = name.toUpperCase();
@@ -84,12 +55,7 @@ GoogleMapsAdapter.init({
 				var fish = Util.wordCapitalize(Util.replaceChar(fishname, '_', ' '));
 				if (typeof(alias) === "undefined"){
 					var result = {
-						/*English Begins*/
-						condition: "(SPECIES_EN like '%" + fishname +"%')",
-						/*English Ends*/
-						/*French Begins*/
-						condition: "(SPECIES_FR like '%" + fishname +"%')",
-						/*French Ends*/
+						condition: "(SPECIES_" + lang + " like '%" + fishname +"%')",
 						information: fish
 					};
 					return result;
@@ -97,12 +63,7 @@ GoogleMapsAdapter.init({
 					var res = [];
 					var fishArray = [];
 					for (var i = 0; i < alias.length; i++){
-						/*English Begins*/
-						res.push("(SPECIES_EN like '%" + alias[i] +"%')");
-						/*English Ends*/
-						/*French Begins*/
-						res.push("(SPECIES_FR like '%" + alias[i] +"%')");
-						/*French Ends*/
+						res.push("(SPECIES_" + lang + " like '%" + alias[i] +"%')");
 						var str = Util.wordCapitalize(Util.replaceChar(alias[i], '_', ' '));
 						fishArray.push(str.trim());
 					}
@@ -134,12 +95,7 @@ GoogleMapsAdapter.init({
 			layerID: 0,
 			returnGeometry: true,
 			where: ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition,
-			/*English Begins*/
-			outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
-			/*English Ends*/
-			/*French Begins*/
-			outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
-			/*French Ends*/
+			outFields: ['WATERBODYC', 'LOCNAME_' + lang, 'GUIDELOC_' + lang, 'LATITUDE', 'LONGITUDE']
 		}];
 		var options = {
 			searchString: searchString,
@@ -177,4 +133,6 @@ GoogleMapsAdapter.init({
 				disabled: true });
 		}
 	}
-});
+};
+configure = _.defaults(configure, configureLanguage);
+GoogleMapsAdapter.init(configure);
