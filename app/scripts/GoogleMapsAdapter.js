@@ -4,7 +4,7 @@ var Geocoder = require('./Geocoder');
 var Util = require('./Util');
 var ArcGISServerAdapter = require('./ArcGISServerAdapter');
 var ImageOverlay = require('./GoogleMaps/ImageOverlay');
-var PubSub = require('./PubSub');
+//var PubSub = require('./PubSub');
 
 var map;
 var overlays = [];
@@ -919,6 +919,15 @@ var entsub = function(event){
 var searchChange = function (type) {
 	globalConfigure.searchChange(type);
 };
+
+var setPubSub = function (thePubSub) {
+	PubSub = thePubSub;
+};
+
+PubSub.on("MOECC_MAP_INITIALIZATION", function(configure) {
+	
+});
+
 var api = {
 	init: init,
     geocode: geocode,
@@ -928,7 +937,8 @@ var api = {
 	searchChange: searchChange,
 	openInfoWindow: openInfoWindow,
 	queryLayers: queryLayers,
-	clear: clear
+	clear: clear,
+	setPubSub
 };
 
 module.exports = api;

@@ -8,6 +8,10 @@ var langSetting = require('../scripts/Languages/English');
 /*French Begins*/
 var langSetting = require('../scripts/Languages/French');
 /*French Ends*/
+var PubSub = require('../scripts/PubSub');
+
+GoogleMapsAdapter.setPubSub(PubSub);
+
 window.GoogleMapsAdapter = GoogleMapsAdapter;
 GoogleMapsAdapter.init({
 	langs: langSetting,
@@ -271,3 +275,8 @@ GoogleMapsAdapter.init({
 		}
 	}
 });
+
+var configuration = {
+
+};
+PubSub.emit("MOECC_MAP_INITIALIZATION", configuration);
