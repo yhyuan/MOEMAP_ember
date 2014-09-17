@@ -858,12 +858,32 @@ var search = function(input) {
 		overlay.setMap(null);
 	});
 	overlays = [];
-
-	var searchParams = globalConfigure.preSearchCallbackList[globalConfigure.preSearchCallbackName](searchString);
+	var getCurrentMapExtent = function () {
+		var b = map.getBounds();
+		var ne = b.getNorthEast();
+		var sw = b.getSouthWest();
+		var nLat = ne.lat();
+		var eLng = ne.lng();
+		var sLat = sw.lat();
+		var wLng = sw.lng();
+		var swLatLng = {lat: sLat, lng: wLng};
+		var seLatLng = {lat: sLat, lng: eLng};
+		var neLatLng = {lat: nLat, lng: eLng};
+		var nwLatLng = {lat: nLat, lng: wLng};
+		return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
+	};	
+	var settings = {
+		infoWindowWidth: globalConfigure.infoWindowWidth,
+		infoWindowHeight: globalConfigure.infoWindowHeight,
+		infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
+		infoWindowContentWidth: globalConfigure.infoWindowContentWidth
+	};
+	PubSub.emit("MOECC_MAP_SEARCH_STRING_READY", {searchString: searchString, currentMapExtent: getCurrentMapExtent(), settings: settings});
+	/*var searchParams = globalConfigure.preSearchCallbackList[globalConfigure.preSearchCallbackName](searchString);
 	var promise = globalConfigure.searchCallbackList[globalConfigure.searchCallbackName](searchParams);
 	promise.done(function () {
 		globalConfigure.postSearchCallbackList[globalConfigure.postSearchCallbackName](arguments);
-	});
+	});*/
 };
 
 
@@ -918,7 +938,9 @@ var entsub = function(event){
 };
 
 var searchChange = function (type) {
-	globalConfigure.searchChange(type);
+	if (globalConfigure.hasOwnProperty('searchChange'))  {
+		globalConfigure.searchChange(type);
+	}
 };
 
 var setPubSub = function (thePubSub) {
@@ -966,6 +988,66 @@ var setPubSub = function (thePubSub) {
 			PubSub.emit("MOECC_MAP_IDENTIFY_RESPONSE_READY", {results: arguments, settings: params.settings});
 		});
 	});	
+	PubSub.on("MOECC_MAP_SEARCH_PROMISES_READY", function (params) {
+		$.when.apply($, params.promises).done(function() {
+			PubSub.emit("MOECC_MAP_SEARCH_RESPONSE_READY", {results: arguments, settings: params.settings});
+		});
+	});
+	PubSub.on("MOECC_MAP_SEARCH_TABLE_READY", function (params) {
+		$('#' + globalConfigure.queryTableDivId).html(params.tableContent);
+		var dataTableOptions = {
+			'bJQueryUI': true,
+			'sPaginationType': 'full_numbers' 
+		};
+		if (globalConfigure.langs.hasOwnProperty('dataTableLang')) {
+			dataTableOptions['oLanguage'] = globalConfigure.langs.dataTableLang;
+		}
+		$('#' + params.validTableID).dataTable(dataTableOptions);		
+		if (params.hasOwnProperty('invalidtableID')) {
+			$('#' + params.invalidtableID).dataTable(dataTableOptions);				
+		}		
+	});
+	PubSub.on("MOECC_MAP_SEARCH_MARKERS_READY", function (params) {
+		var markers = _.map(params.markers, function(m) {
+			var container = m.container;
+			var gLatLng = new google.maps.LatLng(m.latlng.lat, m.latlng.lng);
+			var marker = new google.maps.Marker({
+				position: gLatLng
+			});		
+			(function (container, marker) {
+				google.maps.event.addListener(marker, 'click', function () {
+					openInfoWindow(marker.getPosition(), container);
+				});
+			})(container, marker);
+			return marker;
+		});
+		_.each(markers, function(marker){
+			marker.setMap(map);
+			overlays.push(marker);
+		});		
+	});	
+	//PubSub.emit("MOECC_MAP_SEARCH_BOUNDS_CHANGED", {bounds: bounds});
+	PubSub.on("MOECC_MAP_SEARCH_BOUNDS_CHANGED", function (params) {
+		var convertToGBounds = function(b) {
+			var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
+			var ne = new google.maps.LatLng(b.northEast.lat, b.northEast.lng);			 
+			var bounds = new google.maps.LatLngBounds(sw, ne);
+			return bounds;
+		};
+		var bounds = convertToGBounds(params.bounds);
+		_.each(arcGISMapServices, function(arcGISMapService) {
+			arcGISMapService.setMap(null);
+		});
+		map.fitBounds(bounds);
+		if (map.getZoom() > globalConfigure.maxQueryZoomLevel) {
+			map.setZoom(globalConfigure.maxQueryZoomLevel);
+		}
+	});
+	PubSub.on("MOECC_MAP_SEARCH_MESSAGE_READY", function (params) {
+		params.messageParams.maxQueryReturn = globalConfigure.maxQueryReturn;
+		$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(params.messageParams, globalConfigure.langs) + '</i>');		
+	});
+		
 	PubSub.on("MOECC_MAP_IDENTIFY_INFOWINDOW_READY", function (params) {
 		openInfoWindow(params.latlng, params.infoWindow);
 	});		
