@@ -17,7 +17,7 @@ var removeLangaugeRelated = function(data, language) {
 var fs = require('fs')
 	, foldername = process.argv[2]
 	, language = process.argv[3];
-fs.readFile(foldername + "/configure.js", 'utf8', function(err, data) {
+fs.readFile("Configures" + foldername + "/configure.js", 'utf8', function(err, data) {
 	if (err) throw err;
 	//console.log(data);
 	fs.writeFile("../configures/configure.language.js", removeLangaugeRelated(data, language), function(err) {
