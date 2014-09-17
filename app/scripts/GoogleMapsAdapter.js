@@ -5,6 +5,7 @@ var Util = require('./Util');
 var ArcGISServerAdapter = require('./ArcGISServerAdapter');
 var ImageOverlay = require('./GoogleMaps/ImageOverlay');
 //var PubSub = require('./PubSub');
+var PubSub;
 
 var map;
 var overlays = [];
@@ -922,11 +923,135 @@ var searchChange = function (type) {
 
 var setPubSub = function (thePubSub) {
 	PubSub = thePubSub;
+	PubSub.on("MOECC_MAP_BOUNDS_CHANGED", function(googleBounds) {
+		_.each(arcGISMapServices, function(arcGISMapService) {
+			if ($.isArray(arcGISMapService)) {
+				_.each(arcGISMapService, function(element) {
+					element.setMap(null);
+				});
+			} else {
+				arcGISMapService.setMap(null);
+			}
+		});
+		var convertBounds = function(latLngBounds) {
+			var latLngNE = latLngBounds.getNorthEast();
+			var latLngSW = latLngBounds.getSouthWest();
+			return {
+				southWest: {lat: latLngSW.lat(), lng: latLngSW.lng()},
+				northEast: {lat: latLngNE.lat(), lng: latLngNE.lng()}
+			};
+		};
+		var bounds = convertBounds(googleBounds);
+		var div = document.getElementById(globalConfigure.mapCanvasDivId)
+		var width = div.offsetWidth;
+		var height = div.offsetHeight;
+		PubSub.emit("MOECC_MAP_BOUNDS_CHANGED_REQUEST_READY", {
+			bounds: bounds,
+			width: width,
+			height: height,
+			zoomLevel: map.getZoom()
+		});		
+	});
+	PubSub.on("MOECC_MAP_BOUNDS_CHANGED_PROMISES_READY", function (promises) {
+		$.when.apply($, promises).done(function() {
+			arcGISMapServices = _.map(arguments, function(argument) {
+				if (argument.hasOwnProperty('href')) { 
+					return new ImageOverlay(map.getBounds(), argument.href, map);
+				}
+			});
+		});
+	});
+	PubSub.on("MOECC_MAP_IDENTIFY_PROMISES_READY", function (params) {
+		$.when.apply($, params.promises).done(function() {
+			PubSub.emit("MOECC_MAP_IDENTIFY_RESPONSE_READY", {results: arguments, settings: params.settings});
+		});
+	});	
+	PubSub.on("MOECC_MAP_IDENTIFY_INFOWINDOW_READY", function (params) {
+		openInfoWindow(params.latlng, params.infoWindow);
+	});		
+	PubSub.on("MOECC_MAP_MOUSE_MOVE", function(latLng) {
+		if(globalConfigure.isCoordinatesVisible){
+			var utm = Util.convertLatLngtoUTM(latLng.lat, latLng.lng);
+			$("#" + globalConfigure.coordinatesDivId).html("Latitude:" + latLng.lat.toFixed(5) + ", Longitude:" + latLng.lng.toFixed(5) + " (" + globalConfigure.langs.UTM_ZoneLang + ":" + utm.Zone + ", " + globalConfigure.langs.EastingLang + ":" + utm.Easting + ", " + globalConfigure.langs.NorthingLang +":" + utm.Northing + ")<br>");
+		}
+	});
+	PubSub.on("MOECC_MAP_MOUSE_CLICK", function(latLng) {
+		closeInfoWindow();
+		var identifyRadiusZoomLevels = [-1, 320000, 160000, 80000, 40000, 20000, 9600, 4800, 2400, 1200, 600, 300, 160, 80, 50, 20, 10, 5, 3, 2, 1, 1];
+		var radius = (globalConfigure.hasOwnProperty('identifyRadius')) ?  globalConfigure.identifyRadius : identifyRadiusZoomLevels[map.getZoom()];
+		var circle = Util.computeCircle(latLng, radius);
+		var settings = {
+			latlng: latLng,
+			infoWindowWidth: globalConfigure.infoWindowWidth, 
+			infoWindowHeight: globalConfigure.infoWindowHeight
+		};
+		PubSub.emit("MOECC_MAP_IDENTIFY_GEOMETRY_READY", {settings: settings, geometry: circle});	
+		//console.log("MOECC_MAP_MOUSE_CLICK");
+	});
+	PubSub.on("MOECC_MAP_INITIALIZATION", function(configure) {
+		globalConfigure = configure;
+		$('#' + configure.otherInfoDivId).html(configure.otherInfoHTML);
+		$("#" + configure.searchControlDivId).html(configure.searchControlHTML);
+		var center = new google.maps.LatLng(configure.orgLatitude, configure.orgLongitude);
+		var mapOptions = {
+			zoom: configure.orgzoomLevel,
+			center: center,
+			scaleControl: true,
+			streetViewControl: true,
+			mapTypeId: configure.defaultMapTypeId
+		};
+		if (configure.hasOwnProperty('extraImageServices')) {
+			var ids = _.map(configure.extraImageServices, function(extraImageService) {return extraImageService.id;});
+			mapOptions.mapTypeControlOptions = {
+				mapTypeIds: ids.concat([google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.HYBRID, google.maps.MapTypeId.TERRAIN])
+			};
+		}
+		map = new google.maps.Map($('#' + configure.mapCanvasDivId)[0], mapOptions);
+		if (configure.hasOwnProperty('extraImageServices')) {
+			yepnope({load: 'http://lrcdrrvsdvap002/web/arcgislink.js',callback: function(){
+				_.each(configure.extraImageServices, function(extraImageService) {
+					var agsType = new gmaps.ags.MapType(extraImageService.url, {
+						name: extraImageService.name
+					});
+					map.mapTypes.set(extraImageService.id, agsType);
+				});			
+			}});
+		}
+		setInterval(function () {
+			if(previousBounds) {
+				var computeBoundsDifference = function(b1, b2) {
+					return Math.abs(b1.getNorthEast().lat() - b2.getNorthEast().lat()) + Math.abs(b1.getNorthEast().lng() - b2.getNorthEast().lng()) + Math.abs(b1.getSouthWest().lat() - b2.getSouthWest().lat()) + Math.abs(b1.getSouthWest().lng() - b2.getSouthWest().lng());
+				};
+				if (computeBoundsDifference(map.getBounds(), previousBounds) < 0.000000001) {
+					return;
+				}
+			}
+			var googleBounds = map.getBounds();
+			PubSub.emit("MOECC_MAP_BOUNDS_CHANGED", googleBounds);
+			previousBounds = googleBounds;
+		},1000);
+		
+		google.maps.event.addListener(map, 'mousemove', function(event) {
+			PubSub.emit("MOECC_MAP_MOUSE_MOVE", {lat: event.latLng.lat(), lng: event.latLng.lng()});
+		});
+		google.maps.event.trigger(map, 'mousemove', {latLng: center});
+		google.maps.event.addListener(map, 'zoom_changed', function () {
+			if (map.getZoom() > configure.maxMapScale) {
+				map.setZoom(configure.maxMapScale);
+			}
+			if (map.getZoom() < configure.minMapScale) {
+				map.setZoom(configure.minMapScale);
+			}
+		});
+		if (!configure.disallowMouseClick) {
+			google.maps.event.addListener(map, 'click', function(event) {
+				PubSub.emit("MOECC_MAP_MOUSE_CLICK", {lat: event.latLng.lat(), lng: event.latLng.lng()});
+			});
+		}
+	});
 };
 
-PubSub.on("MOECC_MAP_INITIALIZATION", function(configure) {
-	console.log(configure);	
-});
+
 
 var api = {
 	init: init,
@@ -938,7 +1063,7 @@ var api = {
 	openInfoWindow: openInfoWindow,
 	queryLayers: queryLayers,
 	clear: clear,
-	setPubSub
+	setPubSub: setPubSub
 };
 
 module.exports = api;

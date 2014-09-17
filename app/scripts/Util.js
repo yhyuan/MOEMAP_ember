@@ -332,6 +332,7 @@ var getSearchHelpText = function (searchControlHTML) {
 	var index2 = str.indexOf('</div>');
 	return str.substring(index1 + 1, index2);
 };
+
 /*
 var findGreatLakeWithLocation = function (latlng) {
 	var lakeLocations = {
