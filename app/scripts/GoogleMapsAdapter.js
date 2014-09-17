@@ -925,7 +925,7 @@ var setPubSub = function (thePubSub) {
 };
 
 PubSub.on("MOECC_MAP_INITIALIZATION", function(configure) {
-	
+	console.log(configure);	
 });
 
 var api = {
