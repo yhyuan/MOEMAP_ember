@@ -19,65 +19,19 @@ var url = 'http://files.ontariogovernment.ca/moe_mapping/mapping/js/MOEMap/';
 var urls = [url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js'];
 _.each(urls, function(url) {yepnope({load: url,callback: function(){}});});
 
-	
-var deciToDegree = function (degree){
-	if(Math.abs(degree) <= 0.1){
-		return "N/A";
-	}
-	var sym = "N";
-	if(degree<0){
-		degree = -degree;
-		/*English Begins*/		
-		sym = "W";
-		/*English Ends*/
-		/*French Begins*/
-		sym = "O";
-		/*French Ends*/			
-	}
-	var deg = Math.floor(degree);
-	var temp = (degree - deg)*60;
-	var minute = Math.floor(temp);
-	var second = Math.floor((temp- minute)*60);
-	var res = "";
-	var degreeSymbolLang = "&deg;";
-	if(second<1){
-		res ="" + deg + degreeSymbolLang + minute + "'";
-	}else if(second>58){
-		res ="" + deg + degreeSymbolLang + (minute+1) + "'";
-	}else{
-		res ="" + deg + degreeSymbolLang + minute + "'" + second + "\"";
-	}
-	return res + sym;
-};
+/*English Begins*/		
+var identifyTemplate = '<strong><%= attrs.LOCNAME_EN %></strong><br><%= attrs.GUIDELOC_EN %><br><br>\
+	<a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>\
+	Latitude <b><%= attrs.LATITUDE %></b> Longitude <b><%= attrs.LONGITUDE %></b><br>\
+	<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>';
+/*English Ends*/
+/*French Begins*/
+var identifyTemplate = '<strong><%= attrs.LOCNAME_FR %></strong><br><%= attrs.GUIDELOC_FR %><br><br>\
+	<a target=\'_blank\' href=\'rapport-de-consommation-de-poisson?id=<%= attrs.WATERBODYC %>\'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>\
+	Latitude <b><%= attrs.LATITUDE %></b> Longitude <b><%= attrs.LONGITUDE %></b><br>\
+	<a href=\'mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission <%= attrs.LOCNAME_FR %>)\'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>';
+/*French Ends*/
 
-var addBRtoLongText = function (text) {
-	var lineCount = 0;
-	var readyForBreak = false;
-	if (text.length <= 40) {
-		return text;
-	}
-	var textArray = text.split('');
-	var result = "";	
-	for (var i = 0; i < textArray.length; i++) {
-		if (lineCount > 40) {
-			readyForBreak = true;
-		}
-		result = result + textArray[i];
-		if ((readyForBreak) && (textArray[i] === " ")) {
-			lineCount = 0;
-			result = result + "<br>";
-			readyForBreak = false;
-		}
-		lineCount = lineCount + 1;
-	}
-	return result;
-};	
-
-/*
-PubSub.on("MOECC_MAP_MOUSE_CLICK", function(latLng) {
-	console.log("MOECC_MAP_MOUSE_CLICK in configuration");
-});
-*/
 PubSub.on("MOECC_MAP_IDENTIFY_GEOMETRY_READY", function(params) {
 	var identifyParams = {
 		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
@@ -95,30 +49,17 @@ PubSub.on("MOECC_MAP_IDENTIFY_GEOMETRY_READY", function(params) {
 	PubSub.emit("MOECC_MAP_IDENTIFY_PROMISES_READY", {promises: promises, settings: params.settings});
 });
 
-/*English Begins*/		
-var identifyTemplate = '<strong><%= attrs.LOCNAME_EN %></strong><br><%= attrs.GUIDELOC_EN %><br><br>\
-	<a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>\
-	Latitude <b><%= attrs.LATITUDE %></b> Longitude <b><%= attrs.LONGITUDE %></b><br>\
-	<a href=\'mailto:sportfish.moe@ontario.ca?subject=Portal Error (Submission <%= attrs.LOCNAME_EN %>)\'>Report an error for this location</a>.<br><br>';
-/*English Ends*/
-/*French Begins*/
-var identifyTemplate = '<strong><%= attrs.LOCNAME_FR %></strong><br><%= attrs.GUIDELOC_FR %><br><br>\
-	<a target=\'_blank\' href=\'rapport-de-consommation-de-poisson?id=<%= attrs.WATERBODYC %>\'>Tableau des mises en garde en mati\u00e8re de<br> consommation</a><br><br>\
-	Latitude <b><%= attrs.LATITUDE %></b> Longitude <b><%= attrs.LONGITUDE %></b><br>\
-	<a href=\'mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission <%= attrs.LOCNAME_FR %>)\'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>';
-/*French Ends*/
-
 PubSub.on("MOECC_MAP_IDENTIFY_RESPONSE_READY", function(params) {
 	var results = params.results;
 	results = _.map(results, function(layer) {
 		layer.features = _.map(layer.features, function(feature) {
-			feature.attributes["LATITUDE"] = deciToDegree(feature.attributes["LATITUDE"]);
-			feature.attributes["LONGITUDE"] = deciToDegree(feature.attributes["LONGITUDE"]);
+			feature.attributes["LATITUDE"] = Util.deciToDegree(feature.attributes["LATITUDE"]);
+			feature.attributes["LONGITUDE"] = Util.deciToDegree(feature.attributes["LONGITUDE"]);
 			/*English Begins*/		
-			feature.attributes["GUIDELOC_EN"] = addBRtoLongText(feature.attributes["GUIDELOC_EN"]);
+			feature.attributes["GUIDELOC_EN"] = Util.addBRtoLongText(feature.attributes["GUIDELOC_EN"]);
 			/*English Ends*/
 			/*French Begins*/
-			feature.attributes["GUIDELOC_FR"] = addBRtoLongText(feature.attributes["GUIDELOC_FR"]);
+			feature.attributes["GUIDELOC_FR"] = Util.addBRtoLongText(feature.attributes["GUIDELOC_FR"]);
 			/*French Ends*/
 			return feature;
 		})
@@ -304,13 +245,13 @@ PubSub.on("MOECC_MAP_SEARCH_RESPONSE_READY", function(params) {
 	var results = params.results;
 	results = _.map(results, function(layer) {
 		layer.features = _.map(layer.features, function(feature) {
-			feature.attributes["LATITUDE"] = deciToDegree(feature.attributes["LATITUDE"]);
-			feature.attributes["LONGITUDE"] = deciToDegree(feature.attributes["LONGITUDE"]);
+			feature.attributes["LATITUDE"] = Util.deciToDegree(feature.attributes["LATITUDE"]);
+			feature.attributes["LONGITUDE"] = Util.deciToDegree(feature.attributes["LONGITUDE"]);
 			/*English Begins*/		
-			feature.attributes["GUIDELOC_EN"] = addBRtoLongText(feature.attributes["GUIDELOC_EN"]);
+			feature.attributes["GUIDELOC_EN"] = Util.addBRtoLongText(feature.attributes["GUIDELOC_EN"]);
 			/*English Ends*/
 			/*French Begins*/
-			feature.attributes["GUIDELOC_FR"] = addBRtoLongText(feature.attributes["GUIDELOC_FR"]);
+			feature.attributes["GUIDELOC_FR"] = Util.addBRtoLongText(feature.attributes["GUIDELOC_FR"]);
 			/*French Ends*/
 			return feature;
 		})
