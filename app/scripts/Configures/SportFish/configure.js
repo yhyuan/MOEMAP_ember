@@ -39,11 +39,11 @@ PubSub.on("MOECC_MAP_GEOCODING_ADDRESS_READY", function(initParams) {
 		PubSub.emit("MOECC_MAP_GEOCODING_RESULT_READY", {address: initParams.address, result: result, withinExtent: initParams.withinExtent});
 	});
 })
-
+/*
 var url = 'http://files.ontariogovernment.ca/moe_mapping/mapping/js/MOEMap/';
 var urls = [url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js'];
 _.each(urls, function(url) {yepnope({load: url,callback: function(){}});});
-
+*/
 /*English Begins*/		
 var identifyTemplate = '<strong><%= attrs.LOCNAME_EN %></strong><br><%= attrs.GUIDELOC_EN %><br><br>\
 	<a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>\
