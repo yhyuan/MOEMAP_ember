@@ -1,4 +1,14 @@
+var validateLatLngInPolygon = require('./common/validateLatLngInPolygon');
+var replaceChar = require('./common/replaceChar');
+
+var regIsFloat = /^(-?\d+)(\.\d+)?$/;
+
 module.exports = {
+	'name': 'LatLngInDecimalDegree',
+	'format': function (params) {
+		var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
+		return ((coorsArray.length === 2) && regIsFloat.test(coorsArray[0]) && regIsFloat.test(coorsArray[1]));
+	},
 	'match': function (params) {
 		var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
 		if ((coorsArray.length === 2) && regIsFloat.test(coorsArray[0]) && regIsFloat.test(coorsArray[1])) {

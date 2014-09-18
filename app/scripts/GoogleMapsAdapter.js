@@ -13,6 +13,7 @@ var globalConfigure;
 var arcGISMapServices = [];
 var previousBounds;
 var infoWindow;
+//var infoWindowPosition;
 var marker;
 
 var clear = function () {
@@ -35,8 +36,20 @@ var clear = function () {
 	map.setCenter(center);
 	map.setZoom(globalConfigure.orgzoomLevel);
 };
-
+/*
+var transformInfoWindowPosition = function (latlng) {
+	var alatlng = latlng;
+	if ((typeof latlng.lat === 'number') && (typeof latlng.lng === 'number')) {
+		alatlng = new google.maps.LatLng(latlng.lat, latlng.lng);
+	}
+	return {
+		lat: alatlng.lat() + (map.getBounds().getNorthEast().lat() - map.getBounds().getSouthWest().lat()) * 0.045,
+		lng: alatlng.lng()
+	};
+};*/
 var openInfoWindow = function (latlng, container){
+	//infoWindowPosition = latlng;
+	//var alatlng = transformInfoWindowPosition(latlng);
 	if (!infoWindow) {
 		infoWindow = new google.maps.InfoWindow({
 			content: container,
@@ -858,6 +871,12 @@ var search = function(input) {
 		overlay.setMap(null);
 	});
 	overlays = [];
+	if (infoWindow) {
+		infoWindow.setMap(null);
+	}
+	if (marker) {
+		marker.setMap(null);
+	}
 	var getCurrentMapExtent = function () {
 		var b = map.getBounds();
 		var ne = b.getNorthEast();
@@ -943,18 +962,25 @@ var searchChange = function (type) {
 	}
 };
 
+var removeTiles = function () {
+	_.each(arcGISMapServices, function(arcGISMapService) {
+		if ($.isArray(arcGISMapService)) {
+			_.each(arcGISMapService, function(element) {
+				element.setMap(null);
+			});
+		} else {
+			arcGISMapService.setMap(null);
+		}
+	});
+};
+
 var setPubSub = function (thePubSub) {
 	PubSub = thePubSub;
 	PubSub.on("MOECC_MAP_BOUNDS_CHANGED", function(googleBounds) {
-		_.each(arcGISMapServices, function(arcGISMapService) {
-			if ($.isArray(arcGISMapService)) {
-				_.each(arcGISMapService, function(element) {
-					element.setMap(null);
-				});
-			} else {
-				arcGISMapService.setMap(null);
-			}
-		});
+		if (!googleBounds) {
+			return;
+		}
+		removeTiles();
 		var convertBounds = function(latLngBounds) {
 			var latLngNE = latLngBounds.getNorthEast();
 			var latLngSW = latLngBounds.getSouthWest();
@@ -1035,9 +1061,7 @@ var setPubSub = function (thePubSub) {
 			return bounds;
 		};
 		var bounds = convertToGBounds(params.bounds);
-		_.each(arcGISMapServices, function(arcGISMapService) {
-			arcGISMapService.setMap(null);
-		});
+		removeTiles();
 		map.fitBounds(bounds);
 		if (map.getZoom() > globalConfigure.maxQueryZoomLevel) {
 			map.setZoom(globalConfigure.maxQueryZoomLevel);
@@ -1047,7 +1071,59 @@ var setPubSub = function (thePubSub) {
 		params.messageParams.maxQueryReturn = globalConfigure.maxQueryReturn;
 		$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(params.messageParams, globalConfigure.langs) + '</i>');		
 	});
-		
+	PubSub.on("MOECC_MAP_GEOCODING_RESULT_READY", function (params) {
+		//console.log(params);		
+		var result = params.result;
+		var status = result.status;
+		if (result.status === "OK") {
+			var gLatLng = new google.maps.LatLng(result.latlng.lat, result.latlng.lng);
+			if (params.withinExtent && !map.getBounds().contains(gLatLng)) {
+				status = "No_Result";
+			} else {
+				removeTiles();
+				var container = document.createElement('div');
+				container.style.width = globalConfigure.infoWindowWidth;
+				container.style.height = globalConfigure.infoWindowHeight;
+				container.innerHTML = result.address;
+				
+				marker = new google.maps.Marker({
+					position: gLatLng
+				});		
+				(function (container, marker) {
+					google.maps.event.addListener(marker, 'click', function () {
+						openInfoWindow(marker.getPosition(), container);
+					});
+				})(container, marker);
+				marker.setMap(map);
+				if(!params.withinExtent) {
+					map.setCenter(result.latlng);
+					if (result.hasOwnProperty('zoomLevel')) {
+						map.setZoom(result.zoomLevel);
+					} else {
+						map.setZoom(globalConfigure.maxQueryZoomLevel);
+					}
+				}
+				
+				if (result.hasOwnProperty('geometry')) {
+					_.each(result.geometry, function(elm) {
+						_.each(elm.rings, function (ring) {
+							var polyline = new google.maps.Polyline({
+								path: _.map(ring, function(latlng) {return new google.maps.LatLng(latlng[1], latlng[0]);}),
+								geodesic: true,
+								strokeColor: result.boundary.color,
+								strokeOpacity: result.boundary.opacity,
+								strokeWeight: result.boundary.weight
+							});
+							polyline.setMap(map);
+							overlays.push(polyline);
+						});
+					});
+				}
+			}
+		}
+		var message = (status === "No_Result") ? (globalConfigure.langs.yourLocationSearchForLang + '<strong>' + params.address + '</strong> ' + globalConfigure.langs.returnedNoResultLang) : (globalConfigure.langs.yourLocationSearchForLang + '<strong>' + params.address + '</strong> ' + globalConfigure.langs.returnedOneResultLang);
+		$('#' + globalConfigure.informationDivId).html('<i>' + message + '</i>');		
+	});
 	PubSub.on("MOECC_MAP_IDENTIFY_INFOWINDOW_READY", function (params) {
 		openInfoWindow(params.latlng, params.infoWindow);
 	});		
@@ -1118,6 +1194,9 @@ var setPubSub = function (thePubSub) {
 		});
 		google.maps.event.trigger(map, 'mousemove', {latLng: center});
 		google.maps.event.addListener(map, 'zoom_changed', function () {
+			/*if((!!infoWindow)) {
+				infoWindow.setPosition(transformInfoWindowPosition(infoWindowPosition));
+			}*/
 			if (map.getZoom() > configure.maxMapScale) {
 				map.setZoom(configure.maxMapScale);
 			}

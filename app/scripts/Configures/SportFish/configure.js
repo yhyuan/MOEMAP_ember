@@ -15,6 +15,31 @@ var defaultConfiguration = require('../scripts/Configures/Defaults');
 var identifyCallback = require('../scripts/IdentifyCallbacks/OneFeatureNoTab');
 var searchCallback = require('../scripts/SearchCallbacks/OneFeatureNoTab');
 
+var GeographicTownship = require('../scripts/Geocoders/GeographicTownship');
+var GeographicTownshipWithLotConcession = require('../scripts/Geocoders/GeographicTownshipWithLotConcession');
+var LatLngInDecimalDegree = require('../scripts/Geocoders/LatLngInDecimalDegree');
+var LatLngInDMSSymbols = require('../scripts/Geocoders/LatLngInDMSSymbols');
+var LatLngInSymbols = require('../scripts/Geocoders/LatLngInSymbols');
+var UTM = require('../scripts/Geocoders/UTM');
+var UTMInDefaultZone = require('../scripts/Geocoders/UTMInDefaultZone');
+var GoogleGeocoder = require('../scripts/Geocoders/GoogleGeocoder');
+var Geocoder = require('../scripts/Geocoders/Geocoder');
+//var GoogleReverseGeocoder = require('../scripts/Geocoders/GoogleReverseGeocoder');
+var defaultGeocoderConfigurations = require('../scripts/Geocoders/configurations/default');
+var GeocoderList = [LatLngInDecimalDegree, LatLngInDMSSymbols, LatLngInSymbols, UTM, UTMInDefaultZone, GeographicTownship, GeographicTownshipWithLotConcession];
+var GeocoderSettings = {
+	GeocoderList: [LatLngInDecimalDegree, LatLngInDMSSymbols, LatLngInSymbols, UTM, UTMInDefaultZone, GeographicTownship, GeographicTownshipWithLotConcession],
+	defaultGeocoder: GoogleGeocoder
+};
+GeocoderSettings = _.defaults(defaultGeocoderConfigurations, GeocoderSettings);
+
+PubSub.on("MOECC_MAP_GEOCODING_ADDRESS_READY", function(initParams) {
+	var params = _.defaults(initParams, GeocoderSettings);
+	Geocoder.geocode(params).done(function(result) {
+		PubSub.emit("MOECC_MAP_GEOCODING_RESULT_READY", {address: initParams.address, result: result, withinExtent: initParams.withinExtent});
+	});
+})
+
 var url = 'http://files.ontariogovernment.ca/moe_mapping/mapping/js/MOEMap/';
 var urls = [url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js'];
 _.each(urls, function(url) {yepnope({load: url,callback: function(){}});});
@@ -265,6 +290,7 @@ GoogleMapsAdapter.setPubSub(PubSub);
 
 var configuration = {
 	langs: langSetting,
+	minMapScale: 1,
 	infoWindowHeight: '140px',
 	/*English Begins*/
 	otherInfoHTML: "<h2>Find a map error?</h2> \

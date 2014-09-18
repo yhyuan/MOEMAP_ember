@@ -7,7 +7,7 @@ var api = function(params) {
 	var settings = params.settings;
 	if ((featuresLength === 0) && settings.hasOwnProperty('geocodeWhenQueryFail') && settings.geocodeWhenQueryFail && settings.hasOwnProperty('searchString')) {
 		var geocodingParams = settings.searchString;
-		PubSub.emit("MOECC_MAP_GEOCODING_ADDRESS_READY", {address: settings.searchString});
+		PubSub.emit("MOECC_MAP_GEOCODING_ADDRESS_READY", {address: settings.searchString, withinExtent: settings.withinExtent});
 		/*
 		if (settings.hasOwnProperty('GeocoderList')) {
 			geocodingParams = {

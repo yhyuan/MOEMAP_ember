@@ -1,4 +1,14 @@
+var validateLatLngInPolygon = require('./common/validateLatLngInPolygon');
+var replaceChar = require('./common/replaceChar');
+var parseLatLngSymbols = require('./common/parseLatLngSymbols');
+
 module.exports = {
+	'name': 'LatLngInSymbols',
+	'format': function (params) {
+		var degreeSym = String.fromCharCode(176);
+		var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
+		return ((coorsArray.length === 2) && ((coorsArray[0]).indexOf(degreeSym) > 0) && ((coorsArray[1]).indexOf(degreeSym) > 0));
+	},	
 	'match': function (params) {
 		var degreeSym = String.fromCharCode(176);
 		var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
