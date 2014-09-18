@@ -24,7 +24,6 @@ var UTM = require('../scripts/Geocoders/UTM');
 var UTMInDefaultZone = require('../scripts/Geocoders/UTMInDefaultZone');
 var GoogleGeocoder = require('../scripts/Geocoders/GoogleGeocoder');
 var Geocoder = require('../scripts/Geocoders/Geocoder');
-//var GoogleReverseGeocoder = require('../scripts/Geocoders/GoogleReverseGeocoder');
 var defaultGeocoderConfigurations = require('../scripts/Geocoders/configurations/default');
 var GeocoderSettings = {
 	GeocoderList: [LatLngInDecimalDegree, LatLngInDMSSymbols, LatLngInSymbols, UTM, UTMInDefaultZone, GeographicTownship, GeographicTownshipWithLotConcession],
@@ -33,17 +32,6 @@ var GeocoderSettings = {
 GeocoderSettings = _.defaults(defaultGeocoderConfigurations, GeocoderSettings);
 Geocoder.init(GeocoderSettings);
 
-PubSub.on("MOECC_MAP_GEOCODING_ADDRESS_READY", function(initParams) {
-	var params = _.defaults(initParams, GeocoderSettings);
-	Geocoder.geocode(params).done(function(result) {
-		PubSub.emit("MOECC_MAP_GEOCODING_RESULT_READY", {address: initParams.address, result: result, withinExtent: initParams.withinExtent});
-	});
-})
-/*
-var url = 'http://files.ontariogovernment.ca/moe_mapping/mapping/js/MOEMap/';
-var urls = [url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js'];
-_.each(urls, function(url) {yepnope({load: url,callback: function(){}});});
-*/
 /*English Begins*/		
 var identifyTemplate = '<strong><%= attrs.LOCNAME_EN %></strong><br><%= attrs.GUIDELOC_EN %><br><br>\
 	<a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC %>\'>Consumption Advisory Table</a><br><br>\
@@ -56,59 +44,70 @@ var identifyTemplate = '<strong><%= attrs.LOCNAME_FR %></strong><br><%= attrs.GU
 	Latitude <b><%= attrs.LATITUDE %></b> Longitude <b><%= attrs.LONGITUDE %></b><br>\
 	<a href=\'mailto:sportfish.moe@ontario.ca?subject=Erreur de portail (Submission <%= attrs.LOCNAME_FR %>)\'>Signalez un probl\u00e8me pour ce lieu</a>.<br><br>';
 /*French Ends*/
+/*English Begins*/	
+var tableTemplate = '<table id="myTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
+	<thead><tr><th><center>Waterbody</center></th><th><center>Location</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Consumption Advisory Table</center></th></tr></thead><tbody>\
+	<% _.each(features, function(feature) {\
+		var attrs = feature.attributes; %> \
+		<tr><td><%= attrs.LOCNAME_EN %></td><td><%= attrs.GUIDELOC_EN %></td><td><%= attrs.LATITUDE %></td><td><%= attrs.LONGITUDE %></td><td><a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>\
+	<% }); %>\
+	</tbody></table>';
+/*English Ends*/
+/*French Begins*/
+var tableTemplate = '<table id="myTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
+	<thead><tr><th><center>Plan d\'eau</center></th><th><center>Lieu</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Tableau des mises en garde en mati\u00e8re de consommation</center></th></tr></thead><tbody>\
+	<% _.each(features, function(feature) {\
+		var attrs = feature.attributes; %> \
+		<tr><td><%= attrs.LOCNAME_FR %></td><td><%= attrs.GUIDELOC_FR %></td><td><%= attrs.LATITUDE %></td><td><%= attrs.LONGITUDE %></td><td><a target=\'_blank\' href=\'rapport-de-consommation-de-poisson?id=<%= attrs.WATERBODYC  %>\'>Tableau des mises en garde en mati\u00e8re de consommation</a></td></tr>\
+	<% }); %>\
+	</tbody></table>';		
+/*French Ends*/
 
-PubSub.on("MOECC_MAP_IDENTIFY_GEOMETRY_READY", function(params) {
-	var identifyParams = {
-		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
-		layerID: 0,
-		returnGeometry: false,
-		geometry: params.geometry,
-		/*English Begins*/
-		outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
-		/*English Ends*/
-		/*French Begins*/
-		outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
-		/*French Ends*/
-	};
-	var promises = [ArcGISServerAdapter.query(identifyParams)];
-	PubSub.emit("MOECC_MAP_IDENTIFY_PROMISES_READY", {promises: promises, settings: params.settings});
-});
+var identifyParamsList = [{
+	mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
+	layerID: 0,
+	returnGeometry: false,
+	/*English Begins*/
+	outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
+	/*English Ends*/
+	/*French Begins*/
+	outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
+	/*French Ends*/
+}];
+var exportParamsList = [{
+	mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
+	visibleLayers: [0, 1, 2]
+}];
 
-PubSub.on("MOECC_MAP_IDENTIFY_RESPONSE_READY", function(params) {
-	var container = identifyCallback({results: transformResults(params.results), identifyTemplate: identifyTemplate, infoWindowWidth: params.settings.infoWindowWidth, infoWindowHeight: params.settings.infoWindowHeight});
-	if (!!container) {
-		PubSub.emit("MOECC_MAP_IDENTIFY_INFOWINDOW_READY", {infoWindow: container, latlng: params.settings.latlng});
-	}
-});
+var transformResults = function (results) {
+	return _.map(results, function(layer) {
+			layer.features = _.map(layer.features, function(feature) {
+				feature.attributes["LATITUDE"] = Util.deciToDegree(feature.attributes["LATITUDE"]);
+				feature.attributes["LONGITUDE"] = Util.deciToDegree(feature.attributes["LONGITUDE"]);
+				/*English Begins*/		
+				feature.attributes["GUIDELOC_EN"] = Util.addBRtoLongText(feature.attributes["GUIDELOC_EN"]);
+				/*English Ends*/
+				/*French Begins*/
+				feature.attributes["GUIDELOC_FR"] = Util.addBRtoLongText(feature.attributes["GUIDELOC_FR"]);
+				/*French Ends*/
+				return feature;
+			})
+			return layer;
+		});
+};
 
-PubSub.on("MOECC_MAP_BOUNDS_CHANGED_REQUEST_READY", function (request) {
-	/*var promises = _.map([{
-		url: "http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer",
-		visibleLayers: [0, 1, 2],
-		type: 'ArcGISMapService'
-	}], function(mapService) {
-		var exportParams =  {
-			bounds: request.bounds,
-			width: request.width,
-			height: request.height,
-			mapService: mapService.url,
-			visibleLayers: mapService.visibleLayers
-		};
-		return ArcGISServerAdapter.exportMap(exportParams);
-	}); */
-	var exportParams =  {
-		bounds: request.bounds,
-		width: request.width,
-		height: request.height,
-		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
-		visibleLayers: [0, 1, 2]
-	};	
-	var promises = [ArcGISServerAdapter.exportMap(exportParams)];
-	PubSub.emit("MOECC_MAP_BOUNDS_CHANGED_PROMISES_READY", promises);	
-});
-
-PubSub.on("MOECC_MAP_SEARCH_STRING_READY", function (params) {
-	var searchString = params.searchString;
+var queryParamsList = [{
+	mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
+	layerID: 0,
+	returnGeometry: true,
+	/*English Begins*/
+	outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
+	/*English Ends*/
+	/*French Begins*/
+	outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
+	/*French Ends*/
+}];
+var getSearchCondition = function (params) {
 	var getLakeNameSearchCondition = function(searchString) {
 		var coorsArray = searchString.split(/\s+/);
 		var str = coorsArray.join(" ").toUpperCase();
@@ -203,25 +202,17 @@ PubSub.on("MOECC_MAP_SEARCH_STRING_READY", function (params) {
 		};
 		return result;
 	};
-
-	var queryParams = {
-		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
-		layerID: 0,
-		returnGeometry: true,
-		where: ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition,
-		/*English Begins*/
-		outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
-		/*English Ends*/
-		/*French Begins*/
-		outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
-		/*French Ends*/
-	};
+	var searchString = params.searchString;
+	return ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition;
+}; 
+var getSearchGeometry = function (params) {
 	if ($('#currentMapExtent')[0].checked) {
-		queryParams.geometry = params.currentMapExtent;
+		return params.currentMapExtent;
 	}
-	var promises = [ArcGISServerAdapter.query(queryParams)];
+};
+var getSearchSettings = function (params) {
 	var settings = {
-		searchString: searchString,
+		searchString: params.searchString,
 		geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
 		withinExtent: $('#currentMapExtent')[0].checked/*,
 		invalidFeatureLocations: [{
@@ -230,48 +221,8 @@ PubSub.on("MOECC_MAP_SEARCH_STRING_READY", function (params) {
 			difference: 0.0001
 		}]*/
 	};
-	PubSub.emit("MOECC_MAP_SEARCH_PROMISES_READY", {promises: promises, settings: _.defaults(settings, params.settings)});
-});
-var transformResults = function (results) {
-	return _.map(results, function(layer) {
-			layer.features = _.map(layer.features, function(feature) {
-				feature.attributes["LATITUDE"] = Util.deciToDegree(feature.attributes["LATITUDE"]);
-				feature.attributes["LONGITUDE"] = Util.deciToDegree(feature.attributes["LONGITUDE"]);
-				/*English Begins*/		
-				feature.attributes["GUIDELOC_EN"] = Util.addBRtoLongText(feature.attributes["GUIDELOC_EN"]);
-				/*English Ends*/
-				/*French Begins*/
-				feature.attributes["GUIDELOC_FR"] = Util.addBRtoLongText(feature.attributes["GUIDELOC_FR"]);
-				/*French Ends*/
-				return feature;
-			})
-			return layer;
-		});
+	return settings;
 };
-PubSub.on("MOECC_MAP_SEARCH_RESPONSE_READY", function(params) {
-		/*English Begins*/	
-	var tableTemplate = '<table id="myTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
-		<thead><tr><th><center>Waterbody</center></th><th><center>Location</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Consumption Advisory Table</center></th></tr></thead><tbody>\
-		<% _.each(features, function(feature) {\
-			var attrs = feature.attributes; %> \
-			<tr><td><%= attrs.LOCNAME_EN %></td><td><%= attrs.GUIDELOC_EN %></td><td><%= attrs.LATITUDE %></td><td><%= attrs.LONGITUDE %></td><td><a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>\
-		<% }); %>\
-		</tbody></table>';
-		/*English Ends*/
-		/*French Begins*/
-	var tableTemplate = '<table id="myTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
-		<thead><tr><th><center>Plan d\'eau</center></th><th><center>Lieu</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Tableau des mises en garde en mati\u00e8re de consommation</center></th></tr></thead><tbody>\
-		<% _.each(features, function(feature) {\
-			var attrs = feature.attributes; %> \
-			<tr><td><%= attrs.LOCNAME_FR %></td><td><%= attrs.GUIDELOC_FR %></td><td><%= attrs.LATITUDE %></td><td><%= attrs.LONGITUDE %></td><td><a target=\'_blank\' href=\'rapport-de-consommation-de-poisson?id=<%= attrs.WATERBODYC  %>\'>Tableau des mises en garde en mati\u00e8re de consommation</a></td></tr>\
-		<% }); %>\
-		</tbody></table>';		
-		/*French Ends*/
-	searchCallback({results: transformResults(params.results), tableTemplate: tableTemplate, identifyTemplate: identifyTemplate, settings: params.settings, PubSub: PubSub});
-});
-	
-GoogleMapsAdapter.setPubSub(PubSub);
-
 var configuration = {
 	langs: langSetting,
 	//minMapScale: 1,
@@ -336,5 +287,51 @@ var configuration = {
 		identifyRadius: 1
 	*/
 };
+
+PubSub.on("MOECC_MAP_GEOCODING_ADDRESS_READY", function(initParams) {
+	var params = _.defaults(initParams, GeocoderSettings);
+	Geocoder.geocode(params).done(function(result) {
+		PubSub.emit("MOECC_MAP_GEOCODING_RESULT_READY", {address: initParams.address, result: result, withinExtent: initParams.withinExtent});
+	});
+})
+PubSub.on("MOECC_MAP_IDENTIFY_GEOMETRY_READY", function(params) {
+	var promises = _.map(identifyParamsList, function (identifyParams) {
+		var params = _.clone(identifyParams);
+		params.geometry = params.geometry;
+		return ArcGISServerAdapter.query(params)
+	});
+	PubSub.emit("MOECC_MAP_IDENTIFY_PROMISES_READY", {promises: promises, settings: params.settings});
+});
+PubSub.on("MOECC_MAP_IDENTIFY_RESPONSE_READY", function(params) {
+	var container = identifyCallback({results: transformResults(params.results), identifyTemplate: identifyTemplate, infoWindowWidth: params.settings.infoWindowWidth, infoWindowHeight: params.settings.infoWindowHeight});
+	if (!!container) {
+		PubSub.emit("MOECC_MAP_IDENTIFY_INFOWINDOW_READY", {infoWindow: container, latlng: params.settings.latlng});
+	}
+});
+PubSub.on("MOECC_MAP_BOUNDS_CHANGED_REQUEST_READY", function (request) {
+	var promises = _.map(exportParamsList, function (exportParams) {
+		var params = _.clone(exportParams);
+		params.bounds = request.bounds;
+		params.width = request.width;
+		params.height = request.height;
+		return ArcGISServerAdapter.exportMap(params)
+	});
+	PubSub.emit("MOECC_MAP_BOUNDS_CHANGED_PROMISES_READY", promises);	
+});
+PubSub.on("MOECC_MAP_SEARCH_STRING_READY", function (params) {
+	var searchString = params.searchString;
+	var promises = _.map(queryParamsList, function (queryParams) {
+		var p = _.clone(queryParams);
+		p.where = getSearchCondition(params);
+		p.geometry = getSearchGeometry(params);
+		return ArcGISServerAdapter.query(p);
+	});
+	var settings = getSearchSettings(params);	
+	PubSub.emit("MOECC_MAP_SEARCH_PROMISES_READY", {promises: promises, settings: _.defaults(settings, params.settings)});
+});
+PubSub.on("MOECC_MAP_SEARCH_RESPONSE_READY", function(params) {
+	searchCallback({results: transformResults(params.results), tableTemplate: tableTemplate, identifyTemplate: identifyTemplate, settings: params.settings, PubSub: PubSub});
+});
+GoogleMapsAdapter.setPubSub(PubSub);
 
 PubSub.emit("MOECC_MAP_INITIALIZATION", _.defaults(configuration, defaultConfiguration));
