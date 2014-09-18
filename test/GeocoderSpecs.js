@@ -33,43 +33,10 @@ var DummyGeocoder = {
 		return dfd.promise();
 	}
 };
-
-var dummyDefaultGeocoder = {
-	'name': 'dummy default geocoder',
-	'geocode': function(params) {
-		var result = {
-			latlng:{lat: 45.067567,lng: -77.16453},
-			address: params.address,
-			status: 'OK'
-		};
-		var dfd = new $.Deferred();
-		setTimeout(function() {
-			dfd.resolve(result);
-		}, 1);
-		return dfd.promise();
-	}
-};
-
-var dummyReverseGeocoder = {
-	'name': 'dummy Reverse Geocoder',
-	'geocode': function(params) {
-		var result = {
-			address: 'Dummy address',
-			latlng: params.latlng,
-			status: 'OK'
-		};
-		var dfd = new $.Deferred();
-		setTimeout(function() {
-			dfd.resolve(result);
-		}, 1);
-		return dfd.promise();
-	}
-};
-				
+var GeocoderList = [DummyGeocoder, LatLngInDecimalDegree, LatLngInDMSSymbols, LatLngInSymbols, UTM, UTMInDefaultZone, GeographicTownship, GeographicTownshipWithLotConcession];
 var GeocoderSettings = {
-	GeocoderList: [DummyGeocoder, LatLngInDecimalDegree, LatLngInDMSSymbols, LatLngInSymbols, UTM, UTMInDefaultZone, GeographicTownship, GeographicTownshipWithLotConcession],
-	defaultGeocoder: dummyDefaultGeocoder,
-	reverseGeocoder: dummyReverseGeocoder
+	GeocoderList: [LatLngInDecimalDegree, LatLngInDMSSymbols, LatLngInSymbols, UTM, UTMInDefaultZone, GeographicTownship, GeographicTownshipWithLotConcession]/*,
+	defaultGeocoder: GoogleGeocoder*/
 };
 GeocoderSettings = _.defaults(defaultGeocoderConfigurations, GeocoderSettings);
 Geocoder.init(GeocoderSettings);
@@ -386,8 +353,21 @@ Geocoder.init(GeocoderSettings);
 	    });
 	    describe('Geocoder can reverse a latitude, longitude to address with a reverse Geocoder provided by caller', function () {
 	        it('should reverse geocode a latitude, longitude to an address', function (done) {
+	            var reverseGeocoder = function(params) {
+					var result = {
+						address: 'Dummy address',
+						latlng: params.latlng,
+						status: 'OK'
+					};
+					var dfd = new $.Deferred();
+					setTimeout(function() {
+						dfd.resolve(result);
+					}, 1);
+					return dfd.promise();
+	            };
 				var geocodeParams = {
-					latlng:{lat: 45.067567,lng: -77.16453}
+					latlng:{lat: 45.067567,lng: -77.16453},
+					reverseGeocoder: reverseGeocoder
 				};
 				var geocodePromise = Geocoder.geocode(geocodeParams);
 				geocodePromise.done(function (result) {
@@ -400,8 +380,21 @@ Geocoder.init(GeocoderSettings);
 
 	    describe('Geocoder can use default Geocoder provided by caller if no pattern match can be made', function () {
 	        it('should geocode an address with provided default Geocoder', function (done) {
+	            var defaultGeocoder = function(params) {
+					var result = {
+						latlng:{lat: 45.067567,lng: -77.16453},
+						address: params.address,
+						status: 'OK'
+					};
+					var dfd = new $.Deferred();
+					setTimeout(function() {
+						dfd.resolve(result);
+					}, 1);
+					return dfd.promise();
+	            };
 				var geocodeParams = {
-					address: 'Dummy address for default Geocoder'
+					address: 'Dummy address',
+					defaultGeocoder: defaultGeocoder
 				};
 				var geocodePromise = Geocoder.geocode(geocodeParams);
 				geocodePromise.done(function (result) {

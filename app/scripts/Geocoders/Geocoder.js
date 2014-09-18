@@ -1,12 +1,21 @@
 module.exports = {
-	'geocode': function (params) {
-		var Geocoder = _.find(params.GeocoderList, function(Geocoder){
-			return Geocoder.match(params);
-		});
-		var formatCorrect = _.find(params.GeocoderList, function(Geocoder){
-			return Geocoder.format(params);
-		});
+	'init': function (GeocoderSettings) {
+		this.GeocoderSettings = GeocoderSettings;
+	},
+	'geocode': function (initParams) {
+		var params = _.defaults(initParams, this.GeocoderSettings);
+		if(params.hasOwnProperty('latlng')) {
+			return params.reverseGeocoder.geocode(params);
+		}
+		
 		var promise;
+		var Geocoder = _.find(params.GeocoderList, function(G){
+			return G.match(params);
+		});
+		var formatCorrect = _.find(params.GeocoderList, function(G){
+			return G.format(params);
+		});
+		
 		if(!!Geocoder) {
 			promise = Geocoder.geocode(params);
 		} else {

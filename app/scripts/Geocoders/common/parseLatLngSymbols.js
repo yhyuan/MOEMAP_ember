@@ -7,6 +7,7 @@
  * @param {s3} The second symbol
  * @return {Number} The parsed decimal lat/lng.
  **/
+var regIsFloat = /^(-?\d+)(\.\d+)?$/;
 module.exports = function (val, s1, s2, s3) {
 	var parseDMS = function (s, unparsed) {
 		var res = {

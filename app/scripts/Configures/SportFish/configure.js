@@ -26,12 +26,12 @@ var GoogleGeocoder = require('../scripts/Geocoders/GoogleGeocoder');
 var Geocoder = require('../scripts/Geocoders/Geocoder');
 //var GoogleReverseGeocoder = require('../scripts/Geocoders/GoogleReverseGeocoder');
 var defaultGeocoderConfigurations = require('../scripts/Geocoders/configurations/default');
-var GeocoderList = [LatLngInDecimalDegree, LatLngInDMSSymbols, LatLngInSymbols, UTM, UTMInDefaultZone, GeographicTownship, GeographicTownshipWithLotConcession];
 var GeocoderSettings = {
 	GeocoderList: [LatLngInDecimalDegree, LatLngInDMSSymbols, LatLngInSymbols, UTM, UTMInDefaultZone, GeographicTownship, GeographicTownshipWithLotConcession],
 	defaultGeocoder: GoogleGeocoder
 };
 GeocoderSettings = _.defaults(defaultGeocoderConfigurations, GeocoderSettings);
+Geocoder.init(GeocoderSettings);
 
 PubSub.on("MOECC_MAP_GEOCODING_ADDRESS_READY", function(initParams) {
 	var params = _.defaults(initParams, GeocoderSettings);
@@ -75,22 +75,7 @@ PubSub.on("MOECC_MAP_IDENTIFY_GEOMETRY_READY", function(params) {
 });
 
 PubSub.on("MOECC_MAP_IDENTIFY_RESPONSE_READY", function(params) {
-	var results = params.results;
-	results = _.map(results, function(layer) {
-		layer.features = _.map(layer.features, function(feature) {
-			feature.attributes["LATITUDE"] = Util.deciToDegree(feature.attributes["LATITUDE"]);
-			feature.attributes["LONGITUDE"] = Util.deciToDegree(feature.attributes["LONGITUDE"]);
-			/*English Begins*/		
-			feature.attributes["GUIDELOC_EN"] = Util.addBRtoLongText(feature.attributes["GUIDELOC_EN"]);
-			/*English Ends*/
-			/*French Begins*/
-			feature.attributes["GUIDELOC_FR"] = Util.addBRtoLongText(feature.attributes["GUIDELOC_FR"]);
-			/*French Ends*/
-			return feature;
-		})
-		return layer;
-	});	
-	var container = identifyCallback({results: results, identifyTemplate: identifyTemplate, infoWindowWidth: params.settings.infoWindowWidth, infoWindowHeight: params.settings.infoWindowHeight});
+	var container = identifyCallback({results: transformResults(params.results), identifyTemplate: identifyTemplate, infoWindowWidth: params.settings.infoWindowWidth, infoWindowHeight: params.settings.infoWindowHeight});
 	if (!!container) {
 		PubSub.emit("MOECC_MAP_IDENTIFY_INFOWINDOW_READY", {infoWindow: container, latlng: params.settings.latlng});
 	}
@@ -247,7 +232,22 @@ PubSub.on("MOECC_MAP_SEARCH_STRING_READY", function (params) {
 	};
 	PubSub.emit("MOECC_MAP_SEARCH_PROMISES_READY", {promises: promises, settings: _.defaults(settings, params.settings)});
 });
-
+var transformResults = function (results) {
+	return _.map(results, function(layer) {
+			layer.features = _.map(layer.features, function(feature) {
+				feature.attributes["LATITUDE"] = Util.deciToDegree(feature.attributes["LATITUDE"]);
+				feature.attributes["LONGITUDE"] = Util.deciToDegree(feature.attributes["LONGITUDE"]);
+				/*English Begins*/		
+				feature.attributes["GUIDELOC_EN"] = Util.addBRtoLongText(feature.attributes["GUIDELOC_EN"]);
+				/*English Ends*/
+				/*French Begins*/
+				feature.attributes["GUIDELOC_FR"] = Util.addBRtoLongText(feature.attributes["GUIDELOC_FR"]);
+				/*French Ends*/
+				return feature;
+			})
+			return layer;
+		});
+};
 PubSub.on("MOECC_MAP_SEARCH_RESPONSE_READY", function(params) {
 		/*English Begins*/	
 	var tableTemplate = '<table id="myTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
@@ -267,30 +267,14 @@ PubSub.on("MOECC_MAP_SEARCH_RESPONSE_READY", function(params) {
 		<% }); %>\
 		</tbody></table>';		
 		/*French Ends*/
-	var results = params.results;
-	results = _.map(results, function(layer) {
-		layer.features = _.map(layer.features, function(feature) {
-			feature.attributes["LATITUDE"] = Util.deciToDegree(feature.attributes["LATITUDE"]);
-			feature.attributes["LONGITUDE"] = Util.deciToDegree(feature.attributes["LONGITUDE"]);
-			/*English Begins*/		
-			feature.attributes["GUIDELOC_EN"] = Util.addBRtoLongText(feature.attributes["GUIDELOC_EN"]);
-			/*English Ends*/
-			/*French Begins*/
-			feature.attributes["GUIDELOC_FR"] = Util.addBRtoLongText(feature.attributes["GUIDELOC_FR"]);
-			/*French Ends*/
-			return feature;
-		})
-		return layer;
-	});	
-	
-	searchCallback({results: results, tableTemplate: tableTemplate, identifyTemplate: identifyTemplate, settings: params.settings, PubSub: PubSub});
+	searchCallback({results: transformResults(params.results), tableTemplate: tableTemplate, identifyTemplate: identifyTemplate, settings: params.settings, PubSub: PubSub});
 });
 	
 GoogleMapsAdapter.setPubSub(PubSub);
 
 var configuration = {
 	langs: langSetting,
-	minMapScale: 1,
+	//minMapScale: 1,
 	infoWindowHeight: '140px',
 	/*English Begins*/
 	otherInfoHTML: "<h2>Find a map error?</h2> \

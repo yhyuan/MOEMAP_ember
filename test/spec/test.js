@@ -805,84 +805,750 @@ var api = {
 };
 
 module.exports = api;
-},{"./ArcGISServerAdapter":1,"./Util":4}],3:[function(require,module,exports){
+},{"./ArcGISServerAdapter":1,"./Util":21}],3:[function(require,module,exports){
+module.exports = {
+	'init': function (GeocoderSettings) {
+		this.GeocoderSettings = GeocoderSettings;
+	},
+	'geocode': function (initParams) {
+		var params = _.defaults(initParams, this.GeocoderSettings);
+		if(params.hasOwnProperty('latlng')) {
+			return params.reverseGeocoder.geocode(params);
+		}
+		
+		var promise;
+		var Geocoder = _.find(params.GeocoderList, function(G){
+			return G.match(params);
+		});
+		var formatCorrect = _.find(params.GeocoderList, function(G){
+			return G.format(params);
+		});
+		
+		if(!!Geocoder) {
+			promise = Geocoder.geocode(params);
+		} else {
+			if ((!!params.defaultGeocoder) && (!formatCorrect)) {
+				promise = params.defaultGeocoder.geocode(params);
+			} else {
+				var result = {
+					status: 'No_Result'
+				};
+				var dfd = new $.Deferred();
+				dfd.resolve(result);
+				promise = dfd.promise();
+			}
+		}
+		return promise;
+	}
+};
+},{}],4:[function(require,module,exports){
+var getTWPinfo = require('./common/getTWPinfo');
+var geocodeByQuery = require('./common/geocodeByQuery');
+
+module.exports = {
+	'name': 'GeographicTownship',
+	'format': function (params) {
+		var twpInfo = getTWPinfo(params.address);
+		return (twpInfo.success && twpInfo.isTWPOnly);
+	},
+	'match': function (params) {
+		var twpInfo = getTWPinfo(params.address);
+		return (twpInfo.success && twpInfo.isTWPOnly);
+	},
+	'geocode': function (params) {
+		var twpInfo = getTWPinfo(params.address);
+		var settings = {
+			mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/GeographicTownships/MapServer',
+			layerID: 0,
+			displayPolygon: true,
+			boundary: {
+				color: '#8583f3',
+				opacity: 1, 
+				weight: 4
+			},
+			zoomLevel: 11,
+			fieldsInInfoWindow: ['OFFICIAL_NAME'],
+			getInfoWindow: function(attributes){
+				return '<strong>' + attributes.OFFICIAL_NAME + '</strong>';
+			},
+			latitudeField: 'CENY',
+			longitudeField: 'CENX',
+			areaField: 'SHAPE_Area',
+			searchCondition: 'OFFICIAL_NAME_UPPER = \'' + twpInfo.TWP + '\''
+		};
+		return geocodeByQuery(params, settings);
+	}
+};
+},{"./common/geocodeByQuery":12,"./common/getTWPinfo":13}],5:[function(require,module,exports){
+var getTWPinfo = require('./common/getTWPinfo');
+var geocodeByQuery = require('./common/geocodeByQuery');
+
+module.exports = {
+	'name': 'GeographicTownshipWithLotConcession',
+	'format': function (params) {
+		var twpInfo = getTWPinfo(params.address);
+		return (twpInfo.success && (!twpInfo.isTWPOnly));
+	},	
+	'match': function (params) {
+		var twpInfo = getTWPinfo(params.address);
+		return (twpInfo.success && (!twpInfo.isTWPOnly));
+	},
+	'geocode': function (params) {
+		var twpInfo = getTWPinfo(params.address);
+		var settings = {
+			mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/GeographicTownships/MapServer',
+			layerID: 1,
+			displayPolygon: true,
+			boundary: {
+				color: '#8583f3',
+				opacity: 1, 
+				weight: 4
+			},
+			zoomLevel: 14,
+			fieldsInInfoWindow: ['GEOG_TWP', 'LOT_NUM', 'CONCESSION'],
+			getInfoWindow: function(attributes){
+				return '<strong>' + attributes.GEOG_TWP + ' ' + attributes.LOT_NUM + ' ' + attributes.CONCESSION + '</strong>';
+			},
+			latitudeField: 'CENY',
+			longitudeField: 'CENX',
+			areaField: 'SHAPE_Area',
+			searchCondition: 'GEOG_TWP' + ' = \'' + twpInfo.TWP + '\' AND CONCESSION = \'CON ' + twpInfo.Con + '\' AND LOT_NUM = \'LOT ' + twpInfo.Lot + '\''
+		};
+		return geocodeByQuery(params, settings);
+	}
+};
+},{"./common/geocodeByQuery":12,"./common/getTWPinfo":13}],6:[function(require,module,exports){
+var validateLatLngInPolygon = require('./common/validateLatLngInPolygon');
+var replaceChar = require('./common/replaceChar');
+var parseLatLngSymbols = require('./common/parseLatLngSymbols');
+var validateDMSFormat = function (str) {
+	for (var i = 0; i <= 9; i++) {
+		if (str.indexOf(i + 'D') > 0) {
+			return true;
+		}
+	}
+	return false;
+};
+
+module.exports = {
+	'name': 'LatLngInDMSSymbols',
+	'format': function (params) {
+		var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
+		if (coorsArray.length === 2) {
+			var str1 = (coorsArray[0]).toUpperCase();
+			var str2 = (coorsArray[1]).toUpperCase();
+			if (validateDMSFormat(str1) && validateDMSFormat (str2)) {
+				return true;
+			}
+		}
+		return false;
+	},		
+	'match': function (params) {
+		var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
+		if (coorsArray.length === 2) {
+			var str1 = (coorsArray[0]).toUpperCase();
+			var str2 = (coorsArray[1]).toUpperCase();
+			if (validateDMSFormat(str1) && validateDMSFormat (str2)) {
+				var v0 = parseLatLngSymbols(str1, 'D', 'M', 'S');
+				var v1 = parseLatLngSymbols(str2, 'D', 'M', 'S');
+				this.latlng = params.generateLatLngFromFloats(v0, v1);
+				return validateLatLngInPolygon(this.latlng, params.regionBoundary);
+			}
+		}
+		return false;
+	},
+	'geocode': function (params) {
+		var result = {
+			latlng: this.latlng,
+			address: params.address,
+			status: 'OK'
+		};
+		var dfd = new $.Deferred();
+		dfd.resolve(result);
+		return dfd.promise();
+	}
+};
+},{"./common/parseLatLngSymbols":14,"./common/replaceChar":15,"./common/validateLatLngInPolygon":16}],7:[function(require,module,exports){
+var validateLatLngInPolygon = require('./common/validateLatLngInPolygon');
+var replaceChar = require('./common/replaceChar');
+
+var regIsFloat = /^(-?\d+)(\.\d+)?$/;
+
+module.exports = {
+	'name': 'LatLngInDecimalDegree',
+	'format': function (params) {
+		var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
+		return ((coorsArray.length === 2) && regIsFloat.test(coorsArray[0]) && regIsFloat.test(coorsArray[1]));
+	},
+	'match': function (params) {
+		var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
+		if ((coorsArray.length === 2) && regIsFloat.test(coorsArray[0]) && regIsFloat.test(coorsArray[1])) {
+			var v0 = Math.abs(parseFloat(coorsArray[0]));
+			var v1 = Math.abs(parseFloat(coorsArray[1]));
+			this.latlng = params.generateLatLngFromFloats(v0, v1);
+			return validateLatLngInPolygon(this.latlng, params.regionBoundary);
+		}
+		return false;
+	},
+	'geocode': function (params) {
+		var result = {
+			latlng: this.latlng,
+			address: params.address,
+			status: 'OK'
+		};
+		var dfd = new $.Deferred();
+		dfd.resolve(result);
+		return dfd.promise();
+	}
+};
+},{"./common/replaceChar":15,"./common/validateLatLngInPolygon":16}],8:[function(require,module,exports){
+var validateLatLngInPolygon = require('./common/validateLatLngInPolygon');
+var replaceChar = require('./common/replaceChar');
+var parseLatLngSymbols = require('./common/parseLatLngSymbols');
+
+module.exports = {
+	'name': 'LatLngInSymbols',
+	'format': function (params) {
+		var degreeSym = String.fromCharCode(176);
+		var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
+		return ((coorsArray.length === 2) && ((coorsArray[0]).indexOf(degreeSym) > 0) && ((coorsArray[1]).indexOf(degreeSym) > 0));
+	},	
+	'match': function (params) {
+		var degreeSym = String.fromCharCode(176);
+		var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
+		if ((coorsArray.length === 2) && ((coorsArray[0]).indexOf(degreeSym) > 0) && ((coorsArray[1]).indexOf(degreeSym) > 0)) {
+			var v0 = parseLatLngSymbols(coorsArray[0], degreeSym, '\'', '"');
+			var v1 = parseLatLngSymbols(coorsArray[1], degreeSym, '\'', '"');
+			this.latlng = params.generateLatLngFromFloats(v0, v1);
+			return validateLatLngInPolygon(this.latlng, params.regionBoundary);
+		}
+		return false;
+	},
+	'geocode': function (params) {
+		var result = {
+			latlng: this.latlng,
+			address: params.address,
+			status: 'OK'
+		};
+		var dfd = new $.Deferred();
+		dfd.resolve(result);
+		return dfd.promise();
+	}
+};
+},{"./common/parseLatLngSymbols":14,"./common/replaceChar":15,"./common/validateLatLngInPolygon":16}],9:[function(require,module,exports){
+var convertUTMtoLatLng = require('./common/convertUTMtoLatLng');
+var validateUTMInRange = require('./common/validateUTMInRange');
+var validateLatLngInPolygon = require('./common/validateLatLngInPolygon');
+var replaceChar = require('./common/replaceChar');
+
+var regIsFloat = /^(-?\d+)(\.\d+)?$/;
+module.exports = {
+	'name': 'UTM',
+	'format': function (params) {
+		var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
+		return ((coorsArray.length === 3) && regIsFloat.test(coorsArray[0]) && regIsFloat.test(coorsArray[1]) && regIsFloat.test(coorsArray[2]));
+	},
+	'match': function (params) {
+		var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
+		if (coorsArray.length === 3) {
+			var coorsArrayNoComma = _.map(coorsArray, function (item) {
+				return item.replace(',', ' ').trim();
+			});
+			if (_.every(coorsArrayNoComma, function(item) {return regIsFloat.test(item);})) {
+				var values = _.map(coorsArrayNoComma, function (item) {
+					return Math.abs(parseFloat(item));
+				}).sort(function (a, b) {
+					return a - b;
+				});
+				var regIsInteger = /^\d+$/;
+				if (regIsInteger.test((values[0]).toString())) {
+					if ((values[0] >= 15) && (values[0] <= 18)) {
+						var utmCoors = {
+							zone: values[0],
+							easting: values[1],
+							northing: values[2]
+						};
+						if (validateUTMInRange(utmCoors, params.UTMRange)) {
+							this.latlng = convertUTMtoLatLng(utmCoors);
+							return validateLatLngInPolygon(this.latlng, params.regionBoundary);
+						}
+					}
+				}
+			}
+		}
+		return false;
+	},
+	'geocode': function (params) {
+		var result = {
+			latlng: this.latlng,
+			address: params.address,
+			status: 'OK'
+		};
+		var dfd = new $.Deferred();
+		dfd.resolve(result);
+		return dfd.promise();
+	}
+};
+},{"./common/convertUTMtoLatLng":11,"./common/replaceChar":15,"./common/validateLatLngInPolygon":16,"./common/validateUTMInRange":17}],10:[function(require,module,exports){
+var convertUTMtoLatLng = require('./common/convertUTMtoLatLng');
+var validateUTMInRange = require('./common/validateUTMInRange');
+var validateLatLngInPolygon = require('./common/validateLatLngInPolygon');
+var replaceChar = require('./common/replaceChar');
+
+var regIsFloat = /^(-?\d+)(\.\d+)?$/;
+
+module.exports = {
+	'name': 'UTMInDefaultZone',
+	'format': function (params) {
+		var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
+		return ((coorsArray.length === 2) && regIsFloat.test(coorsArray[0]) && regIsFloat.test(coorsArray[1]));
+	},
+	'match': function (params) {
+		var coorsArray = replaceChar(params.address, ',', ' ').trim().split(/\s+/);
+		if ((coorsArray.length === 2) && regIsFloat.test(coorsArray[0]) && regIsFloat.test(coorsArray[1])) {
+			var v1 = Math.abs(parseFloat(coorsArray[0]));
+			var v2 = Math.abs(parseFloat(coorsArray[1]));
+			var utmCoors = {
+				easting: Math.min(v1, v2),
+				northing: Math.max(v1, v2)
+			};
+			if (validateUTMInRange(utmCoors, params.UTMRange)) {
+				utmCoors.zone = params.defaultUTMZone;
+				this.latlng = convertUTMtoLatLng(utmCoors);
+				return validateLatLngInPolygon(this.latlng, params.regionBoundary);
+			}
+		}
+		return false;
+	},
+	'geocode': function (params) {
+		var result = {
+			latlng: this.latlng,
+			address: params.address,
+			status: 'OK'
+		};
+		var dfd = new $.Deferred();
+		dfd.resolve(result);
+		return dfd.promise();
+	}
+};
+},{"./common/convertUTMtoLatLng":11,"./common/replaceChar":15,"./common/validateLatLngInPolygon":16,"./common/validateUTMInRange":17}],11:[function(require,module,exports){
+/**
+ * Convert a UTM coordinate to a latlng under WGS 84. 
+ *
+ * @param {utmCoors} The UTM coordinate.
+ * @return {latlng}  The converted latlng.
+ **/
+module.exports = function (utmCoors) {
+	var zone = utmCoors.zone;
+	var north = utmCoors.northing;
+	var east = utmCoors.easting;
+
+	var pi = 3.14159265358979; //PI
+	var a = 6378137; //equatorial radius for WGS 84
+	var k0 = 0.9996; //scale factor
+	var e = 0.081819191; //eccentricity
+	var e2 = 0.006694380015894481; //e'2
+	//var corrNorth = north; //North Hemishpe
+	var estPrime = 500000 - east;
+	var arcLength = north / k0;
+	var e4 = e2 * e2;
+	var e6 = e4 * e2;
+	var t1 = Math.sqrt(1 - e2);
+	var e1 = (1 - t1) / (1 + t1);
+	var e12 = e1 * e1;
+	var e13 = e12 * e1;
+	var e14 = e13 * e1;
+	var C1 = 3 * e1 / 2 - 27 * e13 / 32;
+	var C2 = 21 * e12 / 16 - 55 * e14 / 32;
+	var C3 = 151 * e13 / 96;
+	var C4 = 1097 * e14 / 512;
+	var mu = arcLength / (a * (1 - e2 / 4.0 - 3 * e4 / 64 - 5 * e6 / 256));
+	var FootprintLat = mu + C1 * Math.sin(2 * mu) + C2 * Math.sin(4 * mu) + C3 * Math.sin(6 * mu) + C4 * Math.sin(8 * mu);
+	var FpLatCos = Math.cos(FootprintLat);
+	//var C1_an = e2*FpLatCos*FpLatCos;
+	var FpLatTan = Math.tan(FootprintLat);
+	var T1 = FpLatTan * FpLatTan;
+	var FpLatSin = Math.sin(FootprintLat);
+	var FpLatSinE = e * FpLatSin;
+	var t2 = 1 - FpLatSinE * FpLatSinE;
+	var t3 = Math.sqrt(t2);
+	var N1 = a / t3;
+	var R1 = a * (1 - e2) / (t2 * t3);
+	var D = estPrime / (N1 * k0);
+	var D_2 = D * D;
+	var D_4 = D_2 * D_2;
+	var D_6 = D_4 * D_2;
+	var fact1 = N1 * FpLatTan / R1;
+	var fact2 = D_2 / 2;
+	var fact3 = (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * e2) * D_4 / 24;
+	var fact4 = (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * e2 - 3 * C1 * C1) * D_6 / 720;
+	var lofact1 = D;
+	var lofact2 = (1 + 2 * T1 + C1) * D_2 * D / 6;
+	var lofact3 = (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * e2 + 24 * T1 * T1) * D_4 * D / 120;
+	var deltaLong = (lofact1 - lofact2 + lofact3) / FpLatCos;
+	var zoneCM = 6 * zone - 183;
+	var latitude = 180 * (FootprintLat - fact1 * (fact2 + fact3 + fact4)) / pi;
+	var longitude = zoneCM - deltaLong * 180 / pi;
+	var res = {
+		lat: latitude,
+		lng: longitude
+	};
+	return res;
+};
+},{}],12:[function(require,module,exports){
+var ArcGISServerAdapter = require('../../ArcGISServerAdapter');
+
+/**
+ * Geocode an address with an ArcGIS layer. 
+ *
+ * @param {params} The object contains the geocoding information.
+ * @param {settings} The setting of the layer for geocoding.
+ * @return {promise} A promise contains the geocoding result.
+ **/
+module.exports = function (params, settings) {
+	var outFields = settings.fieldsInInfoWindow;
+	var otherFields = [settings.latitudeField, settings.longitudeField, settings.areaField];
+	var queryParams = {
+		mapService: settings.mapService,
+		layerID: settings.layerID,
+		returnGeometry: settings.displayPolygon,
+		where: settings.searchCondition,
+		outFields: outFields.concat(otherFields)
+	};
+	var processResults = function (fset) {
+		var features = fset.features;
+		var size = features.length;
+		if (size === 0) {
+			return {status: 'No_Result'};
+		}
+		var attrs = features[0].attributes;
+		var result = {
+			address: params.address,
+			geocodedAddress: settings.getInfoWindow(attrs)
+		};
+		if(queryParams.returnGeometry) {
+			result.geometry = _.map(features, function(feature) {
+				return feature.geometry;
+			});
+		}
+		if (settings.displayPolygon && settings.hasOwnProperty('boundary')) {
+			result.boundary = settings.boundary;
+		}
+		if (settings.hasOwnProperty('zoomLevel')) {
+			result.zoomLevel = settings.zoomLevel;
+		}
+		if (size === 1) {
+			result.latlng = {
+				lat: attrs[settings.latitudeField],
+				lng: attrs[settings.longitudeField]
+			};
+		} else {
+			var totalArea = _.reduce(features, function(tArea, feature) {
+				return feature.attributes[settings.areaField] + tArea;
+			}, 0);
+			var totalLat = _.reduce(features, function(tlat, feature) {
+				return feature.attributes[settings.latitudeField]* feature.attributes[settings.areaField] + tlat;
+			}, 0);
+			var totalLng = _.reduce(features, function(tlng, feature) {
+				return feature.attributes[settings.longitudeField]* feature.attributes[settings.areaField] + tlng;
+			}, 0);
+			result.latlng = {
+				lat: totalLat/totalArea,
+				lng: totalLng/totalArea
+			};
+		}
+		result.status = 'OK';
+		return result;
+	};
+	return ArcGISServerAdapter.query(queryParams).then(processResults);
+};
+},{"../../ArcGISServerAdapter":1}],13:[function(require,module,exports){
+var replaceChar = require('./replaceChar');
+
+/**
+ * Parse the input to get the Geographic Township, Lot, and Concession. 
+ *
+ * @param {Array} The array to be parsed.
+ * @return {object} An ojbect which contain TWP, Lot, Con, isTWPOnly, success.
+ */
+var processLotCon = function (arr1) {
+	if (arr1.length !== 2) {
+		return {
+			TWP: '',
+			Lot: '',
+			Con: '',
+			isTWPOnly: false,
+			success: false
+		};
+	}
+	var TWPname = (arr1[0]).trim().split(/\s+/).join(' '); //replace multiple spaces with one space
+	var con = '';
+	var lot = '';
+	if (((arr1[1]).indexOf('LOT') > 0) && ((arr1[1]).indexOf('CON') > 0)) {
+		var arr2 = ((arr1[1]).trim()).split('CON');
+		if ((arr2[0]).length === 0) {
+			var arr3 = (arr2[1]).split('LOT');
+			con = (arr3[0]).trim();
+			lot = (arr3[1]).trim();
+		} else {
+			var arr4 = (arr2[0]).split('LOT');
+			con = (arr2[1]).trim();
+			lot = (arr4[1]).trim();
+		}
+	}
+	var TWPOnly = false;
+	if ((con.length === 0) && (lot.length === 0)) {
+		TWPOnly = true;
+	}
+	return {
+		TWP: TWPname,
+		Lot: lot,
+		Con: con,
+		isTWPOnly: TWPOnly,
+		success: true
+	};
+};
+/**
+ * Process the input for Geographic Township with/without Lot & Concession. 
+ *
+ * @param {corrsUp} The input array.
+ * @return {object} An ojbect which contain TWP, Lot, Con, isTWPOnly, success.
+ **/
+module.exports = function (address) {
+	var corrsUp = replaceChar(address, ',', ' ').trim().split(/\s+/).join(' ').toUpperCase();
+	var res = {
+		TWP: '',
+		Lot: '',
+		Con: '',
+		isTWPOnly: false,
+		success: false
+	};
+	if (corrsUp.indexOf(' TWP') > 0) {
+		res = processLotCon(corrsUp.split(' TWP'));
+	}
+	if (!res.success) {
+		if (corrsUp.indexOf(' TOWNSHIP') > 0) {
+			res = processLotCon(corrsUp.split(' TOWNSHIP'));
+		}
+	}
+	if (!res.success) {
+		if (corrsUp.indexOf('CANTON ') === 0) {
+			var str = corrsUp.substring(7).trim();
+			var lotIndex = str.indexOf(' LOT ');
+			var conIndex = str.indexOf(' CON ');
+			var index = lotIndex;
+			if (conIndex < lotIndex) {
+				index = conIndex;
+			}
+			var parsedList = [];
+			if (index === -1) {
+				parsedList.push(str);
+				parsedList.push('');
+			} else {
+				parsedList.push(str.substring(0, index));
+				parsedList.push(str.substring(index));
+			}
+			res = processLotCon(parsedList);
+		}
+	}
+	return res;
+};
+},{"./replaceChar":15}],14:[function(require,module,exports){
+/**
+ * Parse a string with the degree, minute, and second symbols and return a value in decimal format. 
+ *
+ * @param {val} The string to be parsed.
+ * @param {s1} The degree symbol.
+ * @param {s2} The minute symbol
+ * @param {s3} The second symbol
+ * @return {Number} The parsed decimal lat/lng.
+ **/
+var regIsFloat = /^(-?\d+)(\.\d+)?$/;
+module.exports = function (val, s1, s2, s3) {
+	var parseDMS = function (s, unparsed) {
+		var res = {
+			ParsedNum: 0,
+			Unparsed: ''
+		};
+		if (unparsed.length === 0) {
+			return res;
+		}
+		var arr = unparsed.split(s);
+		var result = 0;
+		if (arr.length <= 2) {
+			if (regIsFloat.test(arr[0])) {
+				result = parseFloat(arr[0]);
+			}
+			if (arr.length === 2) {
+				unparsed = arr[1];
+			} else {
+				unparsed = '';
+			}
+		}
+		res = {
+			ParsedNum: result,
+			Unparsed: unparsed
+		};
+		return res;
+	};
+
+	var result = 0;
+	var parsed = parseDMS(s1, val);
+	var deg = parsed.ParsedNum;
+	parsed = parseDMS(s2, parsed.Unparsed);
+	var min = parsed.ParsedNum;
+	parsed = parseDMS(s3, parsed.Unparsed);
+	var sec = parsed.ParsedNum;
+	if (deg > 0) {
+		result = deg + min / 60.0 + sec / 3600.0;
+	} else {
+		result = deg - min / 60.0 - sec / 3600.0;
+	}
+	result = Math.abs(result);
+	return result;
+};
+},{}],15:[function(require,module,exports){
+/**
+ * Replace the char A with char B in a String. 
+ *
+ * @param {str} The string to be processed.
+ * @param {charA} the char to be replaced.
+ * @param {charB} the char to replace.
+ * @return {String} An ojbect sendt to Geocoder.
+ **/
+module.exports = function (str, charA, charB) {
+	var temp = [];
+	temp = str.split(charA);
+	var result = temp[0];
+	if (temp.length >= 2) {
+		for (var i = 1; i < temp.length; i++) {
+			result = result + charB + temp[i];
+		}
+	}
+	return result;
+};
+},{}],16:[function(require,module,exports){
+/**
+ * Validate whether a latlng is inside a polygon or not. 
+ * The algorithm is from http://appdelegateinc.com/blog/2010/05/16/point-in-polygon-checking/.
+ * Ray Cast Point in Polygon extension for Google Maps GPolygon
+ * App Delegate Inc <htttp://appdelegateinc.com> 2010
+ * @param {latlng} The latlng to be tested.
+ * @param {poly} The polygonto be tested.
+ * @return {Boolean} whether the latlng is inside the polygon or not.
+ **/
+module.exports = function (latlng, poly) {
+	var lat = latlng.lat;
+	var lng = latlng.lng;
+
+	var numPoints = poly.length;
+	var inPoly = false;
+	var j = numPoints - 1;
+	for (var i = 0; i < numPoints; i++) {
+		var vertex1 = poly[i];
+		var vertex2 = poly[j];
+
+		if (vertex1.x < lng && vertex2.x >= lng || vertex2.x < lng && vertex1.x >= lng) {
+			if (vertex1.y + (lng - vertex1.x) / (vertex2.x - vertex1.x) * (vertex2.y - vertex1.y) < lat) {
+				inPoly = !inPoly;
+			}
+		}
+
+		j = i;
+	}
+	return inPoly;
+};
+
+},{}],17:[function(require,module,exports){
+/**
+ * Validate whether a UTM coordinate is inside a UTM range or not. 
+ *
+ * @param {utmCoors} The UTM coorindate to be tested.
+ * @param {UTMRange} The UTM range to be tested.
+ *
+ * @return {Boolean} whether the UTM coorindate is inside the UTM range or not.
+ **/
+module.exports = function (utmCoors, UTMRange) {
+	var northing = utmCoors.northing;
+	var easting = utmCoors.easting;
+	return ((easting < UTMRange.maxEasting) && (easting > UTMRange.minEasting) && (northing < UTMRange.maxNorthing) && (northing > UTMRange.minNorthing));
+};
+},{}],18:[function(require,module,exports){
+module.exports = {
+	regionBoundary: [
+		{x: -95.29920350, y: 48.77505703},
+		{x: -95.29920350, y: 53.07150598},
+		{x: -89.02502409, y: 56.95876930},
+		{x: -87.42238044, y: 56.34499088},
+		{x: -86.36531760, y: 55.93580527},
+		{x: -84.69447635, y: 55.45842206},
+		{x: -81.89837466, y: 55.35612565},
+		{x: -81.96657226, y: 53.17380238},
+		{x: -80.84131182, y: 52.28723355},
+		{x: -79.98884179, y: 51.80985033},
+		{x: -79.34096457, y: 51.74165273},
+		{x: -79.34096457, y: 47.54750019},
+		{x: -78.55669214, y: 46.49043736},
+		{x: -76.61306048, y: 46.14944935},
+		{x: -75.59009645, y: 45.77436253},
+		{x: -74.12384800, y: 45.91075774},
+		{x: -73.98745279, y: 45.02418891},
+		{x: -75.07861443, y: 44.61500329},
+		{x: -75.86288685, y: 44.03532368},
+		{x: -76.88585089, y: 43.69433566},
+		{x: -79.20, y: 43.450196},
+		{x: -78.62488975, y: 42.94416204},
+		{x: -79.54555738, y: 42.43268002},
+		{x: -81.28459623, y: 42.15988961},
+		{x: -82.54625188, y: 41.58020999},
+		{x: -83.26232670, y: 41.95529681},
+		{x: -83.36462310, y: 42.43268002},
+		{x: -82.61444948, y: 42.73956923},
+		{x: -82.17116506, y: 43.59203926},
+		{x: -82.61444948, y: 45.36517692},
+		{x: -84.08069793, y: 45.91075774},
+		{x: -84.93316796, y: 46.69503016},
+		{x: -88.27485047, y: 48.22947621},
+		{x: -89.33191330, y: 47.78619180},
+		{x: -90.32077854, y: 47.68389540},
+		{x: -92.09391619, y: 47.95668581},
+		{x: -94.07164666, y: 48.33177262},
+		{x: -95.29920350, y: 48.77505703}],
+	UTMRange: {
+		minEasting: 258030.3,
+		maxEasting: 741969.7,
+		minNorthing: 4614583.73,
+		maxNorthing: 6302884.09
+	},
+	defaultUTMZone: 17,
+	defaultRegionNames: ["ON", "ONT", "ONTARIO"], 
+	failedLocation: {
+		positions: [[51.253775,-85.32321389999998], [42.832714, -80.279923]],
+		difference: 0.00001
+	},
+	/**
+	 * Creates a latlng with two floats. In Ontario, the absolute value of longitude is always larger than the absolute value
+	 * of latitude. This knowledge is used to determine which value is latitude and which value is longitude. In other areas, 
+	 * this function has to be redefined. 
+	 *
+	 * @param {float, float} two floats.
+	 * @return {object} An ojbect sendt to Geocoder.
+	 */
+	generateLatLngFromFloats: function (v1, v2) {
+		var lat = Math.min(v1, v2);
+		var lng = -Math.max(v1, v2);
+		return {lat: lat, lng: lng};
+	}
+};
+},{}],19:[function(require,module,exports){
 /* global _, $, google, goog, yepnope */
 'use strict';
 var Geocoder = require('./Geocoder');
 var Util = require('./Util');
 var ArcGISServerAdapter = require('./ArcGISServerAdapter');
-
-
-/* this class is based on sample code USGSOverlay */
-/** @constructor */
-function ImageOverlay(bounds, image, map) {
-	// Initialize all properties.
-	this.bounds_ = bounds;
-	this.image_ = image;
-	this.map_ = map;
-
-	// Define a property to hold the image's div. We'll
-	// actually create this div upon receipt of the onAdd()
-	// method so we'll leave it null for now.
-	this.div_ = null;
-
-	// Explicitly call setMap on this overlay.
-	this.setMap(map);
-}
-ImageOverlay.prototype = new google.maps.OverlayView();
-/**
- * onAdd is called when the map's panes are ready and the overlay has been
- * added to the map.
- */
-ImageOverlay.prototype.onAdd = function() {
-
-	var div = document.createElement('div');
-	div.style.borderStyle = 'none';
-	div.style.borderWidth = '0px';
-	div.style.position = 'absolute';
-
-	// Create the img element and attach it to the div.
-	var img = document.createElement('img');
-	img.src = this.image_;
-	img.style.width = '100%';
-	img.style.height = '100%';
-	img.style.position = 'absolute';
-	div.appendChild(img);
-
-	this.div_ = div;
-
-	// Add the element to the "overlayLayer" pane.
-	var panes = this.getPanes();
-	panes.overlayLayer.appendChild(div);
-};
-
-ImageOverlay.prototype.draw = function() {
-
-	// We use the south-west and north-east
-	// coordinates of the overlay to peg it to the correct position and size.
-	// To do this, we need to retrieve the projection from the overlay.
-	var overlayProjection = this.getProjection();
-
-	// Retrieve the south-west and north-east coordinates of this overlay
-	// in LatLngs and convert them to pixel coordinates.
-	// We'll use these coordinates to resize the div.
-	var sw = overlayProjection.fromLatLngToDivPixel(this.bounds_.getSouthWest());
-	var ne = overlayProjection.fromLatLngToDivPixel(this.bounds_.getNorthEast());
-
-	// Resize the image's div to fit the indicated dimensions.
-	var div = this.div_;
-	div.style.left = sw.x + 'px';
-	div.style.top = ne.y + 'px';
-	div.style.width = (ne.x - sw.x) + 'px';
-	div.style.height = (sw.y - ne.y) + 'px';
-};
-
-// The onRemove() method will be called automatically from the API if
-// we ever set the overlay's map property to 'null'.
-ImageOverlay.prototype.onRemove = function() {
-	this.div_.parentNode.removeChild(this.div_);
-	this.div_ = null;
-};
+var ImageOverlay = require('./GoogleMaps/ImageOverlay');
+//var PubSub = require('./PubSub');
+var PubSub;
 
 var map;
 var overlays = [];
@@ -890,6 +1556,7 @@ var globalConfigure;
 var arcGISMapServices = [];
 var previousBounds;
 var infoWindow;
+//var infoWindowPosition;
 var marker;
 
 var clear = function () {
@@ -912,8 +1579,20 @@ var clear = function () {
 	map.setCenter(center);
 	map.setZoom(globalConfigure.orgzoomLevel);
 };
-
+/*
+var transformInfoWindowPosition = function (latlng) {
+	var alatlng = latlng;
+	if ((typeof latlng.lat === 'number') && (typeof latlng.lng === 'number')) {
+		alatlng = new google.maps.LatLng(latlng.lat, latlng.lng);
+	}
+	return {
+		lat: alatlng.lat() + (map.getBounds().getNorthEast().lat() - map.getBounds().getSouthWest().lat()) * 0.045,
+		lng: alatlng.lng()
+	};
+};*/
 var openInfoWindow = function (latlng, container){
+	//infoWindowPosition = latlng;
+	//var alatlng = transformInfoWindowPosition(latlng);
 	if (!infoWindow) {
 		infoWindow = new google.maps.InfoWindow({
 			content: container,
@@ -1735,12 +2414,38 @@ var search = function(input) {
 		overlay.setMap(null);
 	});
 	overlays = [];
-
-	var searchParams = globalConfigure.preSearchCallbackList[globalConfigure.preSearchCallbackName](searchString);
+	if (infoWindow) {
+		infoWindow.setMap(null);
+	}
+	if (marker) {
+		marker.setMap(null);
+	}
+	var getCurrentMapExtent = function () {
+		var b = map.getBounds();
+		var ne = b.getNorthEast();
+		var sw = b.getSouthWest();
+		var nLat = ne.lat();
+		var eLng = ne.lng();
+		var sLat = sw.lat();
+		var wLng = sw.lng();
+		var swLatLng = {lat: sLat, lng: wLng};
+		var seLatLng = {lat: sLat, lng: eLng};
+		var neLatLng = {lat: nLat, lng: eLng};
+		var nwLatLng = {lat: nLat, lng: wLng};
+		return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
+	};	
+	var settings = {
+		infoWindowWidth: globalConfigure.infoWindowWidth,
+		infoWindowHeight: globalConfigure.infoWindowHeight,
+		infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
+		infoWindowContentWidth: globalConfigure.infoWindowContentWidth
+	};
+	PubSub.emit("MOECC_MAP_SEARCH_STRING_READY", {searchString: searchString, currentMapExtent: getCurrentMapExtent(), settings: settings});
+	/*var searchParams = globalConfigure.preSearchCallbackList[globalConfigure.preSearchCallbackName](searchString);
 	var promise = globalConfigure.searchCallbackList[globalConfigure.searchCallbackName](searchParams);
 	promise.done(function () {
 		globalConfigure.postSearchCallbackList[globalConfigure.postSearchCallbackName](arguments);
-	});
+	});*/
 };
 
 
@@ -1795,8 +2500,263 @@ var entsub = function(event){
 };
 
 var searchChange = function (type) {
-	globalConfigure.searchChange(type);
+	if (globalConfigure.hasOwnProperty('searchChange'))  {
+		globalConfigure.searchChange(type);
+	}
 };
+
+var removeTiles = function () {
+	_.each(arcGISMapServices, function(arcGISMapService) {
+		if ($.isArray(arcGISMapService)) {
+			_.each(arcGISMapService, function(element) {
+				element.setMap(null);
+			});
+		} else {
+			arcGISMapService.setMap(null);
+		}
+	});
+};
+
+var setPubSub = function (thePubSub) {
+	PubSub = thePubSub;
+	PubSub.on("MOECC_MAP_BOUNDS_CHANGED", function(googleBounds) {
+		if (!googleBounds) {
+			return;
+		}
+		removeTiles();
+		var convertBounds = function(latLngBounds) {
+			var latLngNE = latLngBounds.getNorthEast();
+			var latLngSW = latLngBounds.getSouthWest();
+			return {
+				southWest: {lat: latLngSW.lat(), lng: latLngSW.lng()},
+				northEast: {lat: latLngNE.lat(), lng: latLngNE.lng()}
+			};
+		};
+		var bounds = convertBounds(googleBounds);
+		var div = document.getElementById(globalConfigure.mapCanvasDivId)
+		var width = div.offsetWidth;
+		var height = div.offsetHeight;
+		PubSub.emit("MOECC_MAP_BOUNDS_CHANGED_REQUEST_READY", {
+			bounds: bounds,
+			width: width,
+			height: height,
+			zoomLevel: map.getZoom()
+		});		
+	});
+	PubSub.on("MOECC_MAP_BOUNDS_CHANGED_PROMISES_READY", function (promises) {
+		$.when.apply($, promises).done(function() {
+			arcGISMapServices = _.map(arguments, function(argument) {
+				if (argument.hasOwnProperty('href')) { 
+					return new ImageOverlay(map.getBounds(), argument.href, map);
+				}
+			});
+		});
+	});
+	PubSub.on("MOECC_MAP_IDENTIFY_PROMISES_READY", function (params) {
+		$.when.apply($, params.promises).done(function() {
+			PubSub.emit("MOECC_MAP_IDENTIFY_RESPONSE_READY", {results: arguments, settings: params.settings});
+		});
+	});	
+	PubSub.on("MOECC_MAP_SEARCH_PROMISES_READY", function (params) {
+		$.when.apply($, params.promises).done(function() {
+			PubSub.emit("MOECC_MAP_SEARCH_RESPONSE_READY", {results: arguments, settings: params.settings});
+		});
+	});
+	PubSub.on("MOECC_MAP_SEARCH_TABLE_READY", function (params) {
+		$('#' + globalConfigure.queryTableDivId).html(params.tableContent);
+		var dataTableOptions = {
+			'bJQueryUI': true,
+			'sPaginationType': 'full_numbers' 
+		};
+		if (globalConfigure.langs.hasOwnProperty('dataTableLang')) {
+			dataTableOptions['oLanguage'] = globalConfigure.langs.dataTableLang;
+		}
+		$('#' + params.validTableID).dataTable(dataTableOptions);		
+		if (params.hasOwnProperty('invalidtableID')) {
+			$('#' + params.invalidtableID).dataTable(dataTableOptions);				
+		}		
+	});
+	PubSub.on("MOECC_MAP_SEARCH_MARKERS_READY", function (params) {
+		var markers = _.map(params.markers, function(m) {
+			var container = m.container;
+			var gLatLng = new google.maps.LatLng(m.latlng.lat, m.latlng.lng);
+			var marker = new google.maps.Marker({
+				position: gLatLng
+			});		
+			(function (container, marker) {
+				google.maps.event.addListener(marker, 'click', function () {
+					openInfoWindow(marker.getPosition(), container);
+				});
+			})(container, marker);
+			return marker;
+		});
+		_.each(markers, function(marker){
+			marker.setMap(map);
+			overlays.push(marker);
+		});		
+	});	
+	//PubSub.emit("MOECC_MAP_SEARCH_BOUNDS_CHANGED", {bounds: bounds});
+	PubSub.on("MOECC_MAP_SEARCH_BOUNDS_CHANGED", function (params) {
+		var convertToGBounds = function(b) {
+			var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
+			var ne = new google.maps.LatLng(b.northEast.lat, b.northEast.lng);			 
+			var bounds = new google.maps.LatLngBounds(sw, ne);
+			return bounds;
+		};
+		var bounds = convertToGBounds(params.bounds);
+		removeTiles();
+		map.fitBounds(bounds);
+		if (map.getZoom() > globalConfigure.maxQueryZoomLevel) {
+			map.setZoom(globalConfigure.maxQueryZoomLevel);
+		}
+	});
+	PubSub.on("MOECC_MAP_SEARCH_MESSAGE_READY", function (params) {
+		params.messageParams.maxQueryReturn = globalConfigure.maxQueryReturn;
+		$('#' + globalConfigure.informationDivId).html('<i>' + Util.generateMessage(params.messageParams, globalConfigure.langs) + '</i>');		
+	});
+	PubSub.on("MOECC_MAP_GEOCODING_RESULT_READY", function (params) {
+		//console.log(params);		
+		var result = params.result;
+		var status = result.status;
+		if (result.status === "OK") {
+			var gLatLng = new google.maps.LatLng(result.latlng.lat, result.latlng.lng);
+			if (params.withinExtent && !map.getBounds().contains(gLatLng)) {
+				status = "No_Result";
+			} else {
+				removeTiles();
+				var container = document.createElement('div');
+				container.style.width = globalConfigure.infoWindowWidth;
+				container.style.height = globalConfigure.infoWindowHeight;
+				container.innerHTML = result.address;
+				
+				marker = new google.maps.Marker({
+					position: gLatLng
+				});		
+				(function (container, marker) {
+					google.maps.event.addListener(marker, 'click', function () {
+						openInfoWindow(marker.getPosition(), container);
+					});
+				})(container, marker);
+				marker.setMap(map);
+				if(!params.withinExtent) {
+					map.setCenter(result.latlng);
+					if (result.hasOwnProperty('zoomLevel')) {
+						map.setZoom(result.zoomLevel);
+					} else {
+						map.setZoom(globalConfigure.maxQueryZoomLevel);
+					}
+				}
+				
+				if (result.hasOwnProperty('geometry')) {
+					_.each(result.geometry, function(elm) {
+						_.each(elm.rings, function (ring) {
+							var polyline = new google.maps.Polyline({
+								path: _.map(ring, function(latlng) {return new google.maps.LatLng(latlng[1], latlng[0]);}),
+								geodesic: true,
+								strokeColor: result.boundary.color,
+								strokeOpacity: result.boundary.opacity,
+								strokeWeight: result.boundary.weight
+							});
+							polyline.setMap(map);
+							overlays.push(polyline);
+						});
+					});
+				}
+			}
+		}
+		var message = (status === "No_Result") ? (globalConfigure.langs.yourLocationSearchForLang + '<strong>' + params.address + '</strong> ' + globalConfigure.langs.returnedNoResultLang) : (globalConfigure.langs.yourLocationSearchForLang + '<strong>' + params.address + '</strong> ' + globalConfigure.langs.returnedOneResultLang);
+		$('#' + globalConfigure.informationDivId).html('<i>' + message + '</i>');		
+	});
+	PubSub.on("MOECC_MAP_IDENTIFY_INFOWINDOW_READY", function (params) {
+		openInfoWindow(params.latlng, params.infoWindow);
+	});		
+	PubSub.on("MOECC_MAP_MOUSE_MOVE", function(latLng) {
+		if(globalConfigure.isCoordinatesVisible){
+			var utm = Util.convertLatLngtoUTM(latLng.lat, latLng.lng);
+			$("#" + globalConfigure.coordinatesDivId).html("Latitude:" + latLng.lat.toFixed(5) + ", Longitude:" + latLng.lng.toFixed(5) + " (" + globalConfigure.langs.UTM_ZoneLang + ":" + utm.Zone + ", " + globalConfigure.langs.EastingLang + ":" + utm.Easting + ", " + globalConfigure.langs.NorthingLang +":" + utm.Northing + ")<br>");
+		}
+	});
+	PubSub.on("MOECC_MAP_MOUSE_CLICK", function(latLng) {
+		closeInfoWindow();
+		var identifyRadiusZoomLevels = [-1, 320000, 160000, 80000, 40000, 20000, 9600, 4800, 2400, 1200, 600, 300, 160, 80, 50, 20, 10, 5, 3, 2, 1, 1];
+		var radius = (globalConfigure.hasOwnProperty('identifyRadius')) ?  globalConfigure.identifyRadius : identifyRadiusZoomLevels[map.getZoom()];
+		var circle = Util.computeCircle(latLng, radius);
+		var settings = {
+			latlng: latLng,
+			infoWindowWidth: globalConfigure.infoWindowWidth, 
+			infoWindowHeight: globalConfigure.infoWindowHeight
+		};
+		PubSub.emit("MOECC_MAP_IDENTIFY_GEOMETRY_READY", {settings: settings, geometry: circle});	
+		//console.log("MOECC_MAP_MOUSE_CLICK");
+	});
+	PubSub.on("MOECC_MAP_INITIALIZATION", function(configure) {
+		globalConfigure = configure;
+		$('#' + configure.otherInfoDivId).html(configure.otherInfoHTML);
+		$("#" + configure.searchControlDivId).html(configure.searchControlHTML);
+		var center = new google.maps.LatLng(configure.orgLatitude, configure.orgLongitude);
+		var mapOptions = {
+			zoom: configure.orgzoomLevel,
+			center: center,
+			scaleControl: true,
+			streetViewControl: true,
+			mapTypeId: configure.defaultMapTypeId
+		};
+		if (configure.hasOwnProperty('extraImageServices')) {
+			var ids = _.map(configure.extraImageServices, function(extraImageService) {return extraImageService.id;});
+			mapOptions.mapTypeControlOptions = {
+				mapTypeIds: ids.concat([google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.SATELLITE, google.maps.MapTypeId.HYBRID, google.maps.MapTypeId.TERRAIN])
+			};
+		}
+		map = new google.maps.Map($('#' + configure.mapCanvasDivId)[0], mapOptions);
+		if (configure.hasOwnProperty('extraImageServices')) {
+			yepnope({load: 'http://lrcdrrvsdvap002/web/arcgislink.js',callback: function(){
+				_.each(configure.extraImageServices, function(extraImageService) {
+					var agsType = new gmaps.ags.MapType(extraImageService.url, {
+						name: extraImageService.name
+					});
+					map.mapTypes.set(extraImageService.id, agsType);
+				});			
+			}});
+		}
+		setInterval(function () {
+			if(previousBounds) {
+				var computeBoundsDifference = function(b1, b2) {
+					return Math.abs(b1.getNorthEast().lat() - b2.getNorthEast().lat()) + Math.abs(b1.getNorthEast().lng() - b2.getNorthEast().lng()) + Math.abs(b1.getSouthWest().lat() - b2.getSouthWest().lat()) + Math.abs(b1.getSouthWest().lng() - b2.getSouthWest().lng());
+				};
+				if (computeBoundsDifference(map.getBounds(), previousBounds) < 0.000000001) {
+					return;
+				}
+			}
+			var googleBounds = map.getBounds();
+			PubSub.emit("MOECC_MAP_BOUNDS_CHANGED", googleBounds);
+			previousBounds = googleBounds;
+		},1000);
+		
+		google.maps.event.addListener(map, 'mousemove', function(event) {
+			PubSub.emit("MOECC_MAP_MOUSE_MOVE", {lat: event.latLng.lat(), lng: event.latLng.lng()});
+		});
+		google.maps.event.trigger(map, 'mousemove', {latLng: center});
+		google.maps.event.addListener(map, 'zoom_changed', function () {
+			/*if((!!infoWindow)) {
+				infoWindow.setPosition(transformInfoWindowPosition(infoWindowPosition));
+			}*/
+			if (map.getZoom() > configure.maxMapScale) {
+				map.setZoom(configure.maxMapScale);
+			}
+			if (map.getZoom() < configure.minMapScale) {
+				map.setZoom(configure.minMapScale);
+			}
+		});
+		if (!configure.disallowMouseClick) {
+			google.maps.event.addListener(map, 'click', function(event) {
+				PubSub.emit("MOECC_MAP_MOUSE_CLICK", {lat: event.latLng.lat(), lng: event.latLng.lng()});
+			});
+		}
+	});
+};
+
+
+
 var api = {
 	init: init,
     geocode: geocode,
@@ -1806,11 +2766,85 @@ var api = {
 	searchChange: searchChange,
 	openInfoWindow: openInfoWindow,
 	queryLayers: queryLayers,
-	clear: clear
+	clear: clear,
+	setPubSub: setPubSub
 };
 
 module.exports = api;
-},{"./ArcGISServerAdapter":1,"./Geocoder":2,"./Util":4}],4:[function(require,module,exports){
+},{"./ArcGISServerAdapter":1,"./Geocoder":2,"./GoogleMaps/ImageOverlay":20,"./Util":21}],20:[function(require,module,exports){
+/* this class is based on sample code USGSOverlay */
+/** @constructor */
+function ImageOverlay(bounds, image, map) {
+	// Initialize all properties.
+	this.bounds_ = bounds;
+	this.image_ = image;
+	this.map_ = map;
+
+	// Define a property to hold the image's div. We'll
+	// actually create this div upon receipt of the onAdd()
+	// method so we'll leave it null for now.
+	this.div_ = null;
+
+	// Explicitly call setMap on this overlay.
+	this.setMap(map);
+}
+ImageOverlay.prototype = new google.maps.OverlayView();
+/**
+ * onAdd is called when the map's panes are ready and the overlay has been
+ * added to the map.
+ */
+ImageOverlay.prototype.onAdd = function() {
+
+	var div = document.createElement('div');
+	div.style.borderStyle = 'none';
+	div.style.borderWidth = '0px';
+	div.style.position = 'absolute';
+
+	// Create the img element and attach it to the div.
+	var img = document.createElement('img');
+	img.src = this.image_;
+	img.style.width = '100%';
+	img.style.height = '100%';
+	img.style.position = 'absolute';
+	div.appendChild(img);
+
+	this.div_ = div;
+
+	// Add the element to the "overlayLayer" pane.
+	var panes = this.getPanes();
+	panes.overlayLayer.appendChild(div);
+};
+
+ImageOverlay.prototype.draw = function() {
+
+	// We use the south-west and north-east
+	// coordinates of the overlay to peg it to the correct position and size.
+	// To do this, we need to retrieve the projection from the overlay.
+	var overlayProjection = this.getProjection();
+
+	// Retrieve the south-west and north-east coordinates of this overlay
+	// in LatLngs and convert them to pixel coordinates.
+	// We'll use these coordinates to resize the div.
+	var sw = overlayProjection.fromLatLngToDivPixel(this.bounds_.getSouthWest());
+	var ne = overlayProjection.fromLatLngToDivPixel(this.bounds_.getNorthEast());
+
+	// Resize the image's div to fit the indicated dimensions.
+	var div = this.div_;
+	div.style.left = sw.x + 'px';
+	div.style.top = ne.y + 'px';
+	div.style.width = (ne.x - sw.x) + 'px';
+	div.style.height = (sw.y - ne.y) + 'px';
+};
+
+// The onRemove() method will be called automatically from the API if
+// we ever set the overlay's map property to 'null'.
+ImageOverlay.prototype.onRemove = function() {
+	this.div_.parentNode.removeChild(this.div_);
+	this.div_ = null;
+};
+
+module.exports = ImageOverlay;
+},{}],21:[function(require,module,exports){
 /* global _ */
 'use strict';
 
@@ -2145,6 +3179,7 @@ var getSearchHelpText = function (searchControlHTML) {
 	var index2 = str.indexOf('</div>');
 	return str.substring(index1 + 1, index2);
 };
+
 /*
 var findGreatLakeWithLocation = function (latlng) {
 	var lakeLocations = {
@@ -2196,7 +3231,7 @@ var api = {
 };
 
 module.exports = api;
-},{}],5:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 /* global describe, it, expect, _, $ */
 var ArcGISServerAdapter = require('../../app/scripts/ArcGISServerAdapter');
 var Geocoder = require('../../app/scripts/Geocoder');
@@ -2349,9 +3384,82 @@ var Util = require('../../app/scripts/Util');
     });
 })();
 
-},{"../../app/scripts/ArcGISServerAdapter":1,"../../app/scripts/Geocoder":2,"../../app/scripts/Util":4}],6:[function(require,module,exports){
+},{"../../app/scripts/ArcGISServerAdapter":1,"../../app/scripts/Geocoder":2,"../../app/scripts/Util":21}],23:[function(require,module,exports){
 /* global describe, it, expect, $ */
 var Geocoder = require('../../app/scripts/Geocoder');
+
+var GeographicTownship = require('../../app/scripts/Geocoders/GeographicTownship');
+var GeographicTownshipWithLotConcession = require('../../app/scripts/Geocoders/GeographicTownshipWithLotConcession');
+var LatLngInDecimalDegree = require('../../app/scripts/Geocoders/LatLngInDecimalDegree');
+var LatLngInDMSSymbols = require('../../app/scripts/Geocoders/LatLngInDMSSymbols');
+var LatLngInSymbols = require('../../app/scripts/Geocoders/LatLngInSymbols');
+var UTM = require('../../app/scripts/Geocoders/UTM');
+var UTMInDefaultZone = require('../../app/scripts/Geocoders/UTMInDefaultZone');
+//var GoogleGeocoder = require('../../app/scripts/Geocoders/GoogleGeocoder');
+var Geocoder = require('../../app/scripts/Geocoders/Geocoder');
+//var GoogleReverseGeocoder = require('../scripts/Geocoders/GoogleReverseGeocoder');
+var defaultGeocoderConfigurations = require('../../app/scripts/Geocoders/configurations/default');
+var DummyGeocoder = {
+	'name': 'Dummy Geocoder',
+	'format': function (params) {
+		return params.address === 'Dummy address';
+	},					
+	'match': function (params) {
+		return params.address === 'Dummy address';
+	},
+	'geocode': function (params) {
+		var result = {
+			latlng: {lat: 45.067567,lng: -77.16453},
+			address: params.address,
+			status: 'OK'
+		};
+		var dfd = new $.Deferred();
+		setTimeout(function() {
+			dfd.resolve(result);
+		}, 1);
+		return dfd.promise();
+	}
+};
+
+var dummyDefaultGeocoder = {
+	'name': 'dummy default geocoder',
+	'geocode': function(params) {
+		var result = {
+			latlng:{lat: 45.067567,lng: -77.16453},
+			address: params.address,
+			status: 'OK'
+		};
+		var dfd = new $.Deferred();
+		setTimeout(function() {
+			dfd.resolve(result);
+		}, 1);
+		return dfd.promise();
+	}
+};
+
+var dummyReverseGeocoder = {
+	'name': 'dummy Reverse Geocoder',
+	'geocode': function(params) {
+		var result = {
+			address: 'Dummy address',
+			latlng: params.latlng,
+			status: 'OK'
+		};
+		var dfd = new $.Deferred();
+		setTimeout(function() {
+			dfd.resolve(result);
+		}, 1);
+		return dfd.promise();
+	}
+};
+				
+var GeocoderSettings = {
+	GeocoderList: [DummyGeocoder, LatLngInDecimalDegree, LatLngInDMSSymbols, LatLngInSymbols, UTM, UTMInDefaultZone, GeographicTownship, GeographicTownshipWithLotConcession],
+	defaultGeocoder: dummyDefaultGeocoder,
+	reverseGeocoder: dummyReverseGeocoder
+};
+GeocoderSettings = _.defaults(defaultGeocoderConfigurations, GeocoderSettings);
+Geocoder.init(GeocoderSettings);
 
 (function () {
     'use strict';
@@ -2651,28 +3759,8 @@ var Geocoder = require('../../app/scripts/Geocoder');
 	    });
 	    describe('Geocoder can parse a string with Geocoder provided by caller', function () {
 	        it('should parse the dummy address with the provided dummy Geocoder', function (done) {
-	            var GeocoderList = {
-					'DummyGeocoder' : {
-						'match': function (params) {
-							return params.address === 'Dummy address';
-						},
-						'geocode': function (params) {
-							var result = {
-								latlng: {lat: 45.067567,lng: -77.16453},
-								address: params.address,
-								status: 'OK'
-							};
-							var dfd = new $.Deferred();
-							setTimeout(function() {
-								dfd.resolve(result);
-							}, 1);
-							return dfd.promise();
-						}
-					}
-				};
 				var geocodeParams = {
-					address: 'Dummy address',
-					GeocoderList: GeocoderList
+					address: 'Dummy address'
 				};
 				var geocodePromise = Geocoder.geocode(geocodeParams);
 				geocodePromise.done(function (result) {
@@ -2685,21 +3773,8 @@ var Geocoder = require('../../app/scripts/Geocoder');
 	    });
 	    describe('Geocoder can reverse a latitude, longitude to address with a reverse Geocoder provided by caller', function () {
 	        it('should reverse geocode a latitude, longitude to an address', function (done) {
-	            var reverseGeocoder = function(params) {
-					var result = {
-						address: 'Dummy address',
-						latlng: params.latlng,
-						status: 'OK'
-					};
-					var dfd = new $.Deferred();
-					setTimeout(function() {
-						dfd.resolve(result);
-					}, 1);
-					return dfd.promise();
-	            };
 				var geocodeParams = {
-					latlng:{lat: 45.067567,lng: -77.16453},
-					reverseGeocoder: reverseGeocoder
+					latlng:{lat: 45.067567,lng: -77.16453}
 				};
 				var geocodePromise = Geocoder.geocode(geocodeParams);
 				geocodePromise.done(function (result) {
@@ -2712,21 +3787,8 @@ var Geocoder = require('../../app/scripts/Geocoder');
 
 	    describe('Geocoder can use default Geocoder provided by caller if no pattern match can be made', function () {
 	        it('should geocode an address with provided default Geocoder', function (done) {
-	            var defaultGeocoder = function(params) {
-					var result = {
-						latlng:{lat: 45.067567,lng: -77.16453},
-						address: params.address,
-						status: 'OK'
-					};
-					var dfd = new $.Deferred();
-					setTimeout(function() {
-						dfd.resolve(result);
-					}, 1);
-					return dfd.promise();
-	            };
 				var geocodeParams = {
-					address: 'Dummy address',
-					defaultGeocoder: defaultGeocoder
+					address: 'Dummy address for default Geocoder'
 				};
 				var geocodePromise = Geocoder.geocode(geocodeParams);
 				geocodePromise.done(function (result) {
@@ -2740,7 +3802,7 @@ var Geocoder = require('../../app/scripts/Geocoder');
     });
 })();
 
-},{"../../app/scripts/Geocoder":2}],7:[function(require,module,exports){
+},{"../../app/scripts/Geocoder":2,"../../app/scripts/Geocoders/Geocoder":3,"../../app/scripts/Geocoders/GeographicTownship":4,"../../app/scripts/Geocoders/GeographicTownshipWithLotConcession":5,"../../app/scripts/Geocoders/LatLngInDMSSymbols":6,"../../app/scripts/Geocoders/LatLngInDecimalDegree":7,"../../app/scripts/Geocoders/LatLngInSymbols":8,"../../app/scripts/Geocoders/UTM":9,"../../app/scripts/Geocoders/UTMInDefaultZone":10,"../../app/scripts/Geocoders/configurations/default":18}],24:[function(require,module,exports){
 /* global describe, it, expect */
 var googleMapsAdapter = require('../../app/scripts/GoogleMapsAdapter');
 var Geocoder = require('../../app/scripts/Geocoder');
@@ -2855,7 +3917,7 @@ var Util = require('../../app/scripts/Util');
 	});
 })();
 
-},{"../../app/scripts/Geocoder":2,"../../app/scripts/GoogleMapsAdapter":3,"../../app/scripts/Util":4}],8:[function(require,module,exports){
+},{"../../app/scripts/Geocoder":2,"../../app/scripts/GoogleMapsAdapter":19,"../../app/scripts/Util":21}],25:[function(require,module,exports){
 /* global describe, it, expect */
 var Util = require('../../app/scripts/Util');
 
@@ -3049,4 +4111,4 @@ var Util = require('../../app/scripts/Util');
 	});
 })();
 
-},{"../../app/scripts/Util":4}]},{},[5,6,7,8]);
+},{"../../app/scripts/Util":21}]},{},[22,23,24,25]);
