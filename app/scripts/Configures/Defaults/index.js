@@ -20,5 +20,6 @@ module.exports = {
 	infoWindowWidth: '280px',
 	infoWindowHeight: '200px',
 	infoWindowContentHeight: '160px',
-	infoWindowContentWidth: '240px'
+	infoWindowContentWidth: '240px',
+	dynamicResourcesLoadingURL: 'http://files.ontariogovernment.ca/moe_mapping/mapping/js/MOEMap/'
 };

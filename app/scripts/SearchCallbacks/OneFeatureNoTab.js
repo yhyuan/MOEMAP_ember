@@ -1,4 +1,9 @@
 var Util = require('../Util');
+var defaultConfiguration = require('../Configures/Defaults');
+
+var url = defaultConfiguration.dynamicResourcesLoadingURL;
+var urls = [url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js'];
+_.each(urls, function(url) {yepnope({load: url,callback: function(){}});});
 
 var api = function(params) {
 	var PubSub = params.PubSub;
