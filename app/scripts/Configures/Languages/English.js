@@ -24,7 +24,7 @@ module.exports = {
 	yourSearchLang: 'Your search',
 	yourLocationSearchForLang: 'Your location search for ',
 	returnedNoResultLang: 'returned no result',
-	returnedOneResultLang: 'returned 1 result.',
+	returnedOneResultLang: 'returned 1 result',
 	pleaseRefineSearchLang: 'Please refine your search',
 	oneResultFoundLang: '1 result found',
 	moreThanLang: 'More than',

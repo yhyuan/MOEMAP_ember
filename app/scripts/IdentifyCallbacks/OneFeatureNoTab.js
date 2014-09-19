@@ -9,9 +9,9 @@ var api = function(params) {
 	var features = Util.combineFeatures(results);
 	var attrs = features[0].attributes;  // The attributes for the first feature. 
 	var container = document.createElement('div');
-	container.style.width = params.infoWindowWidth;
-	container.style.height = params.infoWindowHeight;
-	container.innerHTML = _.template(params.identifyTemplate, {attrs: attrs});
+	container.style.width = params.globalConfigure.infoWindowWidth;
+	container.style.height = params.globalConfigure.infoWindowHeight;
+	container.innerHTML = _.template(params.globalConfigure.identifyTemplate, {attrs: attrs});
 	return container;
 };
 

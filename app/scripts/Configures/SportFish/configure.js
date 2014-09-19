@@ -1,40 +1,6 @@
-/* global _, $, google */
-'use strict';
-var GoogleMapsAdapter = require('../scripts/GoogleMapsAdapter');
-window.GoogleMapsAdapter = GoogleMapsAdapter;
-var ArcGISServerAdapter = require('../scripts/ArcGISServerAdapter');
-var Util = require('../scripts/Util');
-/*English Begins*/
-var langSetting = require('../scripts/Configures/Languages/English');
-/*English Ends*/
-/*French Begins*/
-var langSetting = require('../scripts/Configures/Languages/French');
-/*French Ends*/
-var PubSub = require('../scripts/PubSub');
-var defaultConfiguration = require('../scripts/Configures/Defaults');
 var identifyCallback = require('../scripts/IdentifyCallbacks/OneFeatureNoTab');
 var searchCallback = require('../scripts/SearchCallbacks/OneFeatureNoTab');
-
-var GeographicTownship = require('../scripts/Geocoders/GeographicTownship');
-var GeographicTownshipWithLotConcession = require('../scripts/Geocoders/GeographicTownshipWithLotConcession');
-var LatLngInDecimalDegree = require('../scripts/Geocoders/LatLngInDecimalDegree');
-var LatLngInDMSSymbols = require('../scripts/Geocoders/LatLngInDMSSymbols');
-var LatLngInSymbols = require('../scripts/Geocoders/LatLngInSymbols');
-var UTM = require('../scripts/Geocoders/UTM');
-var UTMInDefaultZone = require('../scripts/Geocoders/UTMInDefaultZone');
-var GoogleGeocoder = require('../scripts/Geocoders/GoogleGeocoder');
-var Geocoder = require('../scripts/Geocoders/Geocoder');
-var defaultGeocoderConfigurations = require('../scripts/Geocoders/configurations/default');
-var GeocoderSettings = {
-	GeocoderList: [LatLngInDecimalDegree, LatLngInDMSSymbols, LatLngInSymbols, UTM, UTMInDefaultZone, GeographicTownship, GeographicTownshipWithLotConcession],
-	defaultGeocoder: GoogleGeocoder
-};
-GeocoderSettings = _.defaults(defaultGeocoderConfigurations, GeocoderSettings);
-Geocoder.init(GeocoderSettings);
-var configuration = {
-	test: function() {
-		console.log(this);
-	},
+var globalConfigure = {
 	langs: langSetting,
 	//minMapScale: 1,
 	infoWindowHeight: '140px',
@@ -71,7 +37,7 @@ var configuration = {
 			<br/>\
 			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Current Map Display" /> <label for="currentExtent" class=\'option\'>Search current map display only</label>\
 		</fieldset>\
-		<div id="information"></div>'
+		<div id="information"></div>',
 	/*English Ends*/
 	/*French Begins*/
 	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
@@ -92,7 +58,7 @@ var configuration = {
 			<br/>\
 			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Étendue de la carte courante" /> <label for="currentExtent" class=\'option\'>\u00c9tendue de la carte courante</label>\
 		</fieldset>\
-		<div id="information"></div>'
+		<div id="information"></div>',
 	/*French Ends*/
 	/*
 		identifyRadius: 1
@@ -154,263 +120,190 @@ var configuration = {
 		outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
 		/*French Ends*/
 	}],
-};
-configuration = _.defaults(configuration, defaultConfiguration);
-configuration.test();
-
-var transformResults = function (results) {
-	var deciToDegree = function (degree, language){
-		if(Math.abs(degree) <= 0.1){
-			return "N/A";
-		}
-		var sym = "N";
-		if(degree<0){
-			degree = -degree;
-			/*English Begins*/		
-			sym = "W";
-			/*English Ends*/
-			/*French Begins*/
-			sym = "O";
-			/*French Ends*/
-		}
-		var deg = Math.floor(degree);
-		var temp = (degree - deg)*60;
-		var minute = Math.floor(temp);
-		var second = Math.floor((temp- minute)*60);
-		var res = "";
-		var degreeSymbolLang = "&deg;";
-		if(second<1){
-			res ="" + deg + degreeSymbolLang + minute + "'";
-		}else if(second>58){
-			res ="" + deg + degreeSymbolLang + (minute+1) + "'";
-		}else{
-			res ="" + deg + degreeSymbolLang + minute + "'" + second + "\"";
-		}
-		return res + sym;
-	};
-
-	var addBRtoLongText = function (text) {
-		var lineCount = 0;
-		var readyForBreak = false;
-		if (text.length <= 40) {
-			return text;
-		}
-		var textArray = text.split('');
-		var result = "";	
-		for (var i = 0; i < textArray.length; i++) {
-			if (lineCount > 40) {
-				readyForBreak = true;
+	transformResults: function (results) {
+		var deciToDegree = function (degree, language){
+			if(Math.abs(degree) <= 0.1){
+				return "N/A";
 			}
-			result = result + textArray[i];
-			if ((readyForBreak) && (textArray[i] === " ")) {
-				lineCount = 0;
-				result = result + "<br>";
-				readyForBreak = false;
-			}
-			lineCount = lineCount + 1;
-		}
-		return result;
-	};
-	return _.map(results, function(layer) {
-			layer.features = _.map(layer.features, function(feature) {
-				feature.attributes["LATITUDE"] = deciToDegree(feature.attributes["LATITUDE"]);
-				feature.attributes["LONGITUDE"] = deciToDegree(feature.attributes["LONGITUDE"]);
+			var sym = "N";
+			if(degree<0){
+				degree = -degree;
 				/*English Begins*/		
-				feature.attributes["GUIDELOC_EN"] = addBRtoLongText(feature.attributes["GUIDELOC_EN"]);
+				sym = "W";
 				/*English Ends*/
 				/*French Begins*/
-				feature.attributes["GUIDELOC_FR"] = addBRtoLongText(feature.attributes["GUIDELOC_FR"]);
+				sym = "O";
 				/*French Ends*/
-				return feature;
-			})
-			return layer;
-		});
-};
-
-
-var getSearchCondition = function (params) {
-	var getLakeNameSearchCondition = function(searchString) {
-		var coorsArray = searchString.split(/\s+/);
-		var str = coorsArray.join(" ").toUpperCase();
-		str = Util.replaceChar(str, "'", "''");
-		str = Util.replaceChar(str, "\u2019", "''");
-		/*English Begins*/
-		return "UPPER(LOCNAME_EN) LIKE '%" + str + "%'";
-		/*English Ends*/
-		/*French Begins*/
-		return "UPPER(LOCNAME_FR) LIKE '%" + str + "%'";
-		/*French Ends*/
-	};
-	var getQueryCondition = function(name){
-		var str = name.toUpperCase();
-		str = Util.replaceChar(str, '&', ', ');
-		str = Util.replaceChar(str, ' AND ', ', '); 
-		str = str.trim();
-		var nameArray = str.split(',');
-		var max = nameArray.length;
-		var res = [];
-		var inform = [];
-		var processAliasFishName = function(fishname){
-			var aliasList = {
-				GERMAN_TROUT: ["BROWN_TROUT"],
-				SHEEPHEAD:	["FRESHWATER_DRUM"],
-				STEELHEAD:	["RAINBOW_TROUT"],
-				SUNFISH:	["PUMPKINSEED"],
-				BARBOTTE:	["BROWN_BULLHEAD"],
-				BLACK_BASS:	["LARGEMOUTH_BASS","SMALLMOUTH_BASS"],
-				CALICO_BASS:	["BLACK_CRAPPIE"],
-				CRAWPIE:	["BLACK_CRAPPIE","WHITE_CRAPPIE"],
-				GREY_TROUT:	["LAKE_TROUT"],
-				HUMPBACK_SALMON:	["PINK_SALMON"],
-				KING_SALMON:	["CHINOOK_SALMON"],
-				LAKER:	["LAKE_TROUT"],
-				MENOMINEE:	["ROUND_WHITEFISH"],
-				MUDCAT:	["BROWN_BULLHEAD"],
-				MULLET:	["WHITE_SUCKER"],
-				PANFISH:	["BLUEGILL","ROCK_BASS","PUMPKINSEED"],
-				PICKEREL:	["WALLEYE"],
-				SILVER_BASS:	["WHITE_BASS"],
-				SILVER_SALMON:	["COHO_SALMON"],
-				SPECKLED_TROUT:	["BROOK_TROUT"],
-				SPRING_SALMON:	["CHINOOK_SALMON"]
-			};
-			var alias = aliasList[fishname];
-			var fish = Util.wordCapitalize(Util.replaceChar(fishname, '_', ' '));
-			if (typeof(alias) === "undefined"){
-				var result = {
-					/*English Begins*/
-					condition: "(SPECIES_EN like '%" + fishname +"%')",
-					/*English Ends*/
-					/*French Begins*/
-					condition: "(SPECIES_FR like '%" + fishname +"%')",
-					/*French Ends*/
-					information: fish
-				};
-				return result;
+			}
+			var deg = Math.floor(degree);
+			var temp = (degree - deg)*60;
+			var minute = Math.floor(temp);
+			var second = Math.floor((temp- minute)*60);
+			var res = "";
+			var degreeSymbolLang = "&deg;";
+			if(second<1){
+				res ="" + deg + degreeSymbolLang + minute + "'";
+			}else if(second>58){
+				res ="" + deg + degreeSymbolLang + (minute+1) + "'";
 			}else{
-				var res = [];
-				var fishArray = [];
-				for (var i = 0; i < alias.length; i++){
-					/*English Begins*/
-					res.push("(SPECIES_EN like '%" + alias[i] +"%')");
+				res ="" + deg + degreeSymbolLang + minute + "'" + second + "\"";
+			}
+			return res + sym;
+		};
+
+		var addBRtoLongText = function (text) {
+			var lineCount = 0;
+			var readyForBreak = false;
+			if (text.length <= 40) {
+				return text;
+			}
+			var textArray = text.split('');
+			var result = "";	
+			for (var i = 0; i < textArray.length; i++) {
+				if (lineCount > 40) {
+					readyForBreak = true;
+				}
+				result = result + textArray[i];
+				if ((readyForBreak) && (textArray[i] === " ")) {
+					lineCount = 0;
+					result = result + "<br>";
+					readyForBreak = false;
+				}
+				lineCount = lineCount + 1;
+			}
+			return result;
+		};
+		return _.map(results, function(layer) {
+				layer.features = _.map(layer.features, function(feature) {
+					feature.attributes["LATITUDE"] = deciToDegree(feature.attributes["LATITUDE"]);
+					feature.attributes["LONGITUDE"] = deciToDegree(feature.attributes["LONGITUDE"]);
+					/*English Begins*/		
+					feature.attributes["GUIDELOC_EN"] = addBRtoLongText(feature.attributes["GUIDELOC_EN"]);
 					/*English Ends*/
 					/*French Begins*/
-					res.push("(SPECIES_FR like '%" + alias[i] +"%')");
+					feature.attributes["GUIDELOC_FR"] = addBRtoLongText(feature.attributes["GUIDELOC_FR"]);
 					/*French Ends*/
-					var str = Util.wordCapitalize(Util.replaceChar(alias[i], '_', ' '));
-					fishArray.push(str.trim());
-				}
-				var result = {
-					condition: "(" + res.join(" OR ") + ")",
-					information: fish + " ("  + fishArray.join(", ") + ")"
-				};
-				return result;
-			}
-		}
-		for (var i = 0; i < max; i++){
-			var str1 = (nameArray[i]).trim();
-			if(str1.length > 0){
-				var coorsArray = str1.split(/\s+/);
-				str1 = coorsArray.join("_");
-				var temp = processAliasFishName(str1);
-				res.push(temp.condition);
-				inform.push(temp.information);
-			}
-		}		
-		var result = {
-			condition: res.join(" AND "),
-			information: inform.join(", ")
+					return feature;
+				})
+				return layer;
+			});
+	},
+	getSearchCondition: function (params) {
+		var getLakeNameSearchCondition = function(searchString) {
+			var coorsArray = searchString.split(/\s+/);
+			var str = coorsArray.join(" ").toUpperCase();
+			str = Util.replaceChar(str, "'", "''");
+			str = Util.replaceChar(str, "\u2019", "''");
+			/*English Begins*/
+			return "UPPER(LOCNAME_EN) LIKE '%" + str + "%'";
+			/*English Ends*/
+			/*French Begins*/
+			return "UPPER(LOCNAME_FR) LIKE '%" + str + "%'";
+			/*French Ends*/
 		};
-		return result;
-	};
-	var searchString = params.searchString;
-	return ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition;
-}; 
-var getSearchGeometry = function (params) {
-	if ($('#currentMapExtent')[0].checked) {
-		return params.currentMapExtent;
+		var getQueryCondition = function(name){
+			var str = name.toUpperCase();
+			str = Util.replaceChar(str, '&', ', ');
+			str = Util.replaceChar(str, ' AND ', ', '); 
+			str = str.trim();
+			var nameArray = str.split(',');
+			var max = nameArray.length;
+			var res = [];
+			var inform = [];
+			var processAliasFishName = function(fishname){
+				var aliasList = {
+					GERMAN_TROUT: ["BROWN_TROUT"],
+					SHEEPHEAD:	["FRESHWATER_DRUM"],
+					STEELHEAD:	["RAINBOW_TROUT"],
+					SUNFISH:	["PUMPKINSEED"],
+					BARBOTTE:	["BROWN_BULLHEAD"],
+					BLACK_BASS:	["LARGEMOUTH_BASS","SMALLMOUTH_BASS"],
+					CALICO_BASS:	["BLACK_CRAPPIE"],
+					CRAWPIE:	["BLACK_CRAPPIE","WHITE_CRAPPIE"],
+					GREY_TROUT:	["LAKE_TROUT"],
+					HUMPBACK_SALMON:	["PINK_SALMON"],
+					KING_SALMON:	["CHINOOK_SALMON"],
+					LAKER:	["LAKE_TROUT"],
+					MENOMINEE:	["ROUND_WHITEFISH"],
+					MUDCAT:	["BROWN_BULLHEAD"],
+					MULLET:	["WHITE_SUCKER"],
+					PANFISH:	["BLUEGILL","ROCK_BASS","PUMPKINSEED"],
+					PICKEREL:	["WALLEYE"],
+					SILVER_BASS:	["WHITE_BASS"],
+					SILVER_SALMON:	["COHO_SALMON"],
+					SPECKLED_TROUT:	["BROOK_TROUT"],
+					SPRING_SALMON:	["CHINOOK_SALMON"]
+				};
+				var alias = aliasList[fishname];
+				var fish = Util.wordCapitalize(Util.replaceChar(fishname, '_', ' '));
+				if (typeof(alias) === "undefined"){
+					var result = {
+						/*English Begins*/
+						condition: "(SPECIES_EN like '%" + fishname +"%')",
+						/*English Ends*/
+						/*French Begins*/
+						condition: "(SPECIES_FR like '%" + fishname +"%')",
+						/*French Ends*/
+						information: fish
+					};
+					return result;
+				}else{
+					var res = [];
+					var fishArray = [];
+					for (var i = 0; i < alias.length; i++){
+						/*English Begins*/
+						res.push("(SPECIES_EN like '%" + alias[i] +"%')");
+						/*English Ends*/
+						/*French Begins*/
+						res.push("(SPECIES_FR like '%" + alias[i] +"%')");
+						/*French Ends*/
+						var str = Util.wordCapitalize(Util.replaceChar(alias[i], '_', ' '));
+						fishArray.push(str.trim());
+					}
+					var result = {
+						condition: "(" + res.join(" OR ") + ")",
+						information: fish + " ("  + fishArray.join(", ") + ")"
+					};
+					return result;
+				}
+			}
+			for (var i = 0; i < max; i++){
+				var str1 = (nameArray[i]).trim();
+				if(str1.length > 0){
+					var coorsArray = str1.split(/\s+/);
+					str1 = coorsArray.join("_");
+					var temp = processAliasFishName(str1);
+					res.push(temp.condition);
+					inform.push(temp.information);
+				}
+			}		
+			var result = {
+				condition: res.join(" AND "),
+				information: inform.join(", ")
+			};
+			return result;
+		};
+		var searchString = params.searchString;
+		return ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition;
+	},
+	getSearchGeometry: function (params) {
+		if ($('#currentMapExtent')[0].checked) {
+			return params.currentMapExtent;
+		} else {
+			return null;
+		}
+	},
+	getSearchSettings: function (params) {
+		var settings = {
+			searchString: params.searchString,
+			geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
+			withinExtent: $('#currentMapExtent')[0].checked/*,
+			invalidFeatureLocations: [{
+				lat: 0,
+				lng: 0,
+				difference: 0.0001
+			}]*/
+		};
+		return settings;
 	}
 };
-var getSearchSettings = function (params) {
-	//console.log(params.settings);
-	var settings = {
-		searchString: params.searchString,
-		geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
-		withinExtent: $('#currentMapExtent')[0].checked/*,
-		invalidFeatureLocations: [{
-			lat: 0,
-			lng: 0,
-			difference: 0.0001
-		}]*/
-	};
-	return _.defaults(settings, configuration);
-};
-
-PubSub.on("MOECC_MAP_GEOCODING_ADDRESS_READY", function(initParams) {
-	var params = _.defaults(initParams, GeocoderSettings);
-	Geocoder.geocode(params).done(function(result) {
-		PubSub.emit("MOECC_MAP_GEOCODING_RESULT_READY", {address: initParams.address, result: result, withinExtent: initParams.withinExtent});
-	});
-})
-PubSub.on("MOECC_MAP_IDENTIFY_REQUEST_READY", function(params) {
-	var promises = _.map(identifyParamsList, function (identifyParams) {
-		var p = _.clone(identifyParams);
-		p.geometry = params.geometry;
-		return ArcGISServerAdapter.query(p)
-	});
-	//PubSub.emit("MOECC_MAP_IDENTIFY_PROMISES_READY", {promises: promises, settings: params.settings});
-	$.when.apply($, promises).done(function() {
-		//PubSub.emit("MOECC_MAP_IDENTIFY_RESPONSE_READY", {results: arguments, settings: params.settings});
-		var container = identifyCallback({results: transformResults(arguments), identifyTemplate: identifyTemplate, infoWindowWidth: params.settings.infoWindowWidth, infoWindowHeight: params.settings.infoWindowHeight});
-		if (!!container) {
-			PubSub.emit("MOECC_MAP_IDENTIFY_RESPONSE_READY", {infoWindow: container, latlng: params.settings.latlng});
-		}
-	});
-});
-/*
-PubSub.on("MOECC_MAP_IDENTIFY_RESPONSE_READY", function(params) {
-	var container = identifyCallback({results: transformResults(params.results), identifyTemplate: identifyTemplate, infoWindowWidth: params.settings.infoWindowWidth, infoWindowHeight: params.settings.infoWindowHeight});
-	if (!!container) {
-		PubSub.emit("MOECC_MAP_IDENTIFY_INFOWINDOW_READY", {infoWindow: container, latlng: params.settings.latlng});
-	}
-});*/
-PubSub.on("MOECC_MAP_BOUNDS_CHANGED_REQUEST_READY", function (request) {
-	var promises = _.map(exportParamsList, function (exportParams) {
-		var params = _.clone(exportParams);
-		params.bounds = request.bounds;
-		params.width = request.width;
-		params.height = request.height;
-		return ArcGISServerAdapter.exportMap(params)
-	});
-	$.when.apply($, promises).done(function() {
-		PubSub.emit("MOECC_MAP_BOUNDS_CHANGED_RESPONSE_READY", arguments);
-	});
-});
-
-PubSub.on("MOECC_MAP_SEARCH_STRING_READY", function (params) {
-	var searchString = params.searchString;
-	var geometry = getSearchGeometry(params);
-	var promises = _.map(queryParamsList, function (queryParams) {
-		var p = _.clone(queryParams);
-		p.where = getSearchCondition(params);
-		if (geometry) {
-			p.geometry = geometry;
-		}
-		return ArcGISServerAdapter.query(p);
-	});
-	var settings = getSearchSettings(params);
-	console.log(settings);
-	//PubSub.emit("MOECC_MAP_SEARCH_PROMISES_READY", {promises: promises, settings: _.defaults(settings, params.settings)});
-	$.when.apply($, promises).done(function() {
-		//PubSub.emit("MOECC_MAP_SEARCH_RESPONSE_READY", {results: arguments, settings: _.defaults(settings, params.settings)});
-		console.log(arguments);
-		searchCallback({results: transformResults(arguments), tableTemplate: tableTemplate, identifyTemplate: identifyTemplate, settings: settings, PubSub: PubSub});
-	});
-});
-/*
-PubSub.on("MOECC_MAP_SEARCH_RESPONSE_READY", function(params) {
-	searchCallback({results: transformResults(params.results), tableTemplate: tableTemplate, identifyTemplate: identifyTemplate, settings: params.settings, PubSub: PubSub});
-});*/
-GoogleMapsAdapter.setPubSub(PubSub);
-
-PubSub.emit("MOECC_MAP_INITIALIZATION", configuration);
