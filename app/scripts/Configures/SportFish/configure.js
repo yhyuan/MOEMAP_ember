@@ -307,3 +307,9 @@ var globalConfigure = {
 		return settings;
 	}
 };
+
+globalConfigure = _.defaults(globalConfigure, defaultConfiguration);
+
+$('#' + globalConfigure.otherInfoDivId).html(globalConfigure.otherInfoHTML);
+$("#" + globalConfigure.searchControlDivId).html(globalConfigure.searchControlHTML);
+PubSub.emit("MOECC_MAP_INITIALIZATION", globalConfigure);
