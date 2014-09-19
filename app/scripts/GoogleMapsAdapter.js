@@ -895,7 +895,9 @@ var search = function(input) {
 		infoWindowWidth: globalConfigure.infoWindowWidth,
 		infoWindowHeight: globalConfigure.infoWindowHeight,
 		infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
-		infoWindowContentWidth: globalConfigure.infoWindowContentWidth
+		infoWindowContentWidth: globalConfigure.infoWindowContentWidth,
+		queryTableDivId: globalConfigure.queryTableDivId,
+		langs: globalConfigure.langs
 	};
 	PubSub.emit("MOECC_MAP_SEARCH_STRING_READY", {searchString: searchString, currentMapExtent: getCurrentMapExtent(), settings: settings});
 	/*var searchParams = globalConfigure.preSearchCallbackList[globalConfigure.preSearchCallbackName](searchString);
@@ -1016,7 +1018,7 @@ var setPubSub = function (thePubSub) {
 			PubSub.emit("MOECC_MAP_SEARCH_RESPONSE_READY", {results: arguments, settings: params.settings});
 		});
 	});
-	*/
+	
 	PubSub.on("MOECC_MAP_SEARCH_TABLE_READY", function (params) {
 		$('#' + globalConfigure.queryTableDivId).html(params.tableContent);
 		var dataTableOptions = {
@@ -1030,7 +1032,7 @@ var setPubSub = function (thePubSub) {
 		if (params.hasOwnProperty('invalidtableID')) {
 			$('#' + params.invalidtableID).dataTable(dataTableOptions);				
 		}		
-	});
+	}); */
 	PubSub.on("MOECC_MAP_SEARCH_MARKERS_READY", function (params) {
 		var markers = _.map(params.markers, function(m) {
 			var container = m.container;

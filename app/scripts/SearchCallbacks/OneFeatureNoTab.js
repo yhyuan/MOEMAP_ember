@@ -11,42 +11,37 @@ var api = function(params) {
 	var featuresLength = Util.computeFeaturesNumber (results);
 	var settings = params.settings;
 	if ((featuresLength === 0) && settings.hasOwnProperty('geocodeWhenQueryFail') && settings.geocodeWhenQueryFail && settings.hasOwnProperty('searchString')) {
-		var geocodingParams = settings.searchString;
 		PubSub.emit("MOECC_MAP_GEOCODING_ADDRESS_READY", {address: settings.searchString, withinExtent: settings.withinExtent});
-		/*
-		if (settings.hasOwnProperty('GeocoderList')) {
-			geocodingParams = {
-				GeocoderList: settings.GeocoderList,
-				address: settings.searchString
-			};
-		}
-		var geocodePromise = geocode(geocodingParams);
-		geocodePromise.done(function(result){
-			if (result.status === "OK") {
-				//result.latlng result.geocodedAddress, map zoom to specific area, add a location pin to the location, update search message.
-			} else {
-				//update search meesage
-			}
-		});
-		return;
-		*/
 	} else {
 		var splited = Util.splitResults(results, settings.invalidFeatureLocations);
 		var invalidNumber = Util.computeFeaturesNumber (splited.invalidResults);
 		var validFeatures, invalidFeatures;
 		var validTableID = Util.getTableIDFromTableTemplate(params.tableTemplate);
+		var tableContent;
 		if (invalidNumber > 0) {
 			validFeatures = Util.combineFeatures(splited.validResults);
 			invalidFeatures = Util.combineFeatures(splited.invalidResults);
 			var str1 = _.template(params.tableTemplate, {features: validFeatures});
 			var str2 = _.template(params.invalidTableTemplate, {features: invalidFeatures});
 			var invalidtableID = Util.getTableIDFromTableTemplate(params.invalidTableTemplate);
-			PubSub.emit("MOECC_MAP_SEARCH_TABLE_READY", {tableContent: str1 + '<br><br>' + str2, validTableID: validTableID, invalidtableID: invalidtableID});
+			tableContent = str1 + '<br><br>' + str2;
 		} else {
 			validFeatures = Util.combineFeatures(results);
-			PubSub.emit("MOECC_MAP_SEARCH_TABLE_READY", {tableContent: _.template(params.tableTemplate, {features: validFeatures}), validTableID: validTableID});
+			tableContent = _.template(params.tableTemplate, {features: validFeatures});
 		}
-		
+		$('#' + settings.queryTableDivId).html(tableContent);
+		var dataTableOptions = {
+			'bJQueryUI': true,
+			'sPaginationType': 'full_numbers' 
+		};
+		if (settings.langs.hasOwnProperty('dataTableLang')) {
+			dataTableOptions['oLanguage'] = settings.langs.dataTableLang;
+		}
+		$('#' + validTableID).dataTable(dataTableOptions);		
+		if (invalidNumber > 0) {
+			$('#' + invalidtableID).dataTable(dataTableOptions);				
+		}
+
 		var markers = _.map(validFeatures, function(feature) {
 			var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
 			var container = document.createElement('div');
