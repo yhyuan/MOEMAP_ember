@@ -308,7 +308,7 @@ var globalConfigure = {
 				result = result + andStr + " " + strArray[strArray.length-1];
 			}
 			return result;
-		}
+		};
 		return _.map(results, function(layer) {
 				layer.features = _.map(layer.features, function(feature) {
 					feature.attributes["LATITUDE"] = deciToDegree(feature.attributes["LATITUDE"]);
