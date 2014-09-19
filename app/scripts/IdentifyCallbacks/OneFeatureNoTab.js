@@ -24,10 +24,24 @@ var api = function(params) {
 			};
 		}), settings);	
 	} else {
-		container = document.createElement('div');
-		container.style.width = globalConfigure.infoWindowWidth;
-		container.style.height = globalConfigure.infoWindowHeight;
-		container.innerHTML = _.template(globalConfigure.identifyTemplate, {attrs: attrs});
+		if (globalConfigure.identifyMultipleFeatures) {
+			var content = _.template(globalConfigure.identifyTemplate, {features: features});
+			var settings = {
+				infoWindowWidth: globalConfigure.infoWindowWidth,
+				infoWindowHeight: globalConfigure.infoWindowHeight,
+				infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
+				infoWindowContentWidth: globalConfigure.infoWindowContentWidth
+			};
+			var container = Util.createTabBar ([{
+				label: globalConfigure.langs.InformationLang,
+				content: content
+			}], settings);		
+		} else {
+			container = document.createElement('div');
+			container.style.width = globalConfigure.infoWindowWidth;
+			container.style.height = globalConfigure.infoWindowHeight;
+			container.innerHTML = _.template(globalConfigure.identifyTemplate, {attrs: attrs});
+		}
 	}	
 	return container;
 };
