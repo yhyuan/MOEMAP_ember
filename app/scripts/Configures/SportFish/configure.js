@@ -294,20 +294,29 @@ PubSub.on("MOECC_MAP_GEOCODING_ADDRESS_READY", function(initParams) {
 		PubSub.emit("MOECC_MAP_GEOCODING_RESULT_READY", {address: initParams.address, result: result, withinExtent: initParams.withinExtent});
 	});
 })
-PubSub.on("MOECC_MAP_IDENTIFY_GEOMETRY_READY", function(params) {
+PubSub.on("MOECC_MAP_IDENTIFY_REQUEST_READY", function(params) {
 	var promises = _.map(identifyParamsList, function (identifyParams) {
 		var params = _.clone(identifyParams);
 		params.geometry = params.geometry;
 		return ArcGISServerAdapter.query(params)
 	});
-	PubSub.emit("MOECC_MAP_IDENTIFY_PROMISES_READY", {promises: promises, settings: params.settings});
+	//PubSub.emit("MOECC_MAP_IDENTIFY_PROMISES_READY", {promises: promises, settings: params.settings});
+
+	$.when.apply($, params.promises).done(function() {
+		//PubSub.emit("MOECC_MAP_IDENTIFY_RESPONSE_READY", {results: arguments, settings: params.settings});
+		var container = identifyCallback({results: transformResults(params.results), identifyTemplate: identifyTemplate, infoWindowWidth: params.settings.infoWindowWidth, infoWindowHeight: params.settings.infoWindowHeight});
+		if (!!container) {
+			PubSub.emit("MOECC_MAP_IDENTIFY_RESPONSE_READY", {infoWindow: container, latlng: params.settings.latlng});
+		}
+	});
 });
+/*
 PubSub.on("MOECC_MAP_IDENTIFY_RESPONSE_READY", function(params) {
 	var container = identifyCallback({results: transformResults(params.results), identifyTemplate: identifyTemplate, infoWindowWidth: params.settings.infoWindowWidth, infoWindowHeight: params.settings.infoWindowHeight});
 	if (!!container) {
 		PubSub.emit("MOECC_MAP_IDENTIFY_INFOWINDOW_READY", {infoWindow: container, latlng: params.settings.latlng});
 	}
-});
+});*/
 PubSub.on("MOECC_MAP_BOUNDS_CHANGED_REQUEST_READY", function (request) {
 	var promises = _.map(exportParamsList, function (exportParams) {
 		var params = _.clone(exportParams);
@@ -316,8 +325,11 @@ PubSub.on("MOECC_MAP_BOUNDS_CHANGED_REQUEST_READY", function (request) {
 		params.height = request.height;
 		return ArcGISServerAdapter.exportMap(params)
 	});
-	PubSub.emit("MOECC_MAP_BOUNDS_CHANGED_PROMISES_READY", promises);	
+	$.when.apply($, promises).done(function() {
+		PubSub.emit("MOECC_MAP_BOUNDS_CHANGED_RESPONSE_READY", arguments);
+	});
 });
+
 PubSub.on("MOECC_MAP_SEARCH_STRING_READY", function (params) {
 	var searchString = params.searchString;
 	var promises = _.map(queryParamsList, function (queryParams) {
@@ -327,11 +339,16 @@ PubSub.on("MOECC_MAP_SEARCH_STRING_READY", function (params) {
 		return ArcGISServerAdapter.query(p);
 	});
 	var settings = getSearchSettings(params);	
-	PubSub.emit("MOECC_MAP_SEARCH_PROMISES_READY", {promises: promises, settings: _.defaults(settings, params.settings)});
+	//PubSub.emit("MOECC_MAP_SEARCH_PROMISES_READY", {promises: promises, settings: _.defaults(settings, params.settings)});
+	$.when.apply($, promises).done(function() {
+		//PubSub.emit("MOECC_MAP_SEARCH_RESPONSE_READY", {results: arguments, settings: _.defaults(settings, params.settings)});
+		searchCallback({results: transformResults(params.results), tableTemplate: tableTemplate, identifyTemplate: identifyTemplate, settings: params.settings, PubSub: PubSub});
+	});
 });
+/*
 PubSub.on("MOECC_MAP_SEARCH_RESPONSE_READY", function(params) {
 	searchCallback({results: transformResults(params.results), tableTemplate: tableTemplate, identifyTemplate: identifyTemplate, settings: params.settings, PubSub: PubSub});
-});
+});*/
 GoogleMapsAdapter.setPubSub(PubSub);
 
 PubSub.emit("MOECC_MAP_INITIALIZATION", _.defaults(configuration, defaultConfiguration));
