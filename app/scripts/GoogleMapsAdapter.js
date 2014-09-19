@@ -67,7 +67,7 @@ var closeInfoWindow = function (){
 		infoWindow.setMap(null);
 	}
 };
-
+/*
 var queryLayers = function (searchParams) {
 	var queryParamsList = searchParams.queryParamsList;
 	//var options = searchParams.options;
@@ -205,7 +205,7 @@ var geocode = function(input) {
 	return Geocoder.geocode(geocodeParams);
 };
 
-
+*/
 var initOld = function(initParams) {
 	var globalConfigLanguage = {
 		'EN': {
@@ -905,7 +905,8 @@ var search = function(input) {
 	Usage: Add the polylines overlays on the map. If the LOCATOR module return the result for Township with/without 
 	Lot and Concession, the related polygons will be add to Google Maps by this method. 
 	Called by: queryLayerWithPointBuffer 
-*/		
+*/
+/*		
 var createPolylines = function (rings, strokeOptions){
 	return _.map(rings, function(ring) {
 		return new google.maps.Polyline({    
@@ -919,7 +920,7 @@ var createPolylines = function (rings, strokeOptions){
 		});
 	});
 };
-
+*/
 /*
 	Usage: Create a marker on a location with pop up content and used icon. 
 	Called by: queryLayerWithPointBuffer.
@@ -970,6 +971,7 @@ var removeTiles = function () {
 var init = function (thePubSub) {
 	PubSub = thePubSub;
 	PubSub.on("MOECC_MAP_BOUNDS_CHANGED", function(googleBounds) {
+		//console.log("MOECC_MAP_BOUNDS_CHANGED");
 		if (!googleBounds) {
 			return;
 		}
@@ -982,7 +984,8 @@ var init = function (thePubSub) {
 				northEast: {lat: latLngNE.lat(), lng: latLngNE.lng()}
 			};
 		};
-		var div = document.getElementById(globalConfigure.mapCanvasDivId)
+		var div = document.getElementById(globalConfigure.mapCanvasDivId);
+		//console.log("MOECC_MAP_BOUNDS_CHANGED_REQUEST_READY");
 		PubSub.emit("MOECC_MAP_BOUNDS_CHANGED_REQUEST_READY", {
 			bounds: convertBounds(googleBounds),
 			width: div.offsetWidth,
@@ -999,7 +1002,9 @@ var init = function (thePubSub) {
 	});
 	PubSub.on("MOECC_MAP_SEARCH_RESPONSE_READY", function (params) {
 		PubSub.emit("MOECC_MAP_SEARCH_MARKERS_READY", {markers: params.markers});
-		PubSub.emit("MOECC_MAP_SEARCH_BOUNDS_CHANGED", {bounds: params.bounds});
+		if (params.hasOwnProperty('bounds')) {
+			PubSub.emit("MOECC_MAP_SEARCH_BOUNDS_CHANGED", {bounds: params.bounds});
+		}
 	});
 	PubSub.on("MOECC_MAP_SEARCH_MARKERS_READY", function (params) {
 		var markers = _.map(params.markers, function(m) {
@@ -1135,6 +1140,7 @@ var init = function (thePubSub) {
 			}});
 		}
 		setInterval(function () {
+			
 			if(previousBounds) {
 				var computeBoundsDifference = function(b1, b2) {
 					return Math.abs(b1.getNorthEast().lat() - b2.getNorthEast().lat()) + Math.abs(b1.getNorthEast().lng() - b2.getNorthEast().lng()) + Math.abs(b1.getSouthWest().lat() - b2.getSouthWest().lat()) + Math.abs(b1.getSouthWest().lng() - b2.getSouthWest().lng());
@@ -1170,19 +1176,20 @@ var init = function (thePubSub) {
 		}
 	});
 	PubSub.emit("MOECC_MAP_INITIALIZATION_FINISHED");
+	//console.log("OK");
 };
 
 
 
 var api = {
 	init: init,
-    geocode: geocode,
-    createPolylines: createPolylines,
+    //geocode: geocode,
+    //createPolylines: createPolylines,
 	search: search,
 	entsub: entsub,
 	searchChange: searchChange,
 	openInfoWindow: openInfoWindow,
-	queryLayers: queryLayers,
+	//queryLayers: queryLayers,
 	clear: clear
 };
 
