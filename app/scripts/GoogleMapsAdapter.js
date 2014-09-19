@@ -891,15 +891,15 @@ var search = function(input) {
 		var nwLatLng = {lat: nLat, lng: wLng};
 		return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
 	};	
-	var settings = {
+	/*var settings = {
 		infoWindowWidth: globalConfigure.infoWindowWidth,
 		infoWindowHeight: globalConfigure.infoWindowHeight,
 		infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
 		infoWindowContentWidth: globalConfigure.infoWindowContentWidth,
 		queryTableDivId: globalConfigure.queryTableDivId,
 		langs: globalConfigure.langs
-	};
-	PubSub.emit("MOECC_MAP_SEARCH_STRING_READY", {searchString: searchString, currentMapExtent: getCurrentMapExtent(), settings: settings});
+	};*/
+	PubSub.emit("MOECC_MAP_SEARCH_STRING_READY", {searchString: searchString, currentMapExtent: getCurrentMapExtent()/*, settings: settings*/});
 	/*var searchParams = globalConfigure.preSearchCallbackList[globalConfigure.preSearchCallbackName](searchString);
 	var promise = globalConfigure.searchCallbackList[globalConfigure.searchCallbackName](searchParams);
 	promise.done(function () {
@@ -1001,7 +1001,7 @@ var setPubSub = function (thePubSub) {
 	});
 	PubSub.on("MOECC_MAP_BOUNDS_CHANGED_RESPONSE_READY", function (results) {
 		arcGISMapServices = _.map(results, function(result) {
-			if (argument.hasOwnProperty('href')) { 
+			if (result.hasOwnProperty('href')) { 
 				return new ImageOverlay(map.getBounds(), result.href, map);
 			}
 		});
