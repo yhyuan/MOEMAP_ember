@@ -989,6 +989,25 @@ var init = function (thePubSub) {
 				});
 			})(container, pointBufferToolMarker);
 		}
+		if (globalConfigure.legendAvailable) {
+			var sw = bounds.getSouthWest();
+			var ne = bounds.getNorthEast();
+			var latDiff = ne.lat() - sw.lat();
+			var lngDiff = ne.lng() - sw.lng();
+			var location = globalConfigure.legendLocation;
+			var gLatLng = new google.maps.LatLng(sw.lat() + location.ratioY*latDiff, sw.lng() + location.ratioX*lngDiff);
+			if(legendMarker){
+				legendMarker.setMap(null);
+			}
+			var size = globalConfigure.legendSize;
+			var icon = new google.maps.MarkerImage(globalConfigure.legendURL, new google.maps.Size(size.width, size.height),
+				new google.maps.Point(0, 0), new google.maps.Point(0, 0), new google.maps.Size(size.width, size.height));
+			legendMarker = new google.maps.Marker({
+				position: gLatLng,
+				icon: icon,
+				map: map
+			});
+		}
 		
 		removeTiles();
 		var convertBounds = function(latLngBounds) {
