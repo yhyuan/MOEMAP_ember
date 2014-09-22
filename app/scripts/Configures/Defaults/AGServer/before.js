@@ -62,17 +62,29 @@ PubSub.on("MOECC_MAP_BOUNDS_CHANGED_REQUEST_READY", function (request) {
 	});
 });
 PubSub.on("MOECC_MAP_SEARCH_REQUEST_READY", function (params) {
-	var searchString = params.searchString;
-	var geometry = globalConfigure.getSearchGeometry(params);
-	var promises = _.map(globalConfigure.queryParamsList, function (queryParams) {
-		var p = _.clone(queryParams);
-		p.where = globalConfigure.getSearchCondition(params);
-		if (geometry) {
-			p.geometry = geometry;
-		}
-		return ArcGISServerAdapter.query(p);
-	});
-	var settings = globalConfigure.getSearchSettings(params);
+	var promises;
+	var settings;
+	if (params.hasOwnProperty('searchString')) {
+		var searchString = params.searchString;
+		var geometry = globalConfigure.getSearchGeometry(params);
+		promises = _.map(globalConfigure.queryParamsList, function (queryParams) {
+			var p = _.clone(queryParams);
+			p.where = globalConfigure.getSearchCondition(params);
+			if (geometry) {
+				p.geometry = geometry;
+			}
+			return ArcGISServerAdapter.query(p);
+		});
+		settings = globalConfigure.getSearchSettings(params);	
+	}
+	if (params.hasOwnProperty('geometry')) {
+		promises = _.map(globalConfigure.queryParamsList, function (queryParams) {
+			var p = _.clone(queryParams);
+			p.geometry = params.geometry;
+			return ArcGISServerAdapter.query(p);
+		});
+		settings = {};	
+	}	
 	$.when.apply($, promises).done(function() {
 		globalConfigure = _.defaults(settings, globalConfigure);
 		var responses = searchCallback({results: globalConfigure.transformResults(arguments), globalConfigure: globalConfigure});

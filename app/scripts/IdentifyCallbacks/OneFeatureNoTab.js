@@ -35,7 +35,7 @@ var api = function(params) {
 			var container = Util.createTabBar ([{
 				label: globalConfigure.langs.InformationLang,
 				content: content
-			}], settings);		
+			}], settings);
 		} else {
 			container = document.createElement('div');
 			container.style.width = globalConfigure.infoWindowWidth;

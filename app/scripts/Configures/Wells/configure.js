@@ -2,6 +2,11 @@ var identifyCallback = require('../scripts/IdentifyCallbacks/OneFeatureNoTab');
 var searchCallback = require('../scripts/SearchCallbacks/OneFeatureNoTab');
 var globalConfigure = {
 	langs: langSetting,
+	infoWindowWidth: '560px',
+	infoWindowHeight: '200px',
+	infoWindowContentHeight: '160px',
+	infoWindowContentWidth: '540px',
+	pointBufferToolAvailable: true,
 	//minMapScale: 1,
 	/*English Begins*/
 	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
@@ -70,7 +75,10 @@ var globalConfigure = {
 	}],
 	transformResults: function (results) {
 		var processNA = function (str) {
-			if (typeof(str) === 'undefined') {
+			if (str === null) {
+				return "N/A";
+			}
+			if (typeof(str) === 'undefined') {			
 				return "N/A";
 			}
 			if (str === "null") {
@@ -82,6 +90,9 @@ var globalConfigure = {
 			return str;
 		};
 		var convertDepthFormat = function (val){
+			if (val === null) {
+				return "N/A";
+			}		
 			if (val === "N/A") {
 				return "N/A";
 			}
@@ -89,6 +100,9 @@ var globalConfigure = {
 			return res.toFixed(1);
 		};
 		var convertDateFormat = function (str){
+			if (str === null) {
+				return "N/A";
+			}		
 			if (str === "N/A") {
 				return "N/A";
 			}

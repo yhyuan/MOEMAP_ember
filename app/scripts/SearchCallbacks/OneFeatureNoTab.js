@@ -58,31 +58,55 @@ var api = function(params) {
 		if (invalidNumber > 0) {
 			$('#' + invalidtableID).dataTable(dataTableOptions);				
 		}
-
-		var markers = _.map(validFeatures, function(feature) {
-			var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
-			var container = document.createElement('div');
-			container.style.width = globalConfigure.infoWindowWidth;
-			container.style.height = globalConfigure.infoWindowHeight;
-			var identifyTemplate = globalConfigure.identifyTemplate;
-			if (typeof identifyTemplate == 'string' || identifyTemplate instanceof String) {
-				container.innerHTML = _.template(identifyTemplate, {attrs: feature.attributes});
-			} else if($.isArray(identifyTemplate)) {
+		var markers;
+		if (globalConfigure.identifyMultipleFeatures) {
+			var groups = _.groupBy(validFeatures, function(feature){
+				return feature.geometry.y.toFixed(6) + ',' + feature.geometry.x.toFixed(6);
+			});
+			markers = _.map(_.keys(groups), function(latlngInString) {
 				var infoWindowSettings = {
 					infoWindowWidth: globalConfigure.infoWindowWidth,
 					infoWindowHeight: globalConfigure.infoWindowHeight,
 					infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
 					infoWindowContentWidth: globalConfigure.infoWindowContentWidth
 				};
-				container = Util.createTabBar (_.map(identifyTemplate, function(template) {
-					return {
-						label: _.template(template.label,  {attrs: feature.attributes}),
-						content: _.template(template.content,  {attrs: feature.attributes})
+				var container = Util.createTabBar ([{
+						label: globalConfigure.langs.InformationLang,
+						content: _.template(globalConfigure.identifyTemplate,  {features: groups[latlngInString]})
+					}], infoWindowSettings);
+				var latlngInArray = latlngInString.split(',');
+				return {container: container, latlng: {
+					lat: parseFloat(latlngInArray[0]),
+					lng: parseFloat(latlngInArray[1])
+				}};
+			});
+		} else {
+			markers = _.map(validFeatures, function(feature) {
+				//var gLatLng = new google.maps.LatLng(feature.geometry.y, feature.geometry.x);
+				var container;
+				var identifyTemplate = globalConfigure.identifyTemplate;
+				if (typeof identifyTemplate == 'string' || identifyTemplate instanceof String) {
+					container = document.createElement('div');
+					container.style.width = globalConfigure.infoWindowWidth;
+					container.style.height = globalConfigure.infoWindowHeight;
+					container.innerHTML = _.template(identifyTemplate, {attrs: feature.attributes});
+				} else if($.isArray(identifyTemplate)) {
+					var infoWindowSettings = {
+						infoWindowWidth: globalConfigure.infoWindowWidth,
+						infoWindowHeight: globalConfigure.infoWindowHeight,
+						infoWindowContentHeight: globalConfigure.infoWindowContentHeight,
+						infoWindowContentWidth: globalConfigure.infoWindowContentWidth
 					};
-				}), infoWindowSettings);
-			}
-			return {container: container, latlng: {lat: feature.geometry.y, lng: feature.geometry.x}};
-		});
+					container = Util.createTabBar (_.map(identifyTemplate, function(template) {
+						return {
+							label: _.template(template.label,  {attrs: feature.attributes}),
+							content: _.template(template.content,  {attrs: feature.attributes})
+						};
+					}), infoWindowSettings);
+				}
+				return {container: container, latlng: {lat: feature.geometry.y, lng: feature.geometry.x}};
+			});		
+		}
 		var responses = {
 			status: true,
 			markers: markers

@@ -21,5 +21,17 @@ module.exports = {
 	infoWindowHeight: '200px',
 	infoWindowContentHeight: '160px',
 	infoWindowContentWidth: '240px',
-	dynamicResourcesLoadingURL: 'http://files.ontariogovernment.ca/moe_mapping/mapping/js/MOEMap/'
+	dynamicResourcesLoadingURL: 'http://files.ontariogovernment.ca/moe_mapping/mapping/js/MOEMap/',
+	legendAvailable: false,	
+	legendURL: 'legend.png', 
+	legendSize: {width: 270, height: 81},
+	legendLocation: {ratioX: 0.01, ratioY: 0.25},
+
+	pointBufferToolAvailable: false,
+	pointBufferToolUpIcon: 'Bptu.png',
+	pointBufferToolDownIcon: 'Bptd.png',
+	pointBufferToolSize: {width: 31, height: 31},
+	pointBufferToolLocation: {ratioX: 0.12, ratioY: 0.98},
+	pointBufferToolCircle: {color: '#FF0000', opacity: 1, weight: 2},
+	
 };

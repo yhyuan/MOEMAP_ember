@@ -15,6 +15,10 @@ var previousBounds;
 var infoWindow;
 //var infoWindowPosition;
 var marker;
+var pointBufferToolMarker;
+var isCenterSet;
+var center;
+var bufferCircle;
 
 var clear = function () {
 	if (infoWindow) {
@@ -878,6 +882,7 @@ var search = function(input) {
 	if (marker) {
 		marker.setMap(null);
 	}
+	
 	var getCurrentMapExtent = function () {
 		var b = map.getBounds();
 		var ne = b.getNorthEast();
@@ -975,6 +980,16 @@ var init = function (thePubSub) {
 		if (!googleBounds) {
 			return;
 		}
+		if (globalConfigure.pointBufferToolAvailable) {
+			setPointBufferTool(false);  //The buffer Tool is unselected. 
+			var container = "";
+			(function (container, pointBufferToolMarker) {
+				google.maps.event.addListener(pointBufferToolMarker, 'click', function () {
+					setPointBufferTool(true);   //The buffer Tool is selected. 
+				});
+			})(container, pointBufferToolMarker);
+		}
+		
 		removeTiles();
 		var convertBounds = function(latLngBounds) {
 			var latLngNE = latLngBounds.getNorthEast();
@@ -1098,8 +1113,43 @@ var init = function (thePubSub) {
 			var utm = Util.convertLatLngtoUTM(latLng.lat, latLng.lng);
 			$("#" + globalConfigure.coordinatesDivId).html("Latitude:" + latLng.lat.toFixed(5) + ", Longitude:" + latLng.lng.toFixed(5) + " (" + globalConfigure.langs.UTM_ZoneLang + ":" + utm.Zone + ", " + globalConfigure.langs.EastingLang + ":" + utm.Easting + ", " + globalConfigure.langs.NorthingLang +":" + utm.Northing + ")<br>");
 		}
+		/*Make sure the user is in the middle of drawing.*/
+		if(isCenterSet){							
+			if(!!latLng){
+				//Calculate the current radius
+				var radius = Util.computeDistance(center, latLng);
+				//console.log();
+				//Remove the old circle
+				if(bufferCircle){
+					bufferCircle.setMap(null);
+				}
+				var circle = Util.computeCircle(center, radius);
+				bufferCircle = new google.maps.Polyline({
+					path: circle,
+					strokeColor: globalConfigure.pointBufferToolCircle.color,  
+					strokeOpacity: globalConfigure.pointBufferToolCircle.opacity,
+					strokeWeight: globalConfigure.pointBufferToolCircle.weight
+				});				
+				bufferCircle.setMap(map);
+				google.maps.event.addListener(bufferCircle, 'click', function () {
+					finishBufferSearch(radius);
+				});
+				//update the message to give the user the current circle's centre and radius. 
+				drawingCircleMessage(center.lat, center.lng, radius/1000);
+			}
+		}
 	});
 	PubSub.on("MOECC_MAP_MOUSE_CLICK", function(latLng) {
+		if(isPointBufferToolSelected()){
+			if(!isCenterSet){
+				center = latLng;
+				isCenterSet = true;
+			} else {
+				var radius = Util.computeDistance(center, latLng);
+				finishBufferSearch(radius);
+			}
+			return;
+		}	
 		closeInfoWindow();
 		var identifyRadiusZoomLevels = [-1, 320000, 160000, 80000, 40000, 20000, 9600, 4800, 2400, 1200, 600, 300, 160, 80, 50, 20, 10, 5, 3, 2, 1, 1];
 		var radius = (globalConfigure.hasOwnProperty('identifyRadius')) ?  globalConfigure.identifyRadius : identifyRadiusZoomLevels[map.getZoom()];
@@ -1174,12 +1224,73 @@ var init = function (thePubSub) {
 				PubSub.emit("MOECC_MAP_MOUSE_CLICK", {lat: event.latLng.lat(), lng: event.latLng.lng()});
 			});
 		}
+		google.maps.event.addListener(map, 'bounds_changed', function () {
+		});
 	});
 	PubSub.emit("MOECC_MAP_INITIALIZATION_FINISHED");
 	//console.log("OK");
 };
 
+var drawingCircleMessage = function(lat, lng, radius){
+	$('#' + globalConfigure.informationDivId).html('<i>' + globalConfigure.langs.searchCenterLang + " (latitude:" + lat.toFixed(6) + ", longitude:" + lng.toFixed(6) + "), " + globalConfigure.langs.searchRadiusLang + " (" + radius.toFixed(2) + " " + globalConfigure.langs.searchKMLang + ")" + '</i>');
+};
 
+var finishBufferSearch = function(radius) {
+	var circle = Util.computeCircle(center, radius);
+	$('#' + globalConfigure.queryTableDivId).html('');
+	_.each(overlays, function(overlay){
+		overlay.setMap(null);
+	});
+	overlays = [];
+	if (infoWindow) {
+		infoWindow.setMap(null);
+	}
+	if (marker) {
+		marker.setMap(null);
+	}				
+	PubSub.emit("MOECC_MAP_SEARCH_REQUEST_READY", {
+		geometry: circle
+	});
+	isCenterSet = false;
+	setPointBufferTool(false);
+	var container = "";
+	(function (container, pointBufferToolMarker) {
+		google.maps.event.addListener(pointBufferToolMarker, 'click', function () {
+			setPointBufferTool(true);   //The buffer Tool is selected. 
+		});
+	})(container, pointBufferToolMarker);
+};
+	/*Change the Status of Buffer Tool. If the paramter is true, the Tool is slected. If it is flase, this Tool is unselected.*/
+var setPointBufferTool = function (isDownIcon){
+	if(pointBufferToolMarker){
+		pointBufferToolMarker.setMap(null);
+	}
+	var pointBufferToolSize = globalConfigure.pointBufferToolSize;
+	var pointBufferToolLocation = globalConfigure.pointBufferToolLocation;
+	var bounds = map.getBounds();
+	var sw = bounds.getSouthWest();
+	var ne = bounds.getNorthEast();
+	var latDiff = ne.lat() - sw.lat();
+	var lngDiff = ne.lng() - sw.lng();
+	var gLatlng = new google.maps.LatLng(sw.lat() + pointBufferToolLocation.ratioY*latDiff, sw.lng() + pointBufferToolLocation.ratioX*lngDiff);
+	var iconURL = globalConfigure.dynamicResourcesLoadingURL + 'images/' + ((isDownIcon) ? globalConfigure.pointBufferToolDownIcon : globalConfigure.pointBufferToolUpIcon);
+	var icon = new google.maps.MarkerImage(iconURL, new google.maps.Size(pointBufferToolSize.width, pointBufferToolSize.height),
+			new google.maps.Point(0, 0), new google.maps.Point(0, 0), new google.maps.Size(pointBufferToolSize.width, pointBufferToolSize.height));
+	pointBufferToolMarker = new google.maps.Marker({
+		position: gLatlng,
+		icon: icon,
+		title: globalConfigure.langs.selectTooltip,
+		map: map
+	});
+	//console.log(pointBufferToolMarker.getIcon().url);
+};
+
+var isPointBufferToolSelected = function () {
+	if (!pointBufferToolMarker)  {
+		return false;
+	}
+	return pointBufferToolMarker.getIcon().url === (globalConfigure.dynamicResourcesLoadingURL + 'images/' + globalConfigure.pointBufferToolDownIcon);
+};
 
 var api = {
 	init: init,
