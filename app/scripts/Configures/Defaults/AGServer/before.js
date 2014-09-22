@@ -83,7 +83,10 @@ PubSub.on("MOECC_MAP_SEARCH_REQUEST_READY", function (params) {
 			p.geometry = params.geometry;
 			return ArcGISServerAdapter.query(p);
 		});
-		settings = {};	
+		settings = {
+			withinExtent: false,
+			latlng: params.latlng
+		};	
 	}	
 	$.when.apply($, promises).done(function() {
 		globalConfigure = _.defaults(settings, globalConfigure);

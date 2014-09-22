@@ -24,7 +24,7 @@ var globalConfigure = {
 			<label class="option" for="watershed">\
 				Watershed\
 			</label>\
-			<input type="radio" id="searchBusiness" name="searchGroup" title="Permit Holder Name" name="business" value="business" onclick="GoogleMapsAdapter.searchChange(\'Business\')"></input>\
+			<input type="radio" id="searchBusiness" name="searchGroup" title="Permit Holder Name" name="business" value="business" onclick="GoogleMapsAdapter.searchChange(\'Business\')" checked></input>\
 			<label class="option" for="business">\
 				Permit Holder Name\
 			</label>\
@@ -44,7 +44,7 @@ var globalConfigure = {
 	<div id="information">You may search by <strong>watershed</strong>, <strong>permit holder name</strong>, <strong>address</strong> or see help for advanced options.</div>',
 	/*English Ends*/
 	/*French Begins*/
-	searchControlHTML = '<div id="searchTheMap"></div><div id="searchHelp"></div><br><label class="element-invisible" for="map_query">Recherche carte interactive</label>\
+	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br><label class="element-invisible" for="map_query">Recherche carte interactive</label>\
 		<input id="map_query" type="text" title="Terme de recherche" maxlength="100" size="50" onkeypress="return GoogleMapsAdapter.entsub(event)"></input>\
 		<label class="element-invisible" for="search_submit">Recherche</label>\
 		<input id="search_submit" type="submit" title="Recherche" onclick="GoogleMapsAdapter.search()" value="Recherche"></input>\
@@ -53,7 +53,7 @@ var globalConfigure = {
 			<label class="option" for="watershed">\
 				Bassin versant\
 			</label>\
-			<input type="radio" id="searchBusiness" name="searchGroup" title="Nom du titulaire de permis" name="business" value="business" onclick="GoogleMapsAdapter.searchChange(\'Business\')"></input>\
+			<input type="radio" id="searchBusiness" name="searchGroup" title="Nom du titulaire de permis" name="business" value="business" onclick="GoogleMapsAdapter.searchChange(\'Business\')"  checked></input>\
 			<label class="option" for="business">\
 				Nom du titulaire de permis\
 			</label>\
@@ -77,11 +77,11 @@ var globalConfigure = {
 	*/
 	identifyMultipleFeatures: true,
 	/*English Begins*/		
-	identifyTemplate: 'Total features returned: <strong><%= features.length %><strong><br>\
+	identifyTemplate: 'Total features returned: <strong><%= features.length %></strong><br>\
 		<table class=\'tabtable\'><tr><th>Permit Number</th><th>Permit Holder Name</th><th>Purpose</th><th>Specific Purpose</th><th>Max Litres per Day</th><th>Source Type</th></tr>' + 
 	/*English Ends*/
 	/*French Begins*/
-	identifyTemplate: 'Nombre total de résultats: <strong><%= features.length %><strong><br>\
+	identifyTemplate: 'Nombre total de résultats: <strong><%= features.length %></strong><br>\
 		<table class=\'tabtable\'><tr><th>Num\u00e9ro du permis</th><th>Nom du titulaire de permis</th><th>Raison</th><th>Raison particuli\u00e8re</th><th>Litres (max. par jour)</th><th>Type de source</th></tr>' + 
 	/*French Ends*/		
 		'<%  _.each(features, function(feature) {\
@@ -434,6 +434,41 @@ var globalConfigure = {
 			}]*/
 		};
 		return settings;
+	},
+	searchChange: function (type) {
+		$('#' + this.searchInputBoxDivId)[0].value = '';
+		if(type === "Business"){
+			$( "#" + this.searchInputBoxDivId ).autocomplete({
+				disabled: true,
+				source: []
+			});
+			document.getElementById('lstRadius').disabled = true;
+		}else if(type === "Watershed"){
+			document.getElementById('lstRadius').disabled = true;
+			$("#" + this.searchInputBoxDivId).autocomplete({
+				source: this.watershedNames,
+				disabled: false, 
+				select: function(e, ui) {
+					/*MOEMAP.clearOverlays();
+					var searchString = ui.item.value;
+					var queryParams = {
+						searchString: searchString,
+						withinExtent: false,
+						where: "NAME = '" + searchString + "'",
+						requireGeocode: false,
+						address: searchString
+					};				
+					MOEMAP.queryLayersWithConditionsExtent(queryParams);
+					*/
+				}
+			});			
+		}else{
+			$( "#" + this.searchInputBoxDivId ).autocomplete({
+				disabled: true,
+				source: []
+			});
+			document.getElementById('lstRadius').disabled = false;
+		}
 	}
 };
 
@@ -441,9 +476,23 @@ var url = defaultConfiguration.dynamicResourcesLoadingURL;
 var urls = [url + 'css/multipletabs.css', url + 'js/closure-library-multipletabs-min.js'];
 _.each(urls, function(url) {yepnope({load: url,callback: function(){}});});
 
+var promises = _.map([{
+		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/PTTW_Search/MapServer',
+		layerID: 1,
+		outFields: ["OFF_NAME"],
+		returnGeometry: false,
+		where: '1=1'
+	}], function (queryParams) {
+	return ArcGISServerAdapter.query(queryParams);
+});
+$.when.apply($, promises).done(function() {
+	globalConfigure.watershedNames = _.map(arguments[0].features, function(feature) {
+		return feature.attributes.OFF_NAME;
+	});
+	
+	globalConfigure = _.defaults(globalConfigure, defaultConfiguration);
 
-globalConfigure = _.defaults(globalConfigure, defaultConfiguration);
-
-$('#' + globalConfigure.otherInfoDivId).html(globalConfigure.otherInfoHTML);
-$("#" + globalConfigure.searchControlDivId).html(globalConfigure.searchControlHTML);
-PubSub.emit("MOECC_MAP_INITIALIZATION", globalConfigure);
+	$('#' + globalConfigure.otherInfoDivId).html(globalConfigure.otherInfoHTML);
+	$("#" + globalConfigure.searchControlDivId).html(globalConfigure.searchControlHTML);
+	PubSub.emit("MOECC_MAP_INITIALIZATION", globalConfigure);	
+});

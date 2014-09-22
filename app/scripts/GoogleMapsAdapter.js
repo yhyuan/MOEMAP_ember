@@ -1268,7 +1268,8 @@ var finishBufferSearch = function(radius) {
 		marker.setMap(null);
 	}				
 	PubSub.emit("MOECC_MAP_SEARCH_REQUEST_READY", {
-		geometry: circle
+		geometry: circle,
+		latlng: center
 	});
 	isCenterSet = false;
 	setPointBufferTool(false);

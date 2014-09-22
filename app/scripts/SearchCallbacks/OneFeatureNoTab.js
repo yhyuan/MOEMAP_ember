@@ -6,6 +6,7 @@ var urls = [url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js'];
 _.each(urls, function(url) {yepnope({load: url,callback: function(){}});});
 
 var api = function(params) {
+	//console.log(params.latlng);
 	var results = params.results;
 	var featuresLength = Util.computeFeaturesNumber (results);
 	var globalConfigure = params.globalConfigure;

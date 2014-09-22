@@ -33,11 +33,11 @@ var globalConfigure = {
 	*/
 	identifyMultipleFeatures: true,
 	/*English Begins*/		
-	identifyTemplate: 'Total features returned: <strong><%= features.length %><strong><br>\
+	identifyTemplate: 'Total features returned: <strong><%= features.length %></strong><br>\
 		<table class=\'tabtable\'><tr><th>Well ID</th><th>Well Tag # (since 2003)</th><th>Audit # (since 1986)</th><th>Contractor Lic#</th><th>Well Depth (m)</th><th>Date of Completion (MM/DD/YYYY)</th><th>Well Record Information</th></tr>' + 
 	/*English Ends*/
 	/*French Begins*/
-	identifyTemplate: 'Nombre total de résultats: <strong><%= features.length %><strong><br>\
+	identifyTemplate: 'Nombre total de résultats: <strong><%= features.length %></strong><br>\
 		<table class=\'tabtable\'><tr><th>Identification du puits</th><th>N&deg; plaque (dep. 2003)</th><th>N&deg; de v\u00e9rification (dep. 1986)</th><th>Licence (entrepreneur)</th><th>Profondeur (m)</th><th>Date de finition (MM/JJ/AAAA)</th><th>Donn\u00e9es compl\u00e8tes sur le puits</th></tr>' + 
 	/*French Ends*/		
 		'<%  _.each(features, function(feature) {\
