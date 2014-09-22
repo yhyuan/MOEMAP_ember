@@ -16,7 +16,7 @@ var globalConfigure = {
 			<input id="search_submit" type="submit" title="Search" onclick="GoogleMapsAdapter.search()" value="Search"></input>\
 			<br/>\
 			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Current Map Display" /> <label for="currentExtent" class=\'option\'>Search current map display only</label>\
-			<div id="information">You may search by <strong>Well ID</strong>, <strong>Well Tag #</strong>, <strong>address</strong> or see help for advanced options.</div>',
+			<div id="information">You may search by <strong>Well ID</strong>, <strong>Well Tag #</strong>, <strong>address</strong> or see help for advanced options.',
 	/*English Ends*/
 	/*French Begins*/
 	searchControlHTML: '<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
@@ -26,7 +26,7 @@ var globalConfigure = {
 			<input id="search_submit" type="submit" title="Recherche" onclick="GoogleMapsAdapter.search()" value="Recherche"></input>\
 			<br/>\
 			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Étendue de la carte courante" /> <label for="currentExtent" class=\'option\'>\u00c9tendue de la carte courante</label>\
-			<div id="information">Vous pouvez rechercher par <strong>numéro d\'identification du puits</strong>, <strong>No de la plaque d\'identification du puits</strong>, <strong>adresse</strong> ou consulter l\'aide pour de l\'information sur les recherches avancées.</div>',
+			<div id="information">Vous pouvez rechercher par <strong>numéro d\'identification du puits</strong>, <strong>No de la plaque d\'identification du puits</strong>, <strong>adresse</strong> ou consulter l\'aide pour de l\'information sur les recherches avancées.',
 	/*French Ends*/
 	/*
 		identifyRadius: 1
