@@ -152,8 +152,9 @@ var globalConfigure = {
 		}			
 
 		if(document.getElementById('searchLocation').checked){
-			var radius = document.getElementById('lstRadius').value;
-			PubSub.emit("MOECC_MAP_GEOCODING_ADDRESS_READY", {address: params.searchString, withinExtent: false, radius: radius});				
+			//var radius = document.getElementById('lstRadius').value;
+			PubSub.emit("MOECC_MAP_GEOCODING_ADDRESS_READY", {address: params.searchString, withinExtent: false});	
+			return null;
 		}
 	},
 	getSearchGeometry: function (params) {

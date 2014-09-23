@@ -1092,7 +1092,7 @@ var init = function (thePubSub) {
 				
 				marker = new google.maps.Marker({
 					position: gLatLng
-				});		
+				});
 				(function (container, marker) {
 					google.maps.event.addListener(marker, 'click', function () {
 						openInfoWindow(marker.getPosition(), container);
@@ -1121,6 +1121,18 @@ var init = function (thePubSub) {
 							polyline.setMap(map);
 							overlays.push(polyline);
 						});
+					});
+				}
+				//console.log((document.getElementById(globalConfigure.searchRadiusDivId) && document.getElementById(globalConfigure.searchRadiusDivId).value));
+				if (document.getElementById(globalConfigure.searchRadiusDivId) && document.getElementById(globalConfigure.searchRadiusDivId).value) {
+					var radius = document.getElementById(globalConfigure.searchRadiusDivId).value;
+					var circle = _.map(Util.computeCircle(result.latlng, radius), function(latlng) {
+						return {lat: parseFloat(latlng.lat.toFixed(6)), lng: parseFloat(latlng.lng.toFixed(6))};
+					});
+					//console.log(circle);
+					PubSub.emit("MOECC_MAP_SEARCH_REQUEST_READY", {
+						geometry: circle,
+						latlng: result.latlng
 					});
 				}
 			}
@@ -1298,7 +1310,10 @@ var drawingCircleMessage = function(lat, lng, radius){
 };
 
 var finishBufferSearch = function(radius) {
-	var circle = Util.computeCircle(center, radius);
+	//var circle = Util.computeCircle(center, radius);
+	var circle = _.map(Util.computeCircle(center, radius), function(latlng) {
+		return {lat: parseFloat(latlng.lat.toFixed(6)), lng: parseFloat(latlng.lng.toFixed(6))};
+	});
 	$('#' + globalConfigure.queryTableDivId).html('');
 	_.each(overlays, function(overlay){
 		overlay.setMap(null);

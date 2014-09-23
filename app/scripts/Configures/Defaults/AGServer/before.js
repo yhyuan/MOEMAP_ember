@@ -67,9 +67,13 @@ PubSub.on("MOECC_MAP_SEARCH_REQUEST_READY", function (params) {
 	if (params.hasOwnProperty('searchString')) {
 		var searchString = params.searchString;
 		var geometry = globalConfigure.getSearchGeometry(params);
+		var where = globalConfigure.getSearchCondition(params);
+		if(!where) {
+			return;
+		}
 		promises = _.map(globalConfigure.queryParamsList, function (queryParams) {
 			var p = _.clone(queryParams);
-			p.where = globalConfigure.getSearchCondition(params);
+			p.where = where;
 			if (geometry) {
 				p.geometry = geometry;
 			}
@@ -78,6 +82,7 @@ PubSub.on("MOECC_MAP_SEARCH_REQUEST_READY", function (params) {
 		settings = globalConfigure.getSearchSettings(params);	
 	}
 	if (params.hasOwnProperty('geometry')) {
+		console.log(params);	
 		promises = _.map(globalConfigure.queryParamsList, function (queryParams) {
 			var p = _.clone(queryParams);
 			p.geometry = params.geometry;
@@ -89,6 +94,7 @@ PubSub.on("MOECC_MAP_SEARCH_REQUEST_READY", function (params) {
 		};	
 	}	
 	$.when.apply($, promises).done(function() {
+		console.log(arguments);	
 		globalConfigure = _.defaults(settings, globalConfigure);
 		var responses = searchCallback({results: globalConfigure.transformResults(arguments), globalConfigure: globalConfigure});
 		if (responses.status) { 

@@ -11,6 +11,7 @@ module.exports = {
 	maxMapScale: 21,
 	disallowMouseClick: false,
 	searchInputBoxDivId: 'map_query',
+	searchRadiusDivId: 'lstRadius',
 	informationDivId: 'information',
 	maxQueryZoomLevel: 17,
 	maxQueryReturn: 500,
