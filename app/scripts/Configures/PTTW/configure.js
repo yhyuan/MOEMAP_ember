@@ -1,3 +1,9 @@
+yepnope({load: 'bower_components/jquery.ui/themes/base/jquery.ui.all.css',callback: function(){}});
+yepnope({load: 'bower_components/jquery.ui/ui/jquery.ui.core.js',callback: function(){}});
+yepnope({load: 'bower_components/jquery.ui/ui/jquery.ui.widget.js',callback: function(){}});
+yepnope({load: 'bower_components/jquery.ui/ui/jquery.ui.position.js',callback: function(){}});
+yepnope({load: 'bower_components/jquery.ui/ui/jquery.ui.autocomplete.js',callback: function(){}});
+
 var identifyCallback = require('../scripts/IdentifyCallbacks/OneFeatureNoTab');
 var searchCallback = require('../scripts/SearchCallbacks/OneFeatureNoTab');
 var globalConfigure = {
@@ -121,302 +127,33 @@ var globalConfigure = {
 		return results;
 	},
 	getSearchCondition: function (params) {
-		var isDigitals = function(str, len){
-			if(str.length != len)
-				return false;
-			var reg = /^\d+$/;
-			return reg.test(str);
-		};
-		var isDigitalsList = function(coorsArray, len){
-			for(var i=0; i<=coorsArray.length - 1; i++){		
-				if(!isDigitals(coorsArray[i], len)){
-					return false;
-				}
-			}		
-			return true;
-		};
-		var replaceChar = function (str, charA, charB) {
-			var temp = [];
-			temp = str.split(charA);
-			var result = temp[0];
-			if (temp.length >= 2) {
-				for (var i = 1; i < temp.length; i++) {
-					result = result + charB + temp[i];
-				}
-			}
-			return result;
-		};
-		var searchWellID = function(name){	
-			var coors = replaceChar(name, ',', ' ');
-			var coorsArray = coors.split(/\s+/);
-			if(isDigitalsList(coorsArray, 7)){
-				return "((WELL_ID = '" + coorsArray.join("') OR (WELL_ID='") +  "'))";
-			}
-			return false;
-		};
-		var searchContractorID = function(name){	
-			if (isDigitals(name, 4)){
-				return "CONTRACTOR = '" + name +  "'";
-			}
-			return false;
-		};	
-		var searchContractorIDwithYear = function(name){	
-			var coors = replaceChar(name, ',', ' ');
-			var coorsArray = coors.split(/\s+/);
-			if (coorsArray.length != 2) {
-				return false;
-			}
-			if((parseInt(coorsArray[1])>=2100)||(parseInt(coorsArray[1])<=1900)){
-				return false;
-			}
-			if(isDigitalsList(coorsArray, 4)){
-				return "CONTRACTOR = '" + coorsArray[0] +  "' AND YEAR_COMPLETED = '" +  coorsArray[1] + "'";
-			}
-			return false;
-		};
-		var searchTagID = function(name){
-			var coors = replaceChar(name, ',', ' ');
-			var coorsArray = coors.split(/\s+/);
-			var isTagNoList = function(coorsArray){
-				var isTagNO = function(name){
-					if((name.length > 8)||(name.length < 6)){
-						return false;
-					}
-					var firstLetter = name.substring(0,1).toUpperCase();
-					if(firstLetter != "A"){
-						return false;
-					}
-					var reg = /^\d+$/;
-					return reg.test(name.substring(1));
-				};
-			
-				for(var i=0; i<=coorsArray.length - 1; i++){		
-					if(!isTagNO(coorsArray[i])){
-						return false;
+		if(document.getElementById('searchBusiness').checked){
+			var replaceChar = function (str, charA, charB) {
+				var temp = [];
+				temp = str.split(charA);
+				var result = temp[0];
+				if (temp.length >= 2) {
+					for (var i = 1; i < temp.length; i++) {
+						result = result + charB + temp[i];
 					}
 				}
-				return true;
+				return result;
 			};
-			if(isTagNoList(coorsArray)){
-				return "((TAG_NO = '" + coorsArray.join("') OR (TAG_NO='") +  "'))";
-			}
-			return false;
-		};		
-		var searchAuditID = function(name){	
-			var coors = replaceChar(name, ',', ' ');
-			var coorsArray = coors.split(/\s+/);
-			if(coors.length < 6){
-				return false;
-			}
-			if (coorsArray.length < 2) {
-				return false;
-			}
-			if ((coorsArray[0]).toUpperCase() == "AUDIT"){
-				coorsArray = coors.substring(6).split(/\s+/);
-				return "((AUDIT_NO = '" + coorsArray.join("') OR (AUDIT_NO='") +  "'))";
-			}
-			if ((coorsArray[0]).toUpperCase() == "VERIFICATION"){
-				coorsArray = coors.substring(13).split(/\s+/);
-				return "((AUDIT_NO = '" + coorsArray.join("') OR (AUDIT_NO='") +  "'))";
-			}		
-			return false;
-		};
-		var MOEMapTools = {
-			monthNames : ["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY","AUGUST","SEPTEMBER", "OCTOBER","NOVEMBER","DECEMBER"],
-			monthFrenchNames : ["JANVIER","FEVRIER","MARS","AVRIL","MAI","JUIN","JUILLET","AOUT","SEPTEMBRE", "OCTOBRE","NOVEMBRE","DECEMBRE"],
-			monthShortNames : ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"],
-			monthDigitalNames : ["01","02","03","04","05","06","07","08","09","10","11","12"],
-			getArrayIndex: function (str, strArray){
-				var index = -1;
-				for(var i=0; i < strArray.length; i++) {
-					if(strArray[i] == str){
-						index = i;
-						break;
-					}
-				}
-				return index;
-			}
-		};		
-		var isDateString = function(dateString){
-			var isDate = function(year, month, day){
-				var date = new Date(year, month-1, day);
-				var dStr1 = "" + date.getFullYear() + (date.getMonth()+1) + date.getDate();
-				var dStr2 = "" + year + month + day;
-				return (dStr1 == dStr2);
-			};
-			var str = replaceChar(dateString, ',', ' ');
-			var dateArray = str.split(/\s+/);
-			if(dateArray.length == 3){
-				var reg = /^\d+$/;
-				var monthIndex = -1;
-				if(reg.test(dateArray[2])&&((dateArray[2]).length==4)&&reg.test(dateArray[1])&&((dateArray[1]).length <=2)){
-					monthIndex = MOEMapTools.getArrayIndex(dateArray[0], MOEMapTools.monthNames);
-					if(monthIndex >= 0){
-						if(isDate(parseInt(dateArray[2]),monthIndex + 1, parseInt(dateArray[1]))){
-							return 2; 
-						}
-					}
-					monthIndex = MOEMapTools.getArrayIndex(dateArray[0], MOEMapTools.monthShortNames);
-					if(monthIndex >= 0){
-						if(isDate(parseInt(dateArray[2]),monthIndex + 1, parseInt(dateArray[1]))){
-							return 1; 
-						}
-					}
-				}
-				if(reg.test(dateArray[2])&&((dateArray[2]).length==4)&&reg.test(dateArray[0])&&((dateArray[0]).length <=2)){
-					monthIndex = MOEMapTools.getArrayIndex((dateArray[1]).replace(/\u00c9/g,"E").replace(/\u00DB/g,"U"), MOEMapTools.monthFrenchNames);
-					if( monthIndex>= 0){
-						if(isDate(parseInt(dateArray[2]),monthIndex + 1, parseInt(dateArray[0]))){
-							return 5; 
-						}
-					}
-				}
-			}
-			str = replaceChar(dateString, '/', ' ');
-			dateArray = str.split(/\s+/);
-			if(dateArray.length == 3){
-				var reg = /^\d+$/;
-				if(reg.test(dateArray[2])&&((dateArray[2]).length==4)&&reg.test(dateArray[1])&&((dateArray[1]).length <=2)&&reg.test(dateArray[0])&&((dateArray[0]).length <=2)){
-					if(isDate(parseInt(dateArray[2]), parseInt(dateArray[0]), parseInt(dateArray[1]))){
-						return 3;  // MM/DD/YYYY
-					}
-				}
-				if(reg.test(dateArray[0])&&((dateArray[0]).length==4)&&reg.test(dateArray[1])&&((dateArray[1]).length <=2)&&reg.test(dateArray[2])&&((dateArray[2]).length <=2)){
-					if(isDate(parseInt(dateArray[0]), parseInt(dateArray[1]), parseInt(dateArray[2]))){
-						return 4;  // YYYY/MM/DD
-					}
-				}
-			}
+			var name = params.searchString.toUpperCase();
+			name = replaceChar(name, "'", "''");
+			name = replaceChar(name, "\u2019", "''");
+			var fuzzyConditionsGenerator = function(field, str) {
+				return "(UPPER(" + field + ") LIKE '% " + str + " %') OR (UPPER(" + field + ") LIKE '" + str + " %') OR (UPPER(" + field + ") LIKE '% " + str + "') OR (UPPER(" + field + ") = '" + str + "') OR (UPPER(" + field + ") LIKE '%" + str + ",%')";
+			};				
+			return fuzzyConditionsGenerator("CLIENTNAME", name);
+		}			
+		if(document.getElementById('searchWatershed').checked){
+			return "NAME = '" + params.searchString + "'";
+		}			
 
-			return -1;
-		};
-		var stringToDate = function(dateString, dateType){
-			var str = replaceChar(dateString, ',', ' ');
-			str = replaceChar(str, '/', ' ');
-			str = str.trim();
-			var dateArray = str.split(/\s+/);
-			var year = "";
-			var month = "";
-			var day = "";
-			switch (dateType){
-				case 1:  //Jun 3, 2010
-					year = dateArray[2];
-					month = MOEMapTools.monthDigitalNames[MOEMapTools.getArrayIndex(dateArray[0], MOEMapTools.monthShortNames)];
-					day = dateArray[1];
-					break;
-				case 2:  //June 3, 2010
-					year = dateArray[2];
-					month = MOEMapTools.monthDigitalNames[MOEMapTools.getArrayIndex(dateArray[0], MOEMapTools.monthNames)];
-					day = dateArray[1];
-					break;
-				case 3:  //MM/DD/YYYY
-					year = dateArray[2];
-					month = dateArray[0];
-					day = dateArray[1];
-					break;
-				case 4:  //YYYY/MM/DD
-					year = dateArray[0];
-					month = dateArray[1];
-					day = dateArray[2];
-					break;
-				case 5:  //1 D?cembre 2011
-					year = dateArray[2];
-					month = MOEMapTools.monthDigitalNames[MOEMapTools.getArrayIndex((dateArray[1]).replace(/\u00DB/g,"U").replace(/\u00c9/g,"E"), MOEMapTools.monthFrenchNames)];
-					day = dateArray[0];
-					break;				
-				default:
-					break;
-			}
-			if((parseInt(day)<10)&&(day.length == 1)){
-				day = "0" + day;
-			}
-			if((parseInt(month)<10)&&(month.length == 1)){
-				month = "0" + month;
-			}
-			return year + "/" + month + "/" + day;
-		};	
-		var searchCompletionDate = function(name){		
-			var dateType = isDateString(name);
-			if (dateType <= 0) {
-				return false;
-			}		
-			var date = stringToDate(name, dateType);
-			return "(WELL_COMPLETED_DATE = '" + date +  "')";
-		};
-		var searchWellDepth = function(name){
-			var coorsArray = name.split(/\s+/);
-			if (coorsArray.length != 2) {
-				return false;
-			}
-			if((coorsArray[1] != "M")&&(coorsArray[1] != "METER")&&(coorsArray[1] != "METRE")&&(coorsArray[1] != "METERS")&&(coorsArray[1] != "METRES")){
-				return false;
-			}
-			var reg = /^(-?\d+)(\.\d+)?$/;
-			if(!reg.test(coorsArray[0])){
-				return false;
-			}
-			var depth = parseFloat(coorsArray[0]);
-			return "((DEPTH_M > " + (depth-0.1) +  ") AND (DEPTH_M < " +  (depth+0.1) + "))";
-		};	
-		var isFromAndTo = function(name){
-			var str = name;
-			if ((str.indexOf("FROM ") == 0)&&(str.split(" TO ").length == 2)){
-				return 1;
-			}
-			if ((str.indexOf("DU ") == 0)&&(str.split(" AU ").length == 2)){
-				return 2;
-			}
-			if ((str.indexOf("DE ") == 0)&&(str.split(" A ").length == 2)){
-				return 3;
-			}
-		};
-		var isFromAndToDepth = function(strArray){
-			var maxArray = (strArray[1]).split(/\s+/);
-			if(maxArray.length == 2){
-				if((maxArray[1] == "M")||(maxArray[1] == "METER")||(maxArray[1] == "METRE")||(maxArray[1] == "METERS")||(maxArray[1] == "METRES")){
-					var minDepth = strArray[0];
-					var maxDepth = maxArray[0];
-					var reg = /^(-?\d+)(\.\d+)?$/;
-					if(reg.test(minDepth)&&reg.test(maxDepth)){
-						var minDep = parseFloat(minDepth);
-						var maxDep = parseFloat(maxDepth);
-						if((maxDep > minDep)&&(maxDep < 999999)){
-							return true;
-						}
-					}
-				}
-			}		
-			return false;
-		};
-		
-		var name = params.searchString.toUpperCase().replace(/\u00c9/g,"E").replace(/\u00c8/g,"E").replace(/\u00DB/g,"U").replace(/\u00C0/g,"A");
-		var functionList = [searchWellID, searchContractorID, searchContractorIDwithYear, searchTagID, searchAuditID, searchCompletionDate, searchWellDepth];
-		var fun = _.find(functionList, function(f){ return f(name);});
-		if (fun) {
-			return fun(name);
-		} else {
-			if (isFromAndTo(name)>0) {
-				var strArray = name.substring(5).split(" TO ");
-				if(isFromAndTo(name) == 2){
-					strArray = name.substring(3).split(" AU ");
-				}
-				if(isFromAndTo(name) == 3){
-					strArray = name.substring(3).split(" A ");
-				}
-				var minDateType = isDateString((strArray[0]).trim());
-				var maxDateType = isDateString((strArray[1]).trim());
-				if (isFromAndToDepth(strArray)) {
-					var minDepth = (strArray[0]).split(/\s+/)[0];
-					var maxDepth = (strArray[1]).split(/\s+/)[0];
-					return "((DEPTH_M >= " + minDepth +  ") AND (DEPTH_M <= " +  maxDepth + "))";
-				}else if ((minDateType > 0)&&(maxDateType > 0)) {
-					var minDate = stringToDate(strArray[0], minDateType);
-					var maxDate = stringToDate(strArray[1], maxDateType);				
-					return "((WELL_COMPLETED_DATE >= '" + minDate +  "') AND (WELL_COMPLETED_DATE <= '" +  maxDate + "'))";
-				}			
-			} else {
-				PubSub.emit("MOECC_MAP_GEOCODING_ADDRESS_READY", {address: params.searchString, withinExtent: $('#currentMapExtent')[0].checked});
-			}
+		if(document.getElementById('searchLocation').checked){
+			var radius = document.getElementById('lstRadius').value;
+			PubSub.emit("MOECC_MAP_GEOCODING_ADDRESS_READY", {address: params.searchString, withinExtent: false, radius: radius});				
 		}
 	},
 	getSearchGeometry: function (params) {
@@ -449,17 +186,7 @@ var globalConfigure = {
 				source: this.watershedNames,
 				disabled: false, 
 				select: function(e, ui) {
-					/*MOEMAP.clearOverlays();
-					var searchString = ui.item.value;
-					var queryParams = {
-						searchString: searchString,
-						withinExtent: false,
-						where: "NAME = '" + searchString + "'",
-						requireGeocode: false,
-						address: searchString
-					};				
-					MOEMAP.queryLayersWithConditionsExtent(queryParams);
-					*/
+					GoogleMapsAdapter.search(ui.item.value);
 				}
 			});			
 		}else{
@@ -478,8 +205,8 @@ _.each(urls, function(url) {yepnope({load: url,callback: function(){}});});
 
 var promises = _.map([{
 		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/PTTW_Search/MapServer',
-		layerID: 1,
-		outFields: ["OFF_NAME"],
+		layerID: 2,
+		outFields: ["NAME"],
 		returnGeometry: false,
 		where: '1=1'
 	}], function (queryParams) {
@@ -487,8 +214,8 @@ var promises = _.map([{
 });
 $.when.apply($, promises).done(function() {
 	globalConfigure.watershedNames = _.map(arguments[0].features, function(feature) {
-		return feature.attributes.OFF_NAME;
-	});
+		return feature.attributes.NAME;
+	}).sort();
 	
 	globalConfigure = _.defaults(globalConfigure, defaultConfiguration);
 
