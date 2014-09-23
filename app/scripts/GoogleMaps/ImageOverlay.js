@@ -69,4 +69,8 @@ ImageOverlay.prototype.onRemove = function() {
 	this.div_ = null;
 };
 
+ImageOverlay.prototype.getDiv = function() {
+	return this.div_;
+};
+
 module.exports = ImageOverlay;

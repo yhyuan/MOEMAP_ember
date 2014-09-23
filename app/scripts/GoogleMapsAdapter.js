@@ -12,6 +12,8 @@ var overlays = [];
 var globalConfigure;
 var arcGISMapServices = [];
 var previousBounds;
+var previousBoundsCreatedTime;
+var isBoundsChanged = false;
 var infoWindow;
 //var infoWindowPosition;
 var marker;
@@ -980,7 +982,7 @@ var init = function (thePubSub) {
 		if (!googleBounds) {
 			return;
 		}
-		if (globalConfigure.pointBufferToolAvailable) {
+		/*if (globalConfigure.pointBufferToolAvailable) {
 			setPointBufferTool(false);  //The buffer Tool is unselected. 
 			var container = "";
 			(function (container, pointBufferToolMarker) {
@@ -1007,7 +1009,7 @@ var init = function (thePubSub) {
 				icon: icon,
 				map: map
 			});
-		}
+		}*/
 		
 		removeTiles();
 		var convertBounds = function(latLngBounds) {
@@ -1208,21 +1210,24 @@ var init = function (thePubSub) {
 				});			
 			}});
 		}
-		setInterval(function () {
-			
+/*		setInterval(function () {
 			if(previousBounds) {
 				var computeBoundsDifference = function(b1, b2) {
 					return Math.abs(b1.getNorthEast().lat() - b2.getNorthEast().lat()) + Math.abs(b1.getNorthEast().lng() - b2.getNorthEast().lng()) + Math.abs(b1.getSouthWest().lat() - b2.getSouthWest().lat()) + Math.abs(b1.getSouthWest().lng() - b2.getSouthWest().lng());
 				};
-				if (computeBoundsDifference(map.getBounds(), previousBounds) < 0.000000001) {
+				var currentBoundsCreatedTime = new Date();
+				//console.log(currentBoundsCreatedTime - previousBoundsCreatedTime);
+				if ((computeBoundsDifference(map.getBounds(), previousBounds) < 0.000000001) || (currentBoundsCreatedTime - previousBoundsCreatedTime < 1000))  {
 					return;
 				}
 			}
+			console.log("MOECC_MAP_BOUNDS_CHANGED");
 			var googleBounds = map.getBounds();
 			PubSub.emit("MOECC_MAP_BOUNDS_CHANGED", googleBounds);
 			previousBounds = googleBounds;
+			previousBoundsCreatedTime = new Date();
 		},1000);
-		
+		*/
 		google.maps.event.addListener(map, 'mousemove', function(event) {
 			PubSub.emit("MOECC_MAP_MOUSE_MOVE", {lat: event.latLng.lat(), lng: event.latLng.lng()});
 		});
@@ -1243,7 +1248,45 @@ var init = function (thePubSub) {
 				PubSub.emit("MOECC_MAP_MOUSE_CLICK", {lat: event.latLng.lat(), lng: event.latLng.lng()});
 			});
 		}
+		setInterval(function () {
+			if (isBoundsChanged && previousBoundsCreatedTime && (new Date()  - previousBoundsCreatedTime > globalConfigure.refreshInterval)) {
+				var googleBounds = map.getBounds();
+				isBoundsChanged = false;
+				PubSub.emit("MOECC_MAP_BOUNDS_CHANGED", googleBounds);
+			}		
+		}, 1);
 		google.maps.event.addListener(map, 'bounds_changed', function () {
+			if (globalConfigure.pointBufferToolAvailable) {
+				setPointBufferTool(false);  //The buffer Tool is unselected. 
+				var container = "";
+				(function (container, pointBufferToolMarker) {
+					google.maps.event.addListener(pointBufferToolMarker, 'click', function () {
+						setPointBufferTool(true);   //The buffer Tool is selected. 
+					});
+				})(container, pointBufferToolMarker);
+			}
+			if (globalConfigure.legendAvailable) {
+				var sw = bounds.getSouthWest();
+				var ne = bounds.getNorthEast();
+				var latDiff = ne.lat() - sw.lat();
+				var lngDiff = ne.lng() - sw.lng();
+				var location = globalConfigure.legendLocation;
+				var gLatLng = new google.maps.LatLng(sw.lat() + location.ratioY*latDiff, sw.lng() + location.ratioX*lngDiff);
+				if(legendMarker){
+					legendMarker.setMap(null);
+				}
+				var size = globalConfigure.legendSize;
+				var icon = new google.maps.MarkerImage(globalConfigure.legendURL, new google.maps.Size(size.width, size.height),
+					new google.maps.Point(0, 0), new google.maps.Point(0, 0), new google.maps.Size(size.width, size.height));
+				legendMarker = new google.maps.Marker({
+					position: gLatLng,
+					icon: icon,
+					map: map
+				});
+			}
+			removeTiles();
+			previousBoundsCreatedTime =  new Date();
+			isBoundsChanged = true;
 		});
 	});
 	PubSub.emit("MOECC_MAP_INITIALIZATION_FINISHED");

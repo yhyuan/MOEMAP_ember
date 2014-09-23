@@ -33,5 +33,5 @@ module.exports = {
 	pointBufferToolSize: {width: 31, height: 31},
 	pointBufferToolLocation: {ratioX: 0.12, ratioY: 0.98},
 	pointBufferToolCircle: {color: '#FF0000', opacity: 1, weight: 2},
-	
+	refreshInterval: 500
 };
