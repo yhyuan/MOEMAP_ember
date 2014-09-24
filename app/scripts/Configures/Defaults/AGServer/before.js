@@ -21,14 +21,17 @@ var LatLngInSymbols = require('../scripts/Geocoders/LatLngInSymbols');
 var UTM = require('../scripts/Geocoders/UTM');
 var UTMInDefaultZone = require('../scripts/Geocoders/UTMInDefaultZone');
 var GoogleGeocoder = require('../scripts/Geocoders/GoogleGeocoder');
+//var GoogleReverseGeocoder = require('../scripts/Geocoders/GoogleReverseGeocoder');
 var Geocoder = require('../scripts/Geocoders/Geocoder');
 var defaultGeocoderConfigurations = require('../scripts/Geocoders/configurations/default');
 var GeocoderSettings = {
 	GeocoderList: [LatLngInDecimalDegree, LatLngInDMSSymbols, LatLngInSymbols, UTM, UTMInDefaultZone, GeographicTownship, GeographicTownshipWithLotConcession],
-	defaultGeocoder: GoogleGeocoder
+	defaultGeocoder: GoogleGeocoder/*,
+	reverseGeocoder: GoogleReverseGeocoder*/
 };
 GeocoderSettings = _.defaults(defaultGeocoderConfigurations, GeocoderSettings);
 Geocoder.init(GeocoderSettings);
+//defaultConfiguration.Geocoder = Geocoder;
 
 PubSub.on("MOECC_MAP_GEOCODING_ADDRESS_READY", function(initParams) {
 	var params = _.defaults(initParams, GeocoderSettings);
@@ -43,7 +46,7 @@ PubSub.on("MOECC_MAP_IDENTIFY_REQUEST_READY", function(params) {
 		return ArcGISServerAdapter.query(p)
 	});
 	$.when.apply($, promises).done(function() {
-		var container = identifyCallback({results: globalConfigure.transformResults(arguments), globalConfigure: globalConfigure});
+		var container = identifyCallback({results: globalConfigure.transformResults(arguments), globalConfigure: globalConfigure, geocodingResult: params.settings.geocodingResult});
 		if (!!container) {
 			PubSub.emit("MOECC_MAP_IDENTIFY_RESPONSE_READY", {infoWindow: container, latlng: params.settings.latlng});
 		}
@@ -79,10 +82,11 @@ PubSub.on("MOECC_MAP_SEARCH_REQUEST_READY", function (params) {
 			}
 			return ArcGISServerAdapter.query(p);
 		});
-		settings = globalConfigure.getSearchSettings(params);	
+		settings = globalConfigure.getSearchSettings(params);
+		settings.bufferGeometry = null;
 	}
 	if (params.hasOwnProperty('geometry')) {
-		console.log(params);	
+		//console.log(params);	
 		promises = _.map(globalConfigure.queryParamsList, function (queryParams) {
 			var p = _.clone(queryParams);
 			p.geometry = params.geometry;
@@ -90,11 +94,12 @@ PubSub.on("MOECC_MAP_SEARCH_REQUEST_READY", function (params) {
 		});
 		settings = {
 			withinExtent: false,
-			latlng: params.latlng
+			latlng: params.latlng,
+			bufferGeometry: params.geometry
 		};	
 	}	
 	$.when.apply($, promises).done(function() {
-		console.log(arguments);	
+		//console.log(arguments);	
 		globalConfigure = _.defaults(settings, globalConfigure);
 		var responses = searchCallback({results: globalConfigure.transformResults(arguments), globalConfigure: globalConfigure});
 		if (responses.status) { 

@@ -1,6 +1,7 @@
 module.exports = {
 	'name': 'GoogleReverseGeocoder',
 	'geocode': function(params) {
+		var input = params.latlng;
 		var dfd = new $.Deferred();
 		var Geocoder = new google.maps.Geocoder();
 		var latlng = new google.maps.LatLng(input.lat, input.lng);

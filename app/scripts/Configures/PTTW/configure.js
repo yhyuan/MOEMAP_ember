@@ -109,16 +109,22 @@ var globalConfigure = {
 		<% }); %>\
 		</tbody></table>',
 	identifyParamsList: [{
-		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/PTTW_Search/MapServer',
+		mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/Active_PTTW/MapServer',
 		layerID: 0,
 		outFields: ['PERMITNO', 'CLIENTNAME', 'PURPOSECAT', 'SPURPOSE', 'MAXL_DAY', 'SURFGRND']
 	}],
 	exportParamsList: [{
-		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/PTTW_Search/MapServer',
-		visibleLayers: [0, 1, 2]		
+		mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/Active_PTTW/MapServer',
+		visibleLayers: [0]		
+	},{
+		mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/OHN_WaterCourse/MapServer',
+		visibleLayers: [0]		
+	},{
+		mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/TertiaryWatershed/MapServer',
+		visibleLayers: [0]		
 	}],
 	queryParamsList: [{
-		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/PTTW_Search/MapServer',
+		mapService: 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/Active_PTTW/MapServer',
 		layerID: 0,
 		returnGeometry: true,
 		outFields: ['PERMITNO', 'CLIENTNAME', 'PURPOSECAT', 'SPURPOSE', 'MAXL_DAY', 'SURFGRND']

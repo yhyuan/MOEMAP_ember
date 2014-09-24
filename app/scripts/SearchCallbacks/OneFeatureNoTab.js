@@ -112,12 +112,14 @@ var api = function(params) {
 			status: true,
 			markers: markers
 		};
-		//PubSub.emit("MOECC_MAP_SEARCH_MARKERS_READY", {markers: markers});
 		if(globalConfigure.hasOwnProperty('withinExtent') && !globalConfigure.withinExtent) {
-			responses.bounds = Util.computePointsBounds(_.map(validFeatures, function(feature) {
+			var latlngs = _.map(validFeatures, function(feature) {
 				return {lng: feature.geometry.x, lat: feature.geometry.y};
-			}));
-			//PubSub.emit("MOECC_MAP_SEARCH_BOUNDS_CHANGED", {bounds: bounds});
+			});
+			if(globalConfigure.hasOwnProperty('bufferGeometry') && globalConfigure.bufferGeometry) {
+				latlngs = latlngs.concat(globalConfigure.bufferGeometry);
+			}
+			responses.bounds = Util.computePointsBounds(latlngs);
 		}
 		var messageParams = {
 			totalCount: featuresLength,

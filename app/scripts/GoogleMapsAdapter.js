@@ -978,39 +978,9 @@ var removeTiles = function () {
 var init = function (thePubSub) {
 	PubSub = thePubSub;
 	PubSub.on("MOECC_MAP_BOUNDS_CHANGED", function(googleBounds) {
-		//console.log("MOECC_MAP_BOUNDS_CHANGED");
 		if (!googleBounds) {
 			return;
-		}
-		/*if (globalConfigure.pointBufferToolAvailable) {
-			setPointBufferTool(false);  //The buffer Tool is unselected. 
-			var container = "";
-			(function (container, pointBufferToolMarker) {
-				google.maps.event.addListener(pointBufferToolMarker, 'click', function () {
-					setPointBufferTool(true);   //The buffer Tool is selected. 
-				});
-			})(container, pointBufferToolMarker);
-		}
-		if (globalConfigure.legendAvailable) {
-			var sw = bounds.getSouthWest();
-			var ne = bounds.getNorthEast();
-			var latDiff = ne.lat() - sw.lat();
-			var lngDiff = ne.lng() - sw.lng();
-			var location = globalConfigure.legendLocation;
-			var gLatLng = new google.maps.LatLng(sw.lat() + location.ratioY*latDiff, sw.lng() + location.ratioX*lngDiff);
-			if(legendMarker){
-				legendMarker.setMap(null);
-			}
-			var size = globalConfigure.legendSize;
-			var icon = new google.maps.MarkerImage(globalConfigure.legendURL, new google.maps.Size(size.width, size.height),
-				new google.maps.Point(0, 0), new google.maps.Point(0, 0), new google.maps.Size(size.width, size.height));
-			legendMarker = new google.maps.Marker({
-				position: gLatLng,
-				icon: icon,
-				map: map
-			});
-		}*/
-		
+		}	
 		removeTiles();
 		var convertBounds = function(latLngBounds) {
 			var latLngNE = latLngBounds.getNorthEast();
@@ -1021,7 +991,6 @@ var init = function (thePubSub) {
 			};
 		};
 		var div = document.getElementById(globalConfigure.mapCanvasDivId);
-		//console.log("MOECC_MAP_BOUNDS_CHANGED_REQUEST_READY");
 		PubSub.emit("MOECC_MAP_BOUNDS_CHANGED_REQUEST_READY", {
 			bounds: convertBounds(googleBounds),
 			width: div.offsetWidth,
@@ -1125,11 +1094,22 @@ var init = function (thePubSub) {
 				}
 				//console.log((document.getElementById(globalConfigure.searchRadiusDivId) && document.getElementById(globalConfigure.searchRadiusDivId).value));
 				if (document.getElementById(globalConfigure.searchRadiusDivId) && document.getElementById(globalConfigure.searchRadiusDivId).value) {
-					var radius = document.getElementById(globalConfigure.searchRadiusDivId).value;
+					var radius = document.getElementById(globalConfigure.searchRadiusDivId).value * 1000;
+					if(bufferCircle){
+						bufferCircle.setMap(null);
+					}
 					var circle = _.map(Util.computeCircle(result.latlng, radius), function(latlng) {
 						return {lat: parseFloat(latlng.lat.toFixed(6)), lng: parseFloat(latlng.lng.toFixed(6))};
 					});
-					//console.log(circle);
+
+					bufferCircle = new google.maps.Polyline({
+						path: circle,
+						strokeColor: globalConfigure.pointBufferToolCircle.color,  
+						strokeOpacity: globalConfigure.pointBufferToolCircle.opacity,
+						strokeWeight: globalConfigure.pointBufferToolCircle.weight
+					});				
+					bufferCircle.setMap(map);					
+
 					PubSub.emit("MOECC_MAP_SEARCH_REQUEST_READY", {
 						geometry: circle,
 						latlng: result.latlng
@@ -1190,7 +1170,17 @@ var init = function (thePubSub) {
 		var settings = {
 			latlng: latLng
 		};
-		PubSub.emit("MOECC_MAP_IDENTIFY_REQUEST_READY", {settings: settings, geometry: circle});
+		if (globalConfigure.reverseGeocodingForIdentify && globalConfigure.hasOwnProperty('reverseGeocoder')) {
+			var promise = globalConfigure.reverseGeocoder.geocode({
+				latlng: latLng
+			});
+			promise.done(function (geocodingResult) {
+				settings.geocodingResult = geocodingResult;
+				PubSub.emit("MOECC_MAP_IDENTIFY_REQUEST_READY", {settings: settings, geometry: circle});
+			});
+		} else {
+			PubSub.emit("MOECC_MAP_IDENTIFY_REQUEST_READY", {settings: settings, geometry: circle});
+		}
 	});
 	PubSub.on("MOECC_MAP_IDENTIFY_RESPONSE_READY", function (params) {
 		openInfoWindow(params.latlng, params.infoWindow);
