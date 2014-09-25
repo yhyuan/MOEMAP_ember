@@ -1183,6 +1183,30 @@ var init = function (thePubSub) {
 		}
 	});
 	PubSub.on("MOECC_MAP_IDENTIFY_RESPONSE_READY", function (params) {
+		if (globalConfigure.hasOwnProperty('displayIdentifyMarker') && globalConfigure.displayIdentifyMarker) {
+			if(marker) {
+				marker.setMap(null);
+			}
+			marker = new google.maps.Marker({
+				position: params.latlng,
+				draggable: true
+			});
+			var container = params.infoWindow;
+			(function (container, marker) {
+				google.maps.event.addListener(marker, 'click', function () {
+					openInfoWindow(marker.getPosition(), container);
+				});
+			})(container, marker);
+			google.maps.event.addListener(marker, 'dragend', function (e) {
+				$('#' + globalConfigure.searchInputBoxDivId)[0].value = '';
+				$('#' + globalConfigure.searchInputBoxDivId)[0].focus();
+				$("#" + globalConfigure.queryTableDivId).html('');
+				var latlng = marker.getPosition();
+				map.setCenter(latlng);
+				google.maps.event.trigger(map, 'click', {latLng: latlng});
+			});
+			marker.setMap(map);
+		}
 		openInfoWindow(params.latlng, params.infoWindow);
 	});	
 	PubSub.on("MOECC_MAP_INITIALIZATION", function(configure) {

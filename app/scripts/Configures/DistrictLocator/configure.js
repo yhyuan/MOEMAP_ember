@@ -1,5 +1,5 @@
 var identifyCallback = require('../scripts/IdentifyCallbacks/PolygonLayers');
-var searchCallback = require('../scripts/SearchCallbacks/OneFeatureNoTab');
+var searchCallback = require('../scripts/SearchCallbacks/PolygonLayers');
 var GoogleReverseGeocoder = require('../scripts/Geocoders/GoogleReverseGeocoder');
 
 var globalConfigure = {
@@ -32,6 +32,7 @@ var globalConfigure = {
 	/*French Ends*/
 	identifyRadius: 1,
 	reverseGeocodingForIdentify: true,
+	displayIdentifyMarker: true,
 	/*English Begins*/		
 	identifyTemplate: '<% if (attrs.featuresLength === 0) {%>\
 					<i> <%= attrs.geocodingAddress %>.</i><br><br><strong>Result located within</strong><br><h3>No MOE District found</h3>\
@@ -50,22 +51,21 @@ var globalConfigure = {
 				<% } %>',
 	/*French Ends*/
 	/*English Begins*/	
-	tableTemplate: '<table id="myTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
-		<thead><tr><th><center>Waterbody</center></th><th><center>Location</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Consumption Advisory Table</center></th></tr></thead><tbody>\
-		<% _.each(features, function(feature) {\
-			var attrs = feature.attributes; %> \
-			<tr><td><%= attrs.LOCNAME_EN %></td><td><%= attrs.GUIDELOC_EN %></td><td><%= attrs.LATITUDE %></td><td><%= attrs.LONGITUDE %></td><td><a target=\'_blank\' href=\'fish-consumption-report?id=<%= attrs.WATERBODYC  %>\'>Consumption Advisory Table</a></td></tr>\
-		<% }); %>\
-		</tbody></table>',
+	tableTemplate: '<% if (attrs.featuresLength === 0) {%>\
+					<i> <%= attrs.geocodingAddress %>.</i><br><br><strong>Result located within</strong><br><h3>No MOE District found</h3>\
+				<%} else {%>\
+					<i><%= attrs.geocodingAddress %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOECC District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br>\
+					<%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Toll Free: <%= attrs.TOLLFREENUMBER %><br>Tel: <%= attrs.PHONENUMBER %> Fax: <%= attrs.FAXNUMBER %>\
+				<% } %>',
 	/*English Ends*/
 	/*French Begins*/
-	tableTemplate: '<table id="myTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
-		<thead><tr><th><center>Plan d\'eau</center></th><th><center>Lieu</center></th><th><center>Latitude</center></th><th><center>Longitude</center></th><th><center>Tableau des mises en garde en mati\u00e8re de consommation</center></th></tr></thead><tbody>\
-		<% _.each(features, function(feature) {\
-			var attrs = feature.attributes; %> \
-			<tr><td><%= attrs.LOCNAME_FR %></td><td><%= attrs.GUIDELOC_FR %></td><td><%= attrs.LATITUDE %></td><td><%= attrs.LONGITUDE %></td><td><a target=\'_blank\' href=\'rapport-de-consommation-de-poisson?id=<%= attrs.WATERBODYC  %>\'>Tableau des mises en garde en mati\u00e8re de consommation</a></td></tr>\
-		<% }); %>\
-		</tbody></table>',
+	tableTemplate: '<% if (attrs.featuresLength === 0) {%>\
+					<i> <%= attrs.geocodingAddress %>.</i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br><h3> Le syst\u00e8me n\u2019a pas trouv\u00e9 de district du MEO</h3>\
+				<%} else {%>\
+					<i><%= attrs.geocodingAddress %></i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br><h3><%= attrs.MOE_DISTRICT %></h3><br>Adresse du bureau: <br><%= attrs.STREET_NAME %><br>\
+					<%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Sans frais: <%= attrs.TOLLFREENUMBER %><br>T\u00e9l\u00e9phone: <%= attrs.PHONENUMBER %>\
+					T\u00e9l\u00e9copieur: <%= attrs.FAXNUMBER %>\
+				<% } %>',
 	/*French Ends*/
 
 	identifyParamsList: [{
@@ -77,17 +77,6 @@ var globalConfigure = {
 	exportParamsList: [{
 		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/MOE_Districts_Full_Bnd/MapServer',
 		visibleLayers: [0]
-	}],
-	queryParamsList: [{
-		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/sportfish/MapServer',
-		layerID: 0,
-		returnGeometry: true,
-		/*English Begins*/
-		outFields: ['WATERBODYC', 'LOCNAME_EN', 'GUIDELOC_EN', 'LATITUDE', 'LONGITUDE']
-		/*English Ends*/
-		/*French Begins*/
-		outFields: ['WATERBODYC', 'LOCNAME_FR', 'GUIDELOC_FR', 'LATITUDE', 'LONGITUDE']
-		/*French Ends*/
 	}],
 	transformResults: function (results) {
 		/*English Begins*/		
@@ -162,125 +151,36 @@ var globalConfigure = {
 			});
 		/*French Ends*/
 	},
-	getSearchCondition: function (params) {
-		var getLakeNameSearchCondition = function(searchString) {
-			var coorsArray = searchString.split(/\s+/);
-			var str = coorsArray.join(" ").toUpperCase();
-			str = Util.replaceChar(str, "'", "''");
-			str = Util.replaceChar(str, "\u2019", "''");
-			/*English Begins*/
-			return "UPPER(LOCNAME_EN) LIKE '%" + str + "%'";
-			/*English Ends*/
-			/*French Begins*/
-			return "UPPER(LOCNAME_FR) LIKE '%" + str + "%'";
-			/*French Ends*/
-		};
-		var getQueryCondition = function(name){
-			var str = name.toUpperCase();
-			str = Util.replaceChar(str, '&', ', ');
-			str = Util.replaceChar(str, ' AND ', ', '); 
-			str = str.trim();
-			var nameArray = str.split(',');
-			var max = nameArray.length;
-			var res = [];
-			var inform = [];
-			var processAliasFishName = function(fishname){
-				var aliasList = {
-					GERMAN_TROUT: ["BROWN_TROUT"],
-					SHEEPHEAD:	["FRESHWATER_DRUM"],
-					STEELHEAD:	["RAINBOW_TROUT"],
-					SUNFISH:	["PUMPKINSEED"],
-					BARBOTTE:	["BROWN_BULLHEAD"],
-					BLACK_BASS:	["LARGEMOUTH_BASS","SMALLMOUTH_BASS"],
-					CALICO_BASS:	["BLACK_CRAPPIE"],
-					CRAWPIE:	["BLACK_CRAPPIE","WHITE_CRAPPIE"],
-					GREY_TROUT:	["LAKE_TROUT"],
-					HUMPBACK_SALMON:	["PINK_SALMON"],
-					KING_SALMON:	["CHINOOK_SALMON"],
-					LAKER:	["LAKE_TROUT"],
-					MENOMINEE:	["ROUND_WHITEFISH"],
-					MUDCAT:	["BROWN_BULLHEAD"],
-					MULLET:	["WHITE_SUCKER"],
-					PANFISH:	["BLUEGILL","ROCK_BASS","PUMPKINSEED"],
-					PICKEREL:	["WALLEYE"],
-					SILVER_BASS:	["WHITE_BASS"],
-					SILVER_SALMON:	["COHO_SALMON"],
-					SPECKLED_TROUT:	["BROOK_TROUT"],
-					SPRING_SALMON:	["CHINOOK_SALMON"]
-				};
-				var alias = aliasList[fishname];
-				var fish = Util.wordCapitalize(Util.replaceChar(fishname, '_', ' '));
-				if (typeof(alias) === "undefined"){
-					var result = {
-						/*English Begins*/
-						condition: "(SPECIES_EN like '%" + fishname +"%')",
-						/*English Ends*/
-						/*French Begins*/
-						condition: "(SPECIES_FR like '%" + fishname +"%')",
-						/*French Ends*/
-						information: fish
-					};
-					return result;
-				}else{
-					var res = [];
-					var fishArray = [];
-					for (var i = 0; i < alias.length; i++){
-						/*English Begins*/
-						res.push("(SPECIES_EN like '%" + alias[i] +"%')");
-						/*English Ends*/
-						/*French Begins*/
-						res.push("(SPECIES_FR like '%" + alias[i] +"%')");
-						/*French Ends*/
-						var str = Util.wordCapitalize(Util.replaceChar(alias[i], '_', ' '));
-						fishArray.push(str.trim());
-					}
-					var result = {
-						condition: "(" + res.join(" OR ") + ")",
-						information: fish + " ("  + fishArray.join(", ") + ")"
-					};
-					return result;
-				}
-			}
-			for (var i = 0; i < max; i++){
-				var str1 = (nameArray[i]).trim();
-				if(str1.length > 0){
-					var coorsArray = str1.split(/\s+/);
-					str1 = coorsArray.join("_");
-					var temp = processAliasFishName(str1);
-					res.push(temp.condition);
-					inform.push(temp.information);
-				}
-			}		
-			var result = {
-				condition: res.join(" AND "),
-				information: inform.join(", ")
-			};
-			return result;
-		};
-		var searchString = params.searchString;
-		return ($('#searchMapLocation')[0].checked) ? getLakeNameSearchCondition(searchString) : getQueryCondition(searchString).condition;
-	},
-	getSearchGeometry: function (params) {
-		if ($('#currentMapExtent')[0].checked) {
-			return params.currentMapExtent;
-		} else {
-			return null;
-		}
-	},
-	getSearchSettings: function (params) {
-		var settings = {
-			searchString: params.searchString,
-			geocodeWhenQueryFail: ($('#searchMapLocation')[0].checked) ? true : false,
-			withinExtent: $('#currentMapExtent')[0].checked/*,
-			invalidFeatureLocations: [{
-				lat: 0,
-				lng: 0,
-				difference: 0.0001
-			}]*/
-		};
-		return settings;
-	}
 };
+
+PubSub.remove("MOECC_MAP_SEARCH_REQUEST_READY");
+PubSub.on("MOECC_MAP_SEARCH_REQUEST_READY", function (params) {
+	var searchString = params.searchString;
+	PubSub.emit("MOECC_MAP_GEOCODING_ADDRESS_READY", {address: params.searchString, withinExtent: false});
+});
+
+PubSub.on("MOECC_MAP_GEOCODING_RESULT_READY", function (params) {
+	var address = params.address;
+	var result = params.result;
+	var status = result.status;
+	var withinExtent = params.withinExtent;
+	if (result.status === "OK") {
+		PubSub.emit("MOECC_MAP_MOUSE_CLICK", result.latlng);
+	}
+	var message = (status === "No_Result") ? (globalConfigure.langs.yourLocationSearchForLang + '<strong>' + params.address + '</strong> ' + globalConfigure.langs.returnedNoResultLang) : (globalConfigure.langs.yourLocationSearchForLang + '<strong>' + params.address + '</strong> ' + globalConfigure.langs.returnedOneResultLang);
+	$('#' + globalConfigure.informationDivId).html('<i>' + message + ' ' + ((params.withinExtent) ? globalConfigure.langs.inCurrentMapExtentLang : globalConfigure.langs.inGobalRegionLang) + '</i>');				
+});
+
+PubSub.on("MOECC_MAP_IDENTIFY_REQUEST_READY", function(params) {
+	var promises = _.map(globalConfigure.identifyParamsList, function (identifyParams) {
+		var p = _.clone(identifyParams);
+		p.geometry = params.geometry;
+		return ArcGISServerAdapter.query(p)
+	});
+	$.when.apply($, promises).done(function() {
+		var container = searchCallback({results: globalConfigure.transformResults(arguments), globalConfigure: globalConfigure, geocodingResult: params.settings.geocodingResult});
+	});
+});
 
 globalConfigure = _.defaults(globalConfigure, defaultConfiguration);
 
