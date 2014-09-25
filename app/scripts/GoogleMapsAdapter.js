@@ -57,12 +57,15 @@ var transformInfoWindowPosition = function (latlng) {
 var calculatePosition = function (latlng) {
 	var lat = latlng.lat;
 	var lng = latlng.lng;
-	lat = lat + (map.getBounds().getNorthEast().lat() - map.getBounds().getSouthWest().lat()) * 0.06;
+	var latDiffArray = [168.4739167, 122.5282531, 67.56290887, 34.20775832, 17.13055844];
+	var zoomLevel = map.getZoom();
+	var latDiff = (zoomLevel <= 5) ? latDiffArray[zoomLevel - 1] : latDiffArray[4]/Math.pow(2, zoomLevel - 5);
+	lat = lat + latDiff * 0.06;
 	return {lat: lat, lng: lng};
 };
 var isInfoWindowOverlappedMarker = function(latlng) {
 	var p = marker.getPosition();
-	return (Math.abs(p.lat() - latlng.lat) + Math.abs(p.lng() - latlng.lng)) < 0.000001;
+	return (Math.abs(p.lat() - latlng.lat) < 0.000001) && (Math.abs(p.lng() - latlng.lng) < 0.000001);
 };
 
 var openInfoWindow = function (latlng, container){
@@ -1275,9 +1278,10 @@ var init = function (thePubSub) {
 		google.maps.event.trigger(map, 'mousemove', {latLng: center});
 		google.maps.event.addListener(map, 'zoom_changed', function () {
 			var zoomLevel = map.getZoom();
-			
+			//console.log(zoomLevel);
+			//console.log(map.getBounds().getNorthEast().lat() - map.getBounds().getSouthWest().lat())
 			if ((!!infoWindow) && (zoomLevel <= configure.maxMapScale) && (zoomLevel >= configure.minMapScale)) {
-				console.log(zoomLevel);
+				//console.log(zoomLevel);
 				infoWindow.setPosition(calculatePosition(infoWindow.originalPosition));
 			}
 			if (zoomLevel > configure.maxMapScale) {
