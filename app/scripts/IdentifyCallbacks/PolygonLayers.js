@@ -18,6 +18,10 @@ var api = function(params) {
 		attrs = _.defaults(features[0].attributes, attrs);
 	}
 	container.innerHTML = _.template(globalConfigure.identifyTemplate, {attrs: attrs});
+	
+	var tableContent = _.template(globalConfigure.tableTemplate, {attrs: attrs});
+	$('#' + globalConfigure.queryTableDivId).html(tableContent);
+	
 	return container;
 };
 

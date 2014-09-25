@@ -1,5 +1,5 @@
 var identifyCallback = require('../scripts/IdentifyCallbacks/PolygonLayers');
-var searchCallback = require('../scripts/SearchCallbacks/PolygonLayers');
+//var searchCallback = require('../scripts/SearchCallbacks/PolygonLayers');
 var GoogleReverseGeocoder = require('../scripts/Geocoders/GoogleReverseGeocoder');
 
 var globalConfigure = {
@@ -171,7 +171,7 @@ PubSub.on("MOECC_MAP_GEOCODING_RESULT_READY", function (params) {
 	var message = (status === "No_Result") ? (globalConfigure.langs.yourLocationSearchForLang + '<strong>' + params.address + '</strong> ' + globalConfigure.langs.returnedNoResultLang) : (globalConfigure.langs.yourLocationSearchForLang + '<strong>' + params.address + '</strong> ' + globalConfigure.langs.returnedOneResultLang);
 	$('#' + globalConfigure.informationDivId).html('<i>' + message + ' ' + ((params.withinExtent) ? globalConfigure.langs.inCurrentMapExtentLang : globalConfigure.langs.inGobalRegionLang) + '</i>');				
 });
-
+/*
 PubSub.on("MOECC_MAP_IDENTIFY_REQUEST_READY", function(params) {
 	var promises = _.map(globalConfigure.identifyParamsList, function (identifyParams) {
 		var p = _.clone(identifyParams);
@@ -182,7 +182,7 @@ PubSub.on("MOECC_MAP_IDENTIFY_REQUEST_READY", function(params) {
 		var container = searchCallback({results: globalConfigure.transformResults(arguments), globalConfigure: globalConfigure, geocodingResult: params.settings.geocodingResult});
 	});
 });
-
+*/
 globalConfigure = _.defaults(globalConfigure, defaultConfiguration);
 
 $('#' + globalConfigure.otherInfoDivId).html(globalConfigure.otherInfoHTML);

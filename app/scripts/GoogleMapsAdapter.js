@@ -1,8 +1,8 @@
 /* global _, $, google, goog, yepnope */
 'use strict';
-var Geocoder = require('./Geocoder');
+//var Geocoder = require('./Geocoder');
 var Util = require('./Util');
-var ArcGISServerAdapter = require('./ArcGISServerAdapter');
+//var ArcGISServerAdapter = require('./ArcGISServerAdapter');
 var ImageOverlay = require('./GoogleMaps/ImageOverlay');
 //var PubSub = require('./PubSub');
 var PubSub;
