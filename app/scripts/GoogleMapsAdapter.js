@@ -59,6 +59,7 @@ var calculatePosition = function (latlng) {
 	var lng = latlng.lng;
 	var latDiffArray = [168.4739167, 122.5282531, 67.56290887, 34.20775832, 17.13055844];
 	var zoomLevel = map.getZoom();
+	/*if zoom level is less than 6, pick it from the list. Otherwise, use a formula to calculate it.*/
 	var latDiff = (zoomLevel <= 5) ? latDiffArray[zoomLevel - 1] : latDiffArray[4]/Math.pow(2, zoomLevel - 5);
 	lat = lat + latDiff * 0.06;
 	return {lat: lat, lng: lng};
