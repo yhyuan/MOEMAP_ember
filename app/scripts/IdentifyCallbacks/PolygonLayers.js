@@ -7,12 +7,8 @@ var api = function(params) {
 	var globalConfigure = params.globalConfigure;
 	var geocodingResult = params.geocodingResult;
 	var featuresLength = Util.computeFeaturesNumber (results);
-	
-	var attrs = {
-		featuresLength: featuresLength,
-		geocodingAddress: (geocodingResult.hasOwnProperty("address") ? geocodingResult.address : "N/A"),
-		utmCoordinates: Util.convertLatLngtoUTM(geocodingResult.latlng.lat, geocodingResult.latlng.lng)
-	};
+	var attrs = _.clone(geocodingResult);
+	attrs.featuresLength = featuresLength;
 	var container = document.createElement('div');
 	container.style.width = globalConfigure.infoWindowWidth;
 	container.style.height = globalConfigure.infoWindowHeight;

@@ -5,7 +5,10 @@ var GoogleReverseGeocoder = require('../scripts/Geocoders/GoogleReverseGeocoder'
 var globalConfigure = {
 	langs: langSetting,
 	//minMapScale: 1,
-	reverseGeocoder: GoogleReverseGeocoder,
+	reverseGeocoder: {
+		GeocoderList: [],
+		defaultGeocoder: GoogleReverseGeocoder
+	},
 	extraImageServices: [{
 		id: "arcgis",
 		name: "ESRI",
@@ -36,34 +39,34 @@ var globalConfigure = {
 	displayIdentifyMarker: true,
 	/*English Begins*/		
 	identifyTemplate: '<% if (attrs.featuresLength === 0) {%>\
-					<i> <%= attrs.geocodingAddress %>.</i><br><br><strong>Result located within</strong><br><h3>No MOE District found</h3>\
+					<i> <%= attrs.address %>.</i><br><br><strong>Result located within</strong><br><h3>No MOE District found</h3>\
 				<%} else {%>\
-					<i><%= attrs.geocodingAddress %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOECC District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br>\
+					<i><%= attrs.address %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOECC District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br>\
 					<%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Toll Free: <%= attrs.TOLLFREENUMBER %><br>Tel: <%= attrs.PHONENUMBER %> Fax: <%= attrs.FAXNUMBER %>\
 				<% } %>',
 	/*English Ends*/
 	/*French Begins*/
 	identifyTemplate: '<% if (attrs.featuresLength === 0) {%>\
-					<i> <%= attrs.geocodingAddress %>.</i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br><h3> Le syst\u00e8me n\u2019a pas trouv\u00e9 de district du MEO</h3>\
+					<i> <%= attrs.address %>.</i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br><h3> Le syst\u00e8me n\u2019a pas trouv\u00e9 de district du MEO</h3>\
 				<%} else {%>\
-					<i><%= attrs.geocodingAddress %></i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br><h3><%= attrs.MOE_DISTRICT %></h3><br>Adresse du bureau: <br><%= attrs.STREET_NAME %><br>\
+					<i><%= attrs.address %></i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br><h3><%= attrs.MOE_DISTRICT %></h3><br>Adresse du bureau: <br><%= attrs.STREET_NAME %><br>\
 					<%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Sans frais: <%= attrs.TOLLFREENUMBER %><br>T\u00e9l\u00e9phone: <%= attrs.PHONENUMBER %>\
 					T\u00e9l\u00e9copieur: <%= attrs.FAXNUMBER %>\
 				<% } %>',
 	/*French Ends*/
 	/*English Begins*/	
 	tableTemplate: '<% if (attrs.featuresLength === 0) {%>\
-					<i> <%= attrs.geocodingAddress %>.</i><br><br><strong>Result located within</strong><br><h3>No MOE District found</h3>\
+					<i> <%= attrs.address %>.</i><br><br><strong>Result located within</strong><br><h3>No MOE District found</h3>\
 				<%} else {%>\
-					<i><%= attrs.geocodingAddress %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOECC District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br>\
+					<i><%= attrs.address %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOECC District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br>\
 					<%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Toll Free: <%= attrs.TOLLFREENUMBER %><br>Tel: <%= attrs.PHONENUMBER %> Fax: <%= attrs.FAXNUMBER %>\
 				<% } %>',
 	/*English Ends*/
 	/*French Begins*/
 	tableTemplate: '<% if (attrs.featuresLength === 0) {%>\
-					<i> <%= attrs.geocodingAddress %>.</i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br><h3> Le syst\u00e8me n\u2019a pas trouv\u00e9 de district du MEO</h3>\
+					<i> <%= attrs.address %>.</i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br><h3> Le syst\u00e8me n\u2019a pas trouv\u00e9 de district du MEO</h3>\
 				<%} else {%>\
-					<i><%= attrs.geocodingAddress %></i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br><h3><%= attrs.MOE_DISTRICT %></h3><br>Adresse du bureau: <br><%= attrs.STREET_NAME %><br>\
+					<i><%= attrs.address %></i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br><h3><%= attrs.MOE_DISTRICT %></h3><br>Adresse du bureau: <br><%= attrs.STREET_NAME %><br>\
 					<%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Sans frais: <%= attrs.TOLLFREENUMBER %><br>T\u00e9l\u00e9phone: <%= attrs.PHONENUMBER %>\
 					T\u00e9l\u00e9copieur: <%= attrs.FAXNUMBER %>\
 				<% } %>',
@@ -79,6 +82,13 @@ var globalConfigure = {
 		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/MOE_Districts_Full_Bnd/MapServer',
 		visibleLayers: [0]
 	}],
+	transformGeocodingResults: function (geocodingResult) {
+		var result = _.clone(geocodingResult);
+		if (!result.hasOwnProperty("address")) {
+			result.address = "N/A";
+		}
+		return result;
+	},	
 	transformResults: function (results) {
 		/*English Begins*/		
 		return results;

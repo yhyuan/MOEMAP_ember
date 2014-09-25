@@ -46,7 +46,11 @@ PubSub.on("MOECC_MAP_IDENTIFY_REQUEST_READY", function(params) {
 		return ArcGISServerAdapter.query(p)
 	});
 	$.when.apply($, promises).done(function() {
-		var container = identifyCallback({results: globalConfigure.transformResults(arguments), globalConfigure: globalConfigure, geocodingResult: params.settings.geocodingResult});
+		var geocodingResult = params.settings.geocodingResult;
+		if (globalConfigure.hasOwnProperty('transformGeocodingResults')) {
+			geocodingResult = globalConfigure.transformGeocodingResults(geocodingResult);
+		}
+		var container = identifyCallback({results: globalConfigure.transformResults(arguments), globalConfigure: globalConfigure, geocodingResult: geocodingResult});
 		if (!!container) {
 			PubSub.emit("MOECC_MAP_IDENTIFY_RESPONSE_READY", {infoWindow: container, latlng: params.settings.latlng});
 		}

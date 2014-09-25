@@ -1,11 +1,60 @@
 var identifyCallback = require('../scripts/IdentifyCallbacks/PolygonLayers');
 //var searchCallback = require('../scripts/SearchCallbacks/PolygonLayers');
 var GoogleReverseGeocoder = require('../scripts/Geocoders/GoogleReverseGeocoder');
-
+var GreatLakesReverseGeocoder = {
+	'name': 'GoogleReverseGeocoder',
+	'match': function (params) {
+		var latlng = params.latlng;
+		return _.some([{lat: 42.261049,lng: -81.128540}, {lat: 45.313529,lng: -81.886597}, {lat: 43.651976,lng: -77.997437}, {lat: 47.802087,lng: -86.989746}, {lat: 44.439805,lng: -75.848505}], function (loc) {
+			return Math.abs(latlng.lat - loc.lat) + Math.abs(latlng.lng - loc.lng) < 0.0001;
+		});
+	},
+	'geocode': function(params) {
+		var latlng = params.latlng;
+		/*English Begins*/
+		var data = [{name: "LAKE ERIE", location: {lat: 42.261049,lng: -81.128540}},
+			{name: "LAKE HURON", location: {lat: 45.313529,lng: -81.886597}},
+			{name: "LAKE ONTARIO", location: {lat: 43.651976,lng: -77.997437}},
+			{name: "LAKE SUPERIOR", location: {lat: 47.802087,lng: -86.989746}},
+			{name: "UPPER ST. LAWRENCE", location: {lat: 44.439805,lng: -75.848505}},
+			{name: "ST. LAWRENCE RIVER", location: {lat: 44.439805,lng: -75.848505}}
+		];
+		/*English Ends*/
+		/*French Begins*/		
+		var data = [{name: "LAC \u00c9RI\u00c9", location: {lat: 42.261049,lng: -81.128540}},
+			{name: "LAC HURON", location: {lat: 45.313529,lng: -81.886597}},
+			{name: "LAC ONTARIO", location: {lat: 43.651976,lng: -77.997437}},
+			{name: "LAC SUP\u00c9RIEUR", location: {lat: 47.802087,lng: -86.989746}},
+			{name: "HAUT SAINT-LAURENT", location: {lat: 44.439805,lng: -75.848505}},
+			{name: "FLEUVE SAINT-LAURENT", location: {lat: 44.439805,lng: -75.848505}}
+		];
+		/*French Ends*/
+				
+		var dfd = new $.Deferred();
+		var found = _.find(data, function (item) {
+			var loc = item.location;
+			return Math.abs(latlng.lat - loc.lat) + Math.abs(latlng.lng - loc.lng) < 0.0001;
+		});
+		if (found) {
+			var result = {
+				address: found.name,
+				latlng: params.latlng,
+				status: 'OK'
+			};
+			dfd.resolve(result);
+		} else {
+			dfd.resolve({status: 'No_Result'});
+		}
+		return dfd.promise();
+	}
+};
 var globalConfigure = {
 	langs: langSetting,
 	//minMapScale: 1,
-	reverseGeocoder: GoogleReverseGeocoder,
+	reverseGeocoder: {
+		GeocoderList: [GreatLakesReverseGeocoder],
+		defaultGeocoder: GoogleReverseGeocoder
+	},
 	extraImageServices: [{
 		id: "arcgis",
 		name: "ESRI",
@@ -42,36 +91,39 @@ var globalConfigure = {
 	displayIdentifyMarker: true,
 	/*English Begins*/		
 	identifyTemplate: '<% if (attrs.featuresLength === 0) {%>\
-					<i> <%= attrs.geocodingAddress %>.</i><br><br><strong>Result located within</strong><br><h3>No MOE District found</h3>\
-				<%} else {%>\
-					<i><%= attrs.geocodingAddress %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOECC District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br>\
-					<%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Toll Free: <%= attrs.TOLLFREENUMBER %><br>Tel: <%= attrs.PHONENUMBER %> Fax: <%= attrs.FAXNUMBER %>\
+					<i> <%= attrs.address %>.</i><br><br><strong>Result located within</strong><br> No Great Lakes Watershed found\
+				<%} else { %>\
+					<i><%= attrs.address %></i><br><br><i><strong>Latitude:</strong> <%= attrs.latlng.lat.toFixed(6) %>  <strong>Longitude:</strong> <%= attrs.latlng.lng.toFixed(6) %></i><br>\
+					<i><strong>UTM Zone:</strong>  <%= attrs.utmCoordinates.Zone %> <strong>Easting:</strong>  <%= attrs.utmCoordinates.Easting %>  <strong>Northing:</strong>  <%= attrs.utmCoordinates.Northing %>  </i><br><br>\
+					<strong>Result located within</strong><br><%= attrs.LABEL %> WATERSHED\
 				<% } %>',
+				
 	/*English Ends*/
 	/*French Begins*/
-	identifyTemplate: '<% if (attrs.featuresLength === 0) {%>\
-					<i> <%= attrs.geocodingAddress %>.</i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br><h3> Le syst\u00e8me n\u2019a pas trouv\u00e9 de district du MEO</h3>\
+	identifyTemplate:  '<% if (attrs.featuresLength === 0) {%>\
+					<i> <%= attrs.address %>.</i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br> Le syst\u00e8me n\u2019a pas trouv\u00e9 de bassin versant des Grands Lacs\
 				<%} else {%>\
-					<i><%= attrs.geocodingAddress %></i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br><h3><%= attrs.MOE_DISTRICT %></h3><br>Adresse du bureau: <br><%= attrs.STREET_NAME %><br>\
-					<%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Sans frais: <%= attrs.TOLLFREENUMBER %><br>T\u00e9l\u00e9phone: <%= attrs.PHONENUMBER %>\
-					T\u00e9l\u00e9copieur: <%= attrs.FAXNUMBER %>\
+					<i><%= attrs.address %></i><br><br><i><strong>Latitude:</strong> <%= attrs.latlng.lat.toFixed(6) %>  <strong>Longitude:</strong> <%= attrs.latlng.lng.toFixed(6) %></i><br>\
+					<i><strong>Zone UTM:</strong>  <%= attrs.utmCoordinates.Zone %> <strong>abscisse:</strong>  <%= attrs.utmCoordinates.Easting %>  <strong>ordonn\u00e9e:</strong>  <%= attrs.utmCoordinates.Northing %>  </i><br><br>\
+					<strong>R\u00e9sultat situ\u00e9 dans le</strong><br><%= attrs.LABEL %> WATERSHED\
 				<% } %>',
 	/*French Ends*/
 	/*English Begins*/	
 	tableTemplate: '<% if (attrs.featuresLength === 0) {%>\
-					<i> <%= attrs.geocodingAddress %>.</i><br><br><strong>Result located within</strong><br><h3>No MOE District found</h3>\
-				<%} else {%>\
-					<i><%= attrs.geocodingAddress %></i><br><br><strong>Result located within</strong><br><h3><%= attrs.MOE_DISTRICT %> MOECC District</h3><br>Office Address: <br><%= attrs.STREET_NAME %><br>\
-					<%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Toll Free: <%= attrs.TOLLFREENUMBER %><br>Tel: <%= attrs.PHONENUMBER %> Fax: <%= attrs.FAXNUMBER %>\
+					<i> <%= attrs.address %>.</i><br><br><strong>Result located within</strong><br> No Great Lakes Watershed found\
+				<%} else { %>\
+					<i><%= attrs.address %></i><br><br><i><strong>Latitude:</strong> <%= attrs.latlng.lat.toFixed(6) %>  <strong>Longitude:</strong> <%= attrs.latlng.lng.toFixed(6) %></i><br>\
+					<i><strong>UTM Zone:</strong>  <%= attrs.utmCoordinates.Zone %> <strong>Easting:</strong>  <%= attrs.utmCoordinates.Easting %>  <strong>Northing:</strong>  <%= attrs.utmCoordinates.Northing %>  </i><br><br>\
+					<strong>Result located within</strong><br><%= attrs.LABEL %> WATERSHED\
 				<% } %>',
 	/*English Ends*/
 	/*French Begins*/
 	tableTemplate: '<% if (attrs.featuresLength === 0) {%>\
-					<i> <%= attrs.geocodingAddress %>.</i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br><h3> Le syst\u00e8me n\u2019a pas trouv\u00e9 de district du MEO</h3>\
+					<i> <%= attrs.address %>.</i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br> Le syst\u00e8me n\u2019a pas trouv\u00e9 de bassin versant des Grands Lacs\
 				<%} else {%>\
-					<i><%= attrs.geocodingAddress %></i><br><br><strong>R\u00e9sultat situ\u00e9 dans le</strong><br><h3><%= attrs.MOE_DISTRICT %></h3><br>Adresse du bureau: <br><%= attrs.STREET_NAME %><br>\
-					<%= attrs.CITY %> <%= attrs.POSTALCODE %><br>Sans frais: <%= attrs.TOLLFREENUMBER %><br>T\u00e9l\u00e9phone: <%= attrs.PHONENUMBER %>\
-					T\u00e9l\u00e9copieur: <%= attrs.FAXNUMBER %>\
+					<i><%= attrs.address %></i><br><br><i><strong>Latitude:</strong> <%= attrs.latlng.lat.toFixed(6) %>  <strong>Longitude:</strong> <%= attrs.latlng.lng.toFixed(6) %></i><br>\
+					<i><strong>Zone UTM:</strong>  <%= attrs.utmCoordinates.Zone %> <strong>abscisse:</strong>  <%= attrs.utmCoordinates.Easting %>  <strong>ordonn\u00e9e:</strong>  <%= attrs.utmCoordinates.Northing %>  </i><br><br>\
+					<strong>R\u00e9sultat situ\u00e9 dans le</strong><br><%= attrs.LABEL %> WATERSHED\
 				<% } %>',
 	/*French Ends*/
 
@@ -85,6 +137,14 @@ var globalConfigure = {
 		mapService: 'http://www.appliomaps.lrc.gov.on.ca/ArcGIS/rest/services/MOE/GreatLakes_WS_Bnd/MapServer',
 		visibleLayers: [0, 1]
 	}],
+	transformGeocodingResults: function (geocodingResult) {
+		var result = _.clone(geocodingResult);
+		if (!result.hasOwnProperty("address")) {
+			result.address = "N/A";
+		}
+		result.utmCoordinates = Util.convertLatLngtoUTM(geocodingResult.latlng.lat, geocodingResult.latlng.lng);
+		return result;
+	},
 	transformResults: function (results) {
 		/*English Begins*/		
 		return results;
@@ -110,6 +170,40 @@ var globalConfigure = {
 		/*French Ends*/
 	},
 };
+
+var GreatLakesGeocoder = {		
+	'match': function (params) {
+		var lakeLocations = ["LAKE ERIE", "LAC \u00c9RI\u00c9", "LAKE HURON", "LAC HURON", "LAKE ONTARIO", "LAC ONTARIO", "LAKE SUPERIOR", "LAC SUP\u00c9RIEUR", "UPPER ST. LAWRENCE", "ST. LAWRENCE RIVER", "HAUT SAINT-LAURENT", "FLEUVE SAINT-LAURENT"];
+		return _.contains(lakeLocations, params.address.split(/\s+/).join(" ").toUpperCase());
+	},
+	'geocode': function (params) {				
+		var lakeLocations = {
+			"LAKE ERIE": {location: {lat: 42.261049,lng: -81.128540}, zoomlevel: 8},
+			"LAC \u00c9RI\u00c9": {location: {lat: 42.261049,lng: -81.128540}, zoomlevel: 8},
+			"LAKE HURON": {location: {lat: 45.313529,lng: -81.886597}, zoomlevel: 8},
+			"LAC HURON": {location: {lat: 45.313529,lng: -81.886597}, zoomlevel: 8},
+			"LAKE ONTARIO": {location: {lat: 43.651976,lng: -77.997437}, zoomlevel: 8},
+			"LAC ONTARIO": {location: {lat: 43.651976,lng: -77.997437}, zoomlevel: 8},
+			"LAKE SUPERIOR": {location: {lat: 47.802087,lng: -86.989746}, zoomlevel: 7},	
+			"LAC SUP\u00c9RIEUR": {location: {lat: 47.802087,lng: -86.989746}, zoomlevel: 7},	
+			"UPPER ST. LAWRENCE": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+			"ST. LAWRENCE RIVER": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+			"HAUT SAINT-LAURENT": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9},
+			"FLEUVE SAINT-LAURENT": {location: {lat: 44.439805,lng: -75.848505}, zoomlevel: 9}
+		};
+		var key = params.address.split(/\s+/).join(" ").toUpperCase();
+		var result = {
+			latlng: lakeLocations[key].location,
+			zoomLevel: lakeLocations[key].zoomlevel,
+			address: params.address,
+			status: 'OK'
+		};
+		var dfd = new $.Deferred();
+		dfd.resolve(result);
+		return dfd.promise();
+	}
+};
+Geocoder.addGeocoder(GreatLakesGeocoder);
 
 PubSub.remove("MOECC_MAP_SEARCH_REQUEST_READY");
 PubSub.on("MOECC_MAP_SEARCH_REQUEST_READY", function (params) {

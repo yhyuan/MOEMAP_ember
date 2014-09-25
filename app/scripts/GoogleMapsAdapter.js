@@ -1190,9 +1190,13 @@ var init = function (thePubSub) {
 			latlng: latLng
 		};
 		if (globalConfigure.reverseGeocodingForIdentify && globalConfigure.hasOwnProperty('reverseGeocoder')) {
-			var promise = globalConfigure.reverseGeocoder.geocode({
-				latlng: latLng
+			var reverseGeocoder = _.find(globalConfigure.reverseGeocoder.GeocoderList, function (geocoder) {
+				return geocoder.match({latlng: latLng});
 			});
+			var promise = (reverseGeocoder) ? reverseGeocoder.geocode({latlng: latLng}) : globalConfigure.reverseGeocoder.defaultGeocoder.geocode({latlng: latLng});
+			/*var promise = globalConfigure.reverseGeocoder.geocode({
+				latlng: latLng
+			});*/
 			promise.done(function (geocodingResult) {
 				settings.geocodingResult = geocodingResult;
 				PubSub.emit("MOECC_MAP_IDENTIFY_REQUEST_READY", {settings: settings, geometry: circle});

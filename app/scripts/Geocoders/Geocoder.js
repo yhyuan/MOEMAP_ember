@@ -31,5 +31,8 @@ module.exports = {
 			}
 		}
 		return promise;
+	},
+	'addGeocoder': function (geocoder) {
+		this.GeocoderSettings.GeocoderList.push(geocoder);
 	}
 };
