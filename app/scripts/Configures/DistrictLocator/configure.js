@@ -4,6 +4,7 @@ var GoogleReverseGeocoder = require('../scripts/Geocoders/GoogleReverseGeocoder'
 
 var globalConfigure = {
 	langs: langSetting,
+	//minMapScale: 1,
 	reverseGeocoder: GoogleReverseGeocoder,
 	extraImageServices: [{
 		id: "arcgis",

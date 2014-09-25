@@ -53,18 +53,33 @@ var transformInfoWindowPosition = function (latlng) {
 		lng: alatlng.lng()
 	};
 };*/
+
+var calculatePosition = function (latlng) {
+	var lat = latlng.lat;
+	var lng = latlng.lng;
+	lat = lat + (map.getBounds().getNorthEast().lat() - map.getBounds().getSouthWest().lat()) * 0.06;
+	return {lat: lat, lng: lng};
+};
+var isInfoWindowOverlappedMarker = function(latlng) {
+	var p = marker.getPosition();
+	return (Math.abs(p.lat() - latlng.lat) + Math.abs(p.lng() - latlng.lng)) < 0.000001;
+};
+
 var openInfoWindow = function (latlng, container){
-	//infoWindowPosition = latlng;
-	//var alatlng = transformInfoWindowPosition(latlng);
+	var alatlng = latlng;
+	if(isInfoWindowOverlappedMarker(latlng)) {
+		alatlng = calculatePosition(latlng);
+	}
 	if (!infoWindow) {
 		infoWindow = new google.maps.InfoWindow({
 			content: container,
-			position: latlng
+			position: alatlng
 		});
 	} else {
 		infoWindow.setContent(container);
-		infoWindow.setPosition(latlng);
+		infoWindow.setPosition(alatlng);
 	}
+	infoWindow.originalPosition = latlng;
 	infoWindow.open(map);
 };
 
@@ -1259,13 +1274,16 @@ var init = function (thePubSub) {
 		});
 		google.maps.event.trigger(map, 'mousemove', {latLng: center});
 		google.maps.event.addListener(map, 'zoom_changed', function () {
-			/*if((!!infoWindow)) {
-				infoWindow.setPosition(transformInfoWindowPosition(infoWindowPosition));
-			}*/
-			if (map.getZoom() > configure.maxMapScale) {
+			var zoomLevel = map.getZoom();
+			
+			if ((!!infoWindow) && (zoomLevel <= configure.maxMapScale) && (zoomLevel >= configure.minMapScale)) {
+				console.log(zoomLevel);
+				infoWindow.setPosition(calculatePosition(infoWindow.originalPosition));
+			}
+			if (zoomLevel > configure.maxMapScale) {
 				map.setZoom(configure.maxMapScale);
 			}
-			if (map.getZoom() < configure.minMapScale) {
+			if (zoomLevel < configure.minMapScale) {
 				map.setZoom(configure.minMapScale);
 			}
 		});
