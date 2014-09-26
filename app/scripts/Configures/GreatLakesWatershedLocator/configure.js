@@ -176,6 +176,10 @@ var GreatLakesGeocoder = {
 		var lakeLocations = ["LAKE ERIE", "LAC \u00c9RI\u00c9", "LAKE HURON", "LAC HURON", "LAKE ONTARIO", "LAC ONTARIO", "LAKE SUPERIOR", "LAC SUP\u00c9RIEUR", "UPPER ST. LAWRENCE", "ST. LAWRENCE RIVER", "HAUT SAINT-LAURENT", "FLEUVE SAINT-LAURENT"];
 		return _.contains(lakeLocations, params.address.split(/\s+/).join(" ").toUpperCase());
 	},
+	'format': function (params) {
+		var lakeLocations = ["LAKE ERIE", "LAC \u00c9RI\u00c9", "LAKE HURON", "LAC HURON", "LAKE ONTARIO", "LAC ONTARIO", "LAKE SUPERIOR", "LAC SUP\u00c9RIEUR", "UPPER ST. LAWRENCE", "ST. LAWRENCE RIVER", "HAUT SAINT-LAURENT", "FLEUVE SAINT-LAURENT"];
+		return _.contains(lakeLocations, params.address.split(/\s+/).join(" ").toUpperCase());
+	},
 	'geocode': function (params) {				
 		var lakeLocations = {
 			"LAKE ERIE": {location: {lat: 42.261049,lng: -81.128540}, zoomlevel: 8},
