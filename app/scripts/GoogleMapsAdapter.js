@@ -71,7 +71,7 @@ var isInfoWindowOverlappedMarker = function(latlng) {
 
 var openInfoWindow = function (latlng, container){
 	var alatlng = latlng;
-	if(isInfoWindowOverlappedMarker(latlng)) {
+	if(!!marker && isInfoWindowOverlappedMarker(latlng)) {
 		alatlng = calculatePosition(latlng);
 	}
 	if (!infoWindow) {
@@ -1288,7 +1288,7 @@ var init = function (thePubSub) {
 			var zoomLevel = map.getZoom();
 			//console.log(zoomLevel);
 			//console.log(map.getBounds().getNorthEast().lat() - map.getBounds().getSouthWest().lat())
-			if ((!!infoWindow) && (zoomLevel <= configure.maxMapScale) && (zoomLevel >= configure.minMapScale)) {
+			if ((!!marker) &&(!!infoWindow) && (zoomLevel <= configure.maxMapScale) && (zoomLevel >= configure.minMapScale)) {
 				//console.log(zoomLevel);
 				infoWindow.setPosition(calculatePosition(infoWindow.originalPosition));
 			}
