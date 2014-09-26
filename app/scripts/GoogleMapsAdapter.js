@@ -1423,7 +1423,8 @@ var api = {
 	searchChange: searchChange,
 	openInfoWindow: openInfoWindow,
 	//queryLayers: queryLayers,
-	clear: clear
+	clear: clear,
+	map: map //For testing purpose
 };
 
 module.exports = api;
