@@ -1,8 +1,8 @@
 /* global _, $, google */
 'use strict';
-var GoogleMapsAdapter = require('../scripts/GoogleMapsAdapter');
+var GoogleMapsAdapter = require('../scripts/Basemaps/GoogleMapsAdapter');
 window.GoogleMapsAdapter = GoogleMapsAdapter;
-var ArcGISServerAdapter = require('../scripts/ArcGISServerAdapter');
+var ArcGISServerAdapter = require('../scripts/FeatureLayers/ArcGISServerAdapter');
 var Util = require('../scripts/Util');
 /*English Begins*/
 var langSetting = require('../scripts/Configures/Languages/English');

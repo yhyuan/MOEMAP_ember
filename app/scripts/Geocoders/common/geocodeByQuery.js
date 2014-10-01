@@ -1,4 +1,4 @@
-var ArcGISServerAdapter = require('../../ArcGISServerAdapter');
+var ArcGISServerAdapter = require('../../FeatureLayers/ArcGISServerAdapter');
 
 /**
  * Geocode an address with an ArcGIS layer. 
