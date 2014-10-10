@@ -184,9 +184,16 @@ var query = function (p) {
       return dfd.promise();
   };
 
+  var queryLayers = function (paramsList) {
+	var promises = _.map(paramsList, function (params) {
+		return query(_.clone(params))
+	});
+	return $.when.apply($, promises);
+  };
 var api = {
     query: query,
-    exportMap: exportMap
+    exportMap: exportMap,
+	queryLayers: queryLayers
 };
 
 module.exports = api;

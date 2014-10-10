@@ -40,12 +40,7 @@ PubSub.on("MOECC_MAP_GEOCODING_ADDRESS_READY", function(initParams) {
 	});
 })
 PubSub.on("MOECC_MAP_IDENTIFY_REQUEST_READY", function(params) {
-	var promises = _.map(globalConfigure.identifyParamsList, function (identifyParams) {
-		var p = _.clone(identifyParams);
-		p.geometry = params.geometry;
-		return ArcGISServerAdapter.query(p)
-	});
-	$.when.apply($, promises).done(function() {
+	ArcGISServerAdapter.queryLayers(params.paramsList).done(function() {
 		var geocodingResult = params.settings.geocodingResult;
 		if (globalConfigure.hasOwnProperty('transformGeocodingResults')) {
 			geocodingResult = globalConfigure.transformGeocodingResults(geocodingResult);
