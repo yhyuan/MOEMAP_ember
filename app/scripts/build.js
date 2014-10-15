@@ -19,18 +19,18 @@ var fs = require('fs')
 	, language = process.argv[3];
 fs.readFile("Configures/" + foldername + "/configure.js", 'utf8', function(err, data) {
 	if (err) throw err;
-	fs.readFile("Configures/Defaults/AGServer/before.js", 'utf8', function(err1, before) {
-		if (err1) throw err1;
-		fs.readFile("Configures/Defaults/AGServer/after.js", 'utf8', function(err2, after) {
-			if (err2) throw err2;
-			fs.writeFile("../configures/configure.language.js", removeLangaugeRelated(before + data + after, language), function(err3) {
+	//fs.readFile("Configures/Defaults/AGServer/before.js", 'utf8', function(err1, before) {
+	//	if (err1) throw err1;
+	//	fs.readFile("Configures/Defaults/AGServer/after.js", 'utf8', function(err2, after) {
+	//		if (err2) throw err2;
+			fs.writeFile("../configures/configure.language.js", removeLangaugeRelated(data, language), function(err3) {
 				if(err3) {
 					console.log(err3);
 				} else {
 					console.log("The " + language + " file was saved!");
 				}
 			});			
-		});		
-	});
+		//});		
+	//});
 	//console.log(data);
 });

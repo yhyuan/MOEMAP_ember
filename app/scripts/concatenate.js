@@ -14,11 +14,14 @@ fs.readFile("../configures/configure.js", 'utf8', function(err, data) {
 		if (err1) throw err1;
 		fs.readFile("../bower_components/underscore/underscore.js", 'utf8', function(err2, underscore) {
 			if (err2) throw err2;
-			fs.writeFile("../configures/" + foldername + "." + language + ".js", "/*" + (new Date()) + "*/\n" + yepnope + underscore + data, function(err3) {
-				if(err3) {
-					console.log(err3);
-				}
-			});			
+			fs.readFile("../bower_components/arcgislink/arcgislink.js", 'utf8', function(err4, arcgislink) {
+				if (err4) throw err4;
+				fs.writeFile("../configures/" + foldername + "." + language + ".js", "/*" + (new Date()) + "*/\n" + yepnope + underscore + arcgislink + data, function(err3) {
+					if(err3) {
+						console.log(err3);
+					}
+				});
+			});	
 		});		
 	});
 });
