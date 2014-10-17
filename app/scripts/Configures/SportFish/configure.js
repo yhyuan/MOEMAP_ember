@@ -1,7 +1,28 @@
 /* global _, $, google */
 'use strict';
 var GoogleMapsAdapter = require('../scripts/Basemaps/GoogleMapsAdapter');
-window.GoogleMapsAdapter = GoogleMapsAdapter;
+window.MOECC_UI = {
+	entsub: function(event){
+		if (event && event.which === 13){
+			this.search();
+		}else{
+			return true;
+		}
+	},
+	searchChange: function (type) {
+		if (globalConfigure.hasOwnProperty('searchChange'))  {
+			globalConfigure.searchChange(type);
+		}
+	},
+	search: function(input) {
+		var searchString = (!!input) ? input : $('#' + globalConfigure.searchInputBoxDivId).val().trim();
+		if(searchString.length === 0){
+			return;
+		}
+		PubSub.emit("MOECC_MAP_CLICK_SEARCH_BUTTON", {searchString: searchString});
+	}
+};
+
 var ArcGISServerAdapter = require('../scripts/FeatureLayers/ArcGISServerAdapter');
 var Util = require('../scripts/Util');
 /*English Begins*/
@@ -32,7 +53,6 @@ var GeocoderSettings = {
 GeocoderSettings = _.defaults(defaultGeocoderConfigurations, GeocoderSettings);
 Geocoder.init(GeocoderSettings);
 /*Geocoder setup ends*/
-
 /*
 	The following message response function provides the response for identifying on the map. 
 	The params provides the latlng and radius for the identification. 
@@ -65,7 +85,7 @@ PubSub.on("MOECC_MAP_IDENTIFY_REQUEST_READY", function(params) {
 		container.style.width = globalConfigure.infoWindowWidth;
 		container.style.height = globalConfigure.infoWindowHeight;
 		container.innerHTML = _.template(globalConfigure.identifyTemplate, {attrs: attrs});
-		PubSub.emit("MOECC_MAP_OPEN_INFOWINDOW", {infoWindow: container, latlng: latLng});
+		PubSub.emit("MOECC_MAP_OPEN_INFO_WINDOW", {container: container, latlng: latLng});
 	});
 });
 var url = defaultConfiguration.dynamicResourcesLoadingURL;
@@ -212,6 +232,28 @@ PubSub.on("MOECC_MAP_INITIALIZATION_FINISHED", function (params) {
 		dynamap.setMap(map);	
 	});
 });
+
+PubSub.on("MOECC_MAP_MOUSE_MOVE_MESSAGE", function (params) {
+	var latLng = params.latlng;
+	var utm = Util.convertLatLngtoUTM(latLng.lat, latLng.lng);
+	$("#" + globalConfigure.coordinatesDivId).html("Latitude:" + latLng.lat.toFixed(5) + ", Longitude:" + latLng.lng.toFixed(5) + " (" + globalConfigure.langs.UTM_ZoneLang + ":" + utm.Zone + ", " + globalConfigure.langs.EastingLang + ":" + utm.Easting + ", " + globalConfigure.langs.NorthingLang +":" + utm.Northing + ")<br>");
+});
+PubSub.on("MOECC_MAP_POINT_BUFFER_MESSAGE", function (params) {
+	var lat = params.center.lat;
+	var lng = params.center.lat;
+	var radius = params.radiusInKM;
+	$('#' + globalConfigure.informationDivId).html('<i>' + globalConfigure.langs.searchCenterLang + " (latitude:" + lat.toFixed(6) + ", longitude:" + lng.toFixed(6) + "), " + globalConfigure.langs.searchRadiusLang + " (" + radius.toFixed(2) + " " + globalConfigure.langs.searchKMLang + ")" + '</i>');
+});
+PubSub.on("MOECC_MAP_RESET_SEARCH_INPUTBOX", function (params) {
+	$('#' + globalConfigure.searchInputBoxDivId)[0].value = '';
+	$('#' + globalConfigure.searchInputBoxDivId)[0].focus();
+});
+PubSub.on("MOECC_MAP_RESET_QUERY_TABLE", function (params) {
+	$("#" + globalConfigure.queryTableDivId).html('');
+});
+PubSub.on("MOECC_MAP_RESET_MESSAGE_CENTER", function (params) {
+	$('#' + globalConfigure.informationDivId).html(globalConfigure.searchHelpText);
+});	
 GoogleMapsAdapter.init(PubSub);
 
 var globalConfigure = {
@@ -444,16 +486,16 @@ $('#' + globalConfigure.otherInfoDivId).html('<h2>Une erreur sur la carte?</h2> 
 /*English Begins*/
 $("#" + globalConfigure.searchControlDivId).html('<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
 		<label class="element-invisible" for="map_query">Search the map</label>\
-		<input id="map_query" type="text" title="Search term" maxlength="100" size="50" onkeypress="return GoogleMapsAdapter.entsub(event)"></input>\
+		<input id="map_query" type="text" title="Search term" maxlength="100" size="50" onkeypress="return MOECC_UI.entsub(event)"></input>\
 		<label class="element-invisible" for="search_submit">Search</label>\
-		<input id="search_submit" type="submit" title="Search" onclick="GoogleMapsAdapter.search()" value="Search"></input>\
+		<input id="search_submit" type="submit" title="Search" onclick="MOECC_UI.search()" value="Search"></input>\
 		<fieldset>\
-			<input type="radio" id="searchMapLocation" name="searchGroup" checked="checked" title="Search Map Location" name="location" value="location" onclick="GoogleMapsAdapter.searchChange(this)"></input>\
+			<input type="radio" id="searchMapLocation" name="searchGroup" checked="checked" title="Search Map Location" name="location" value="location" onclick="MOECC_UI.searchChange(this)"></input>\
 			<span class="tooltip" title="Search Map Location: Enter the name of an Ontario lake/river, city/town/township or street address to find fish consumption advice">\
 			<label class="option" for="searchMapLocation">Search Map Location</label>\
 			</span>\
 			<br/>\
-			<input type="radio" id="searchFishSpecies" name="searchGroup" title="Search Fish Species" name="species" value="species" onclick="GoogleMapsAdapter.searchChange(this)"></input>\
+			<input type="radio" id="searchFishSpecies" name="searchGroup" title="Search Fish Species" name="species" value="species" onclick="MOECC_UI.searchChange(this)"></input>\
 			<span class="tooltip" title="Search Fish Species: Enter the name of a fish species to find lakes with fish consumption advice for the species">\
 			<label class="option" for="searchFishSpecies">Search Fish Species</label>\
 			</span>\
@@ -465,16 +507,16 @@ $("#" + globalConfigure.searchControlDivId).html('<div id="searchTheMap"></div><
 /*French Begins*/
 $("#" + globalConfigure.searchControlDivId).html('<div id="searchTheMap"></div><div id="searchHelp"></div><br>\
 		<label class="element-invisible" for="map_query">Recherche carte interactive</label>\
-		<input id="map_query" type="text" title="Terme de recherche" maxlength="100" size="50" onkeypress="return GoogleMapsAdapter.entsub(event)"></input>\
+		<input id="map_query" type="text" title="Terme de recherche" maxlength="100" size="50" onkeypress="return MOECC_UI.entsub(event)"></input>\
 		<label class="element-invisible" for="search_submit">Recherche</label>\
-		<input id="search_submit" type="submit" title="Recherche" onclick="GoogleMapsAdapter.search()" value="Recherche"></input>\
+		<input id="search_submit" type="submit" title="Recherche" onclick="MOECC_UI.search()" value="Recherche"></input>\
 		<fieldset>\
-			<input type="radio" id="searchMapLocation" name="searchGroup" checked="checked" title="Recherche d\'emplacements" name="location" value="location" onclick="GoogleMapsAdapter.searchChange(this)"></input>\
+			<input type="radio" id="searchMapLocation" name="searchGroup" checked="checked" title="Recherche d\'emplacements" name="location" value="location" onclick="MOECC_UI.searchChange(this)"></input>\
 			<span class="tooltip" title="Recherche d\'emplacements : Indiquer le lieu en Ontario (lac/rivi\u00e8re, ville/canton, adresse) pour avoir des conseils sur la consommation des poissons du lieu.">\
 			<label class="option" for="searchMapLocation">Recherche d\'emplacements</label>\
 			</span>\
 			<br/>\
-			<input type="radio" id="searchFishSpecies" name="searchGroup" title="Recherche d\'esp\u00e8ces" name="species" value="species" onclick="GoogleMapsAdapter.searchChange(this)"></input>\
+			<input type="radio" id="searchFishSpecies" name="searchGroup" title="Recherche d\'esp\u00e8ces" name="species" value="species" onclick="MOECC_UI.searchChange(this)"></input>\
 			<span class="tooltip" title="Recherche d\'esp\u00e8ces : Indiquer une esp\u00e8ce de poisson pour trouver des lacs sur lesquels existent des conseils sur la consommation de l\'esp\u00e8ce.">\
 			<label class="option" for="searchFishSpecies">Recherche d\'esp\u00e8ces</label>\
 			</span>\
@@ -482,5 +524,17 @@ $("#" + globalConfigure.searchControlDivId).html('<div id="searchTheMap"></div><
 			<input id="currentMapExtent" type="checkbox" name="currentExtent" title="Étendue de la carte courante" /> <label for="currentExtent" class=\'option\'>\u00c9tendue de la carte courante</label>\
 		</fieldset>\
 		<div id="information"></div>');
-/*French Ends*/	
-PubSub.emit("MOECC_MAP_INITIALIZATION", globalConfigure);
+/*French Ends*/
+
+//PubSub.emit("MOECC_MAP_INITIALIZATION", globalConfigure);
+PubSub.emit("MOECC_MAP_INITIALIZATION", {
+	mapCanvasDivId: globalConfigure.mapCanvasDivId,
+	orgLatitude: globalConfigure.orgLatitude,
+	orgLongitude: globalConfigure.orgLongitude,
+	orgzoomLevel: globalConfigure.orgzoomLevel,
+	defaultMapTypeId: globalConfigure.defaultMapTypeId,
+	maxQueryZoomLevel: globalConfigure.maxQueryZoomLevel,
+	dynamicResourcesLoadingURL: globalConfigure.dynamicResourcesLoadingURL,
+	maxMapScale: globalConfigure.maxMapScale,
+	minMapScale: globalConfigure.minMapScale
+});
