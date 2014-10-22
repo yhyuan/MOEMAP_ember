@@ -71,8 +71,7 @@ var init = function (thePubSub) {
 			});
 			overlays = [];
 		}
-	});
-	
+	});	
 	PubSub.on("MOECC_MAP_CLEAR_APPLICATION", function () {
 		PubSub.emit("MOECC_MAP_REMOVE_OVERLAYS");
 		PubSub.emit("MOECC_MAP_REMOVE_GEOCODING_MARKER");
@@ -103,7 +102,8 @@ var init = function (thePubSub) {
 		};	
 		PubSub.emit("MOECC_MAP_SEARCH_REQUEST_READY", {
 			searchString: params.searchString, 
-			currentMapExtent: getCurrentMapExtent()
+			currentMapExtent: getCurrentMapExtent(),
+			type: 'search'
 		});
 	});
 	PubSub.on("MOECC_MAP_BUFFER_SEARCH_RADIUS_READY", function (params) {	
@@ -117,7 +117,8 @@ var init = function (thePubSub) {
 			geometry: _.map(Util.computeCircle(center, radius), function(latlng) {
 					return {lat: parseFloat(latlng.lat.toFixed(6)), lng: parseFloat(latlng.lng.toFixed(6))};
 				}),
-			latlng: center
+			latlng: center,
+			type: 'search'
 		});
 		isCenterSet = false;
 		PubSub.emit("MOECC_MAP_BUFFERTOOL_STATUS_CHANGE", {status: false});
@@ -128,7 +129,6 @@ var init = function (thePubSub) {
 			});
 		})(container, pointBufferToolMarker);
 	});
-	
 	PubSub.on("MOECC_MAP_SEARCH_MARKERS_READY", function (params) {
 		var markers = _.map(params.markers, function(m) {
 			var container = m.container;
@@ -226,7 +226,7 @@ var init = function (thePubSub) {
 		}
 	});
 	PubSub.on("MOECC_MAP_MOUSE_CLICK", function(latLng) {
-		if(isPointBufferToolSelected()){
+		if(pointBufferToolMarker && (pointBufferToolMarker.getIcon().url === (globalConfigure.dynamicResourcesLoadingURL + 'images/' + globalConfigure.pointBufferToolDownIcon))){
 			if(!isCenterSet){
 				center = latLng;
 				isCenterSet = true;
@@ -238,7 +238,7 @@ var init = function (thePubSub) {
 		}
 		PubSub.emit("MOECC_MAP_REMOVE_INFO_WINDOW");
 		var identifyRadiusZoomLevels = [-1, 320000, 160000, 80000, 40000, 20000, 9600, 4800, 2400, 1200, 600, 300, 160, 80, 50, 20, 10, 5, 3, 2, 1, 1];
-		PubSub.emit("MOECC_MAP_IDENTIFY_REQUEST_READY", {latlng: latLng, radius: identifyRadiusZoomLevels[map.getZoom()]});
+		PubSub.emit("MOECC_MAP_SEARCH_REQUEST_READY", {type: 'identify', latlng: latLng, radius: identifyRadiusZoomLevels[map.getZoom()]});
 	});
 	PubSub.on("MOECC_MAP_BUFFERTOOL_STATUS_CHANGE", function(params) {
 		var isDownIcon = params.status;
@@ -342,13 +342,6 @@ var init = function (thePubSub) {
 		});
 		PubSub.emit("MOECC_MAP_INITIALIZATION_FINISHED", {map: map});
 	});
-};
-
-var isPointBufferToolSelected = function () {
-	if (!pointBufferToolMarker)  {
-		return false;
-	}
-	return pointBufferToolMarker.getIcon().url === (globalConfigure.dynamicResourcesLoadingURL + 'images/' + globalConfigure.pointBufferToolDownIcon);
 };
 
 var api = {
