@@ -11,7 +11,8 @@ var pointBufferToolMarker;
 var isCenterSet;
 var center;
 var bufferCircle;
-
+var markerMouseoverIcon;
+var markerIcon;
 var calculatePosition = function (latlng) {
 	var lat = latlng.lat;
 	var lng = latlng.lng;
@@ -130,17 +131,39 @@ var init = function (thePubSub) {
 		})(container, pointBufferToolMarker);
 	});
 	PubSub.on("MOECC_MAP_SEARCH_MARKERS_READY", function (params) {
+		if (params.markers[0].hasOwnProperty('icon') && params.markers[0].hasOwnProperty('mouseoverIcon')) {
+			markerIcon = params.markers[0].icon;
+			markerMouseoverIcon = params.markers[0].mouseoverIcon;
+		}
 		var markers = _.map(params.markers, function(m) {
-			var container = m.container;
 			var gLatLng = new google.maps.LatLng(m.latlng.lat, m.latlng.lng);
-			var marker = new google.maps.Marker({
-				position: gLatLng
-			});		
-			(function (container, marker) {
-				google.maps.event.addListener(marker, 'click', function () {
-					PubSub.emit("MOECC_MAP_OPEN_INFO_WINDOW", {latlng: marker.getPosition(), container: container});
+			var marker;
+			if (m.hasOwnProperty('icon')) {
+				marker = new google.maps.Marker({
+					position: gLatLng, 
+					icon: m.icon,
+				});				
+			} else {
+				marker = new google.maps.Marker({
+					position: gLatLng
 				});
-			})(container, marker);
+			}
+			google.maps.event.addListener(marker, 'mouseover', function () {
+				marker.setIcon(m.mouseoverIcon);
+				PubSub.emit("MOECC_MAP_MOUSEOVER_MARKER", {OBJECTID: m.OBJECTID});
+			});
+			google.maps.event.addListener(marker, 'mouseout', function () {
+				marker.setIcon(m.icon);
+				PubSub.emit("MOECC_MAP_MOUSEOUT_MARKER", {OBJECTID: m.OBJECTID});
+			});
+			if (m.hasOwnProperty('container')) {
+				var container = m.container;
+				(function (container, marker) {
+					google.maps.event.addListener(marker, 'click', function () {
+						PubSub.emit("MOECC_MAP_OPEN_INFO_WINDOW", {latlng: marker.getPosition(), container: container});
+					});
+				})(container, marker);
+			}
 			return marker;
 		});
 		_.each(markers, function(marker){
@@ -148,6 +171,43 @@ var init = function (thePubSub) {
 			overlays.push(marker);
 		});		
 	});
+	PubSub.on("MOECC_MAP_MOUSEOVER_TABLE", function (params) {
+		var marker = _.find(overlays, function(overlay) {
+			var position = overlay.getPosition();
+			if (position && position.lat() && position.lng()) {
+				return Math.abs(params.lat - position.lat())  + Math.abs(params.lng - position.lng()) < 0.000001
+			} else {
+				return false;
+			}
+		});
+		marker.setIcon(markerMouseoverIcon);
+	});
+	
+	PubSub.on("MOECC_MAP_MOUSEOUT_TABLE", function (params) {
+		var marker = _.find(overlays, function(overlay) {
+			var position = overlay.getPosition();
+			if (position && position.lat() && position.lng()) {
+				return Math.abs(params.lat - position.lat())  + Math.abs(params.lng - position.lng()) < 0.000001
+			} else {
+				return false;
+			}
+		});
+		marker.setIcon(markerIcon);
+	});
+	PubSub.on("MOECC_MAP_REMOVE_MARKER", function (params) {
+		var marker = _.find(overlays, function(overlay) {
+			var position = overlay.getPosition();
+			if (position && position.lat() && position.lng()) {
+				return Math.abs(params.lat - position.lat())  + Math.abs(params.lng - position.lng()) < 0.000001
+			} else {
+				return false;
+			}
+		});
+		marker.setMap(null);
+	});
+	
+	
+	
 	PubSub.on("MOECC_MAP_SEARCH_BOUNDS_CHANGED", function (params) {
 		var convertToGBounds = function(b) {
 			var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
