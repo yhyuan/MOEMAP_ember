@@ -1,5 +1,24 @@
 /* global _, $, google */
 'use strict';
+/*Geocoder setup starts*/
+var GeographicTownship = require('../scripts/Geocoders/GeographicTownship');
+var GeographicTownshipWithLotConcession = require('../scripts/Geocoders/GeographicTownshipWithLotConcession');
+var LatLngInDecimalDegree = require('../scripts/Geocoders/LatLngInDecimalDegree');
+var LatLngInDMSSymbols = require('../scripts/Geocoders/LatLngInDMSSymbols');
+var LatLngInSymbols = require('../scripts/Geocoders/LatLngInSymbols');
+var UTM = require('../scripts/Geocoders/UTM');
+var UTMInDefaultZone = require('../scripts/Geocoders/UTMInDefaultZone');
+var GoogleGeocoder = require('../scripts/Geocoders/GoogleGeocoder');
+var Geocoder = require('../scripts/Geocoders/Geocoder');
+var defaultGeocoderConfigurations = require('../scripts/Geocoders/configurations/default');
+var GeocoderSettings = {
+	GeocoderList: [LatLngInDecimalDegree, LatLngInDMSSymbols, LatLngInSymbols, UTM, UTMInDefaultZone, GeographicTownship, GeographicTownshipWithLotConcession],
+	defaultGeocoder: GoogleGeocoder/*,
+	reverseGeocoder: GoogleReverseGeocoder*/
+};
+GeocoderSettings = _.defaults(defaultGeocoderConfigurations, GeocoderSettings);
+Geocoder.init(GeocoderSettings);
+/*Geocoder setup ends*/
 var GoogleMapsAdapter = require('../scripts/Basemaps/GoogleMapsAdapter');
 var facilities; 
 var websiteURL = 'http://localhost:9000';
@@ -12,6 +31,12 @@ window.MOECC_UI = {
 			<div id="information">Please log in</div>');
 		
 	},
+	zoomInRecord: function (objectID) {
+		var fac = _.find(facilities, function(facility) {
+			return facility.attributes.OBJECTID === objectID;
+		});
+		PubSub.emit("MOECC_MAP_SET_CENTER_ZOOMLEVEL", {zoomLevel: 10, center: {lat: fac.attributes.POINT_Y, lng: fac.attributes.POINT_X}});
+	},
 	deleteRecord: function (objectID) {
 		$.prompt("Do you really want to delete this facility?", {
 			title: "Are you sure?",
@@ -23,7 +48,7 @@ window.MOECC_UI = {
 					var fac = _.find(facilities, function(facility) {
 						return facility.attributes.OBJECTID === objectID;
 					});
-					PubSub.emit("MOECC_MAP_REMOVE_MARKER", {lat: fac.attributes.POINT_Y, lng: fac.attributes.POINT_X});
+					PubSub.emit("MOECC_MAP_REMOVE_MARKER", {OBJECTID: fac.attributes.OBJECTID});
 					$('#row-' + objectID).parent().parent().children().each(function(){
 						$(this).css("display","none");
 					});					
@@ -34,21 +59,53 @@ window.MOECC_UI = {
 	editRecord: function (objectID) {
 		console.log(objectID);
 	},
+	/*validateAddress: function() {
+		var initParams = {address: $('#Address').val(), withinExtent: false};
+		var geocodingParams = _.defaults(initParams, GeocoderSettings);
+		Geocoder.geocode(geocodingParams).done(function(result) {
+			if (result.status === "OK"){
+				$('#addRecordConfirmed').removeAttr('disabled');
+				//result.latlng
+				$.prompt("The address is verified now.");
+			} else {
+				$.prompt("The address is not successfully verified. Please fix the errors.");			}
+		});
+	},*/
+	leasedOwnedChange: function (leased_owned) {
+		if ($("#leased").is(':checked'))  {
+			$("#LeaseExpiry").prop('disabled', false);
+			$("#LeaseExpiry1").prop('disabled', false);
+			$("#LeaseExpiry2").prop('disabled', false);
+		} else {
+			$("#LeaseExpiry").prop('disabled', true);
+			$("#LeaseExpiry1").prop('disabled', true);
+			$("#LeaseExpiry2").prop('disabled', true);
+		}
+	},
+	addOccupant: () {
+		
+	},
 	addRecord: function () {
 		var tableContent = 'Location: <input type="text" id="Location" name="Location"><br>\
-		Address: <input type="text" id="Address" name="Address"><input id="validateAddress" type="submit" title="validateAddress" onclick="MOECC_UI.validateAddress()" value="Validate Address"></input><br>\
-		Total Squar Feets (Number Only): <input type="text" id="TotalSquarFeets" name="TotalSquarFeets"><br>\
-		Lease Cost (Number Only): <input type="text" id="LeaseCost" name="LeaseCost"><br>\
-		Lease Expiry: <input type="text" id="LeaseExpiry" name="LeaseExpiry"><br>\
-		Occupants: <input type="text" id="Occupants" name="Occupants"><br>\
-		Number of Staffs (Number Only): <input type="text" id="NumberofStaffs" name="NumberofStaffs"><br>\
-		Staff Capacity (Number Only): <input type="text" id="StaffCapacity" name="StaffCapacity"><br>\
-		RSF_per_FTE (Number Only): <input type="text" id="RSF_per_FTE" name="RSF_per_FTE"><br>\
-		Number of Fleet (Number Only): <input type="text" id="NumberofFleet" name="NumberofFleet"><br>\
-		<input id="addRecordConfirmed" type="submit" title="addRecordConfirmed" onclick="MOECC_UI.addRecordConfirmed()" value="Confirm"></input>\
+		Address: <input type="text" id="Address" name="Address" size="50"><br>\
+		Total Square Feets (Number Only): <input type="text" id="TotalSquarFeets" name="TotalSquarFeets" size="10"><br>\
+		Annual Cost (Number Only): <input type="text" id="LeaseCost" name="LeaseCost" size="10"><br>\
+		Leased or Owned: <input type="radio" name="leased_owned" id="leased" value="leased" onclick="MOECC_UI.leasedOwnedChange(this)" checked>Leased<input type="radio" id="owned" name="leased_owned" value="owned" onclick="MOECC_UI.leasedOwnedChange(this)">Owned<br>\
+		Lease Expiry (Date Only): <input type="text" id="LeaseExpiry" name="LeaseExpiry" size="10"><br>\
+		Lease Expiry1 (Date Only): <input type="text" id="LeaseExpiry1" name="LeaseExpiry1" size="10"><br>\
+		Lease Expiry2 (Date Only): <input type="text" id="LeaseExpiry2" name="LeaseExpiry2" size="10"><br>\
+		Occupants: <textarea id="Occupants" name="Occupants" rows="4" cols="50"></textarea>\
+		<input id="addOccupant" type="submit" title="addOccupant" onclick="MOECC_UI.addOccupant()" value="Submit"></input><br>\
+		Number of Staffs (Number Only): <input type="text" id="NumberofStaffs" name="NumberofStaffs" size="10"><br>\
+		Staff Capacity (Number Only): <input type="text" id="StaffCapacity" name="StaffCapacity" size="10"><br>\
+		RSF_per_FTE (Number Only): <input type="text" id="RSF_per_FTE" name="RSF_per_FTE" size="10"><br>\
+		Number of Fleet (Number Only): <input type="text" id="NumberofFleet" name="NumberofFleet" size="10"><br>\
+		<input id="addRecordSubmited" type="submit" title="addRecordSubmited" onclick="MOECC_UI.addRecordSubmited()" value="Submit"></input>\
 		<input id="addRecordCancelled" type="submit" title="addRecordCancelled" onclick="MOECC_UI.addRecordCancelled()" value="Cancell"></input>';
 		$('#' + globalConfigure.queryTableDivId).html(tableContent);
 		$( "#LeaseExpiry" ).datepicker();
+		$( "#LeaseExpiry1" ).datepicker();
+		$( "#LeaseExpiry2" ).datepicker();
 		$('#Location').on('input', function() {
 			var input=$(this);
 			var is_name=input.val();
@@ -107,15 +164,16 @@ window.MOECC_UI = {
 	addRecordCancelled: function() {
 		PubSub.emit("MOECC_MAP_SEARCH_TABLE_READY");
 	},
-	addRecordConfirmed: function() {
-		//validate address. 
-		var feature = {
-			attributes: {
-				
-			}
-		};
-		facilities.push();
-		//PubSub.emit("MOECC_MAP_SEARCH_TABLE_READY");
+	addRecordSubmited: function() {
+		var initParams = {address: $('#Address').val(), withinExtent: false};
+		var geocodingParams = _.defaults(initParams, GeocoderSettings);
+		Geocoder.geocode(geocodingParams).done(function(result) {
+			if (result.status === "OK"){
+				//result.latlng
+				$.prompt("The address is verified now.");
+			} else {
+				$.prompt("The address is not successfully verified. Please fix the errors.");			}
+		});		
 	},
 	login: function() {
 		var username = $('#username').val();
@@ -239,7 +297,9 @@ PubSub.on("MOECC_MAP_SEARCH_TABLE_READY", function (params) {
 	<thead><tr><th><center>ID</center></th><th><center>Location</center></th><th><center>Address</center></th><th><center>Total_Sq_Ft</center></th><th><center>Lease_Cost</center></th><th><center>Lease_Expiry</center></th><th><center>Occupants</center></th><th><center>Num_of_Staff</center></th><th><center>Staff_Cap</center></th><th><center>RSF_per_FTE</center></th><th><center>Num_of_Fleet</center></th><th><center>Action</center></th></tr></thead><tbody>\
 	<% _.each(features, function(feature) {\
 		var attrs = feature.attributes; %> \
-		<tr><td><div id="row-<%= attrs.OBJECTID %>"><%= attrs.OBJECTID %></div></td><td><%= attrs.Location %></td><td><%= attrs.Address %></td><td><%= attrs.Total_Sq_Ft %></td><td><%= attrs.Lease_Cost %></td><td><%= attrs.Lease_Expiry %></td><td><%= attrs.Occupants %></td><td><%= attrs.Num_of_Staff %></td><td><%= attrs.Staff_Cap %></td><td><%= attrs.RSF_per_FTE %></td><td><%= attrs.Num_of_Fleet %></td><td><button type="submit" onclick="MOECC_UI.editRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="Edit.png" height="20"/></button><button type="submit" onclick="MOECC_UI.deleteRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="DeleteRed.png" height="20"/></button></td></tr>\
+		<tr><td><div id="row-<%= attrs.OBJECTID %>"><%= attrs.OBJECTID %></div></td><td><%= attrs.Location %></td><td><%= attrs.Address %></td><td><%= attrs.Total_Sq_Ft %></td><td><%= attrs.Lease_Cost %></td>\
+		<td><%= attrs.Lease_Expiry %></td><td><%= attrs.Occupants %></td><td><%= attrs.Num_of_Staff %></td><td><%= attrs.Staff_Cap %></td><td><%= attrs.RSF_per_FTE %></td><td><%= attrs.Num_of_Fleet %></td>\
+		<td><button type="submit" onclick="MOECC_UI.zoomInRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="zoom-in-2-xxl.png" height="20"/></button><button type="submit" onclick="MOECC_UI.editRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="Edit.png" height="20"/></button><button type="submit" onclick="MOECC_UI.deleteRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="DeleteRed.png" height="20"/></button></td></tr>\
 	<% }); %>\
 	</tbody></table>';
 	
@@ -266,7 +326,7 @@ PubSub.on("MOECC_MAP_SEARCH_TABLE_READY", function (params) {
 					var fac = _.find(facilities, function(facility) {
 						return facility.attributes.OBJECTID === objectID;
 					});
-					PubSub.emit("MOECC_MAP_MOUSEOVER_TABLE", {lat: fac.attributes.POINT_Y, lng: fac.attributes.POINT_X});
+					PubSub.emit("MOECC_MAP_MOUSEOVER_TABLE", {OBJECTID: fac.attributes.OBJECTID});
 				}
 			});
 			$('table#' + tableID + ' td').bind('mouseleave', function (e, OBJECTID, myValue) {
@@ -282,7 +342,7 @@ PubSub.on("MOECC_MAP_SEARCH_TABLE_READY", function (params) {
 					var fac = _.find(facilities, function(facility) {
 						return facility.attributes.OBJECTID === objectID;
 					});
-					PubSub.emit("MOECC_MAP_MOUSEOUT_TABLE", {lat: fac.attributes.POINT_Y, lng: fac.attributes.POINT_X});
+					PubSub.emit("MOECC_MAP_MOUSEOUT_TABLE", {OBJECTID: fac.attributes.OBJECTID});
 				}
 			});
 		}		

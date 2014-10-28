@@ -4,6 +4,7 @@ var Util = require('../Util');
 var PubSub; //The message centre, which receives and passes messages between modules. 
 var map; // Google Maps object
 var overlays = [];
+var searchMarkers = {};
 var globalConfigure;
 var infoWindow;
 var marker;
@@ -72,6 +73,12 @@ var init = function (thePubSub) {
 			});
 			overlays = [];
 		}
+		if(searchMarkers) {
+			_.each(_.values(searchMarkers), function (marker) {
+				marker.setMap(null);
+			});
+			searchMarkers = {};
+		}
 	});	
 	PubSub.on("MOECC_MAP_CLEAR_APPLICATION", function () {
 		PubSub.emit("MOECC_MAP_REMOVE_OVERLAYS");
@@ -135,6 +142,9 @@ var init = function (thePubSub) {
 			markerIcon = params.markers[0].icon;
 			markerMouseoverIcon = params.markers[0].mouseoverIcon;
 		}
+		var objectIDs = _.map(params.markers, function(m) {
+			return m.OBJECTID;
+		});
 		var markers = _.map(params.markers, function(m) {
 			var gLatLng = new google.maps.LatLng(m.latlng.lat, m.latlng.lng);
 			var marker;
@@ -168,46 +178,19 @@ var init = function (thePubSub) {
 		});
 		_.each(markers, function(marker){
 			marker.setMap(map);
-			overlays.push(marker);
-		});		
+		});
+		searchMarkers = _.object(objectIDs, markers);
 	});
 	PubSub.on("MOECC_MAP_MOUSEOVER_TABLE", function (params) {
-		var marker = _.find(overlays, function(overlay) {
-			var position = overlay.getPosition();
-			if (position && position.lat() && position.lng()) {
-				return Math.abs(params.lat - position.lat())  + Math.abs(params.lng - position.lng()) < 0.000001
-			} else {
-				return false;
-			}
-		});
-		marker.setIcon(markerMouseoverIcon);
+		searchMarkers[params.OBJECTID].setIcon(markerMouseoverIcon);
 	});
 	
 	PubSub.on("MOECC_MAP_MOUSEOUT_TABLE", function (params) {
-		var marker = _.find(overlays, function(overlay) {
-			var position = overlay.getPosition();
-			if (position && position.lat() && position.lng()) {
-				return Math.abs(params.lat - position.lat())  + Math.abs(params.lng - position.lng()) < 0.000001
-			} else {
-				return false;
-			}
-		});
-		marker.setIcon(markerIcon);
+		searchMarkers[params.OBJECTID].setIcon(markerIcon);
 	});
 	PubSub.on("MOECC_MAP_REMOVE_MARKER", function (params) {
-		var marker = _.find(overlays, function(overlay) {
-			var position = overlay.getPosition();
-			if (position && position.lat() && position.lng()) {
-				return Math.abs(params.lat - position.lat())  + Math.abs(params.lng - position.lng()) < 0.000001
-			} else {
-				return false;
-			}
-		});
-		marker.setMap(null);
+		searchMarkers[params.OBJECTID].setMap(null);
 	});
-	
-	
-	
 	PubSub.on("MOECC_MAP_SEARCH_BOUNDS_CHANGED", function (params) {
 		var convertToGBounds = function(b) {
 			var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
