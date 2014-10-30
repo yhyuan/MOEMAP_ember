@@ -1,9 +1,24 @@
 /* global _, $, google */
+/*JAVASCRIPT
+bower_components/underscore/underscore.js
+bower_components/jquery.dataTables/jquery.dataTables.js
+bower_components/yepnope/yepnope.js
+bower_components/jquery-impromptu/jquery-impromptu.min.js
+bower_components/jquery.ui/ui/jquery.ui.core.js
+bower_components/jquery.ui/ui/jquery.ui.datepicker.js
+JAVASCRIPT*/
+
+/*CSS
+bower_components/jquery-impromptu/jquery-impromptu.min.css
+scripts/Configures/FacilitiesMap/Facilities.css
+CSS*/
+
+
 'use strict';
 //facilitesEditor
 /*Geocoder setup starts*/
-var GeographicTownship = require('../scripts/Geocoders/GeographicTownship');
-var GeographicTownshipWithLotConcession = require('../scripts/Geocoders/GeographicTownshipWithLotConcession');
+//var GeographicTownship = require('../scripts/Geocoders/GeographicTownship');
+//var GeographicTownshipWithLotConcession = require('../scripts/Geocoders/GeographicTownshipWithLotConcession');
 var LatLngInDecimalDegree = require('../scripts/Geocoders/LatLngInDecimalDegree');
 var LatLngInDMSSymbols = require('../scripts/Geocoders/LatLngInDMSSymbols');
 var LatLngInSymbols = require('../scripts/Geocoders/LatLngInSymbols');
@@ -13,7 +28,8 @@ var GoogleGeocoder = require('../scripts/Geocoders/GoogleGeocoder');
 var Geocoder = require('../scripts/Geocoders/Geocoder');
 var defaultGeocoderConfigurations = require('../scripts/Geocoders/configurations/default');
 var GeocoderSettings = {
-	GeocoderList: [LatLngInDecimalDegree, LatLngInDMSSymbols, LatLngInSymbols, UTM, UTMInDefaultZone, GeographicTownship, GeographicTownshipWithLotConcession],
+	//GeocoderList: [LatLngInDecimalDegree, LatLngInDMSSymbols, LatLngInSymbols, UTM, UTMInDefaultZone, GeographicTownship, GeographicTownshipWithLotConcession],
+	GeocoderList: [LatLngInDecimalDegree, LatLngInDMSSymbols, LatLngInSymbols, UTM, UTMInDefaultZone],
 	defaultGeocoder: GoogleGeocoder/*,
 	reverseGeocoder: GoogleReverseGeocoder*/
 };
@@ -296,10 +312,7 @@ window.MOECC_UI = {
 					outFields: ['*']
 				}];
 				ArcGISServerAdapter.queryLayers(queryParamsList).done(function() {
-					//console.log(arguments);
 					facilities = Util.combineFeatures(arguments);
-					//console.log(facilities);
-					
 					PubSub.emit("MOECC_MAP_INITIALIZATION", {
 						mapCanvasDivId: globalConfigure.mapCanvasDivId,
 						orgLatitude: globalConfigure.orgLatitude,
@@ -332,8 +345,10 @@ var PubSub = require('../scripts/PubSub');
 var defaultConfiguration = require('../scripts/Configures/Defaults');
 
 var url = defaultConfiguration.dynamicResourcesLoadingURL;
-var urls = [url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js'];
+//var urls = [url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js'];
+var urls = [url + 'css/jquery.dataTables.css'];
 _.each(urls, function(url) {yepnope({load: url,callback: function(){}});});
+
 PubSub.on("MOECC_MAP_GEOPROCESSING_ADD_EDIT_READY", function (params) {
 	$.ajax({
 		url: params.url,
@@ -567,11 +582,10 @@ PubSub.on("MOECC_MAP_MOUSEOUT_MARKER", function (params) {
 	$('table#' + tableID + ' td').trigger('mouseleave', [params.OBJECTID]);
 });
 /*
-
-
 PubSub.on("MOECC_MAP_MOUSE_MOVE_MESSAGE", function (params) {
 	
-});
+});*/
+/*
 PubSub.on("MOECC_MAP_POINT_BUFFER_MESSAGE", function (params) {
 	var lat = params.center.lat;
 	var lng = params.center.lat;

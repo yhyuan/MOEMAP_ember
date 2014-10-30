@@ -7,6 +7,14 @@ if (process.argv.length < 4) {
 var fs = require('fs')
 	, foldername = process.argv[2]
 	, language = process.argv[3];
+var config = fs.readFileSync("Configures/" + foldername + "/configure.js", 'utf8');
+var libs = config.split("JAVASCRIPT")[1].trim().split('\r\n');
+var result = '';
+for (var i = 0; i < libs.length; i++) {
+	result = result + fs.readFileSync("../" + libs[i], 'utf8');
+}
+result = result + fs.readFileSync("../configures/configure.js", 'utf8');
+//console.log(result);
 
 fs.readFile("../configures/configure.js", 'utf8', function(err, data) {
 	if (err) throw err;
@@ -25,6 +33,8 @@ fs.readFile("../configures/configure.js", 'utf8', function(err, data) {
 		});		
 	});
 });
+fs.writeFileSync("../configures/" + foldername + "." + language + ".js", result);
+fs.writeFileSync("../configures/configure.js", result);
 
 fs.readFile("../configures/index.html", 'utf8', function(err, data) {
 	var array = data.split('MOEMAPJAVASCRIPT');
