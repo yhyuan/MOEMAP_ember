@@ -371,7 +371,6 @@ PubSub.on("MOECC_MAP_ADD_EDIT_RECORD", function (params) {
 		</tbody></table>';
 	var fields = ["LOCATION", "ADDRESS", "TOTALSQUAREFEET", "ANNUALCOST", "LEASEDOWNED", "LEASEEXPIRY", "LEASEEXPIRY1", "LEASEEXPIRY2", "OCCUPANTS", "NUMBEROFSTAFF", "STAFFCAPACITY", "RSFPERFTE", "NUMBEROFFLEET"];
 	var fac = (params) ? _.find(facilities, function(facility) {return facility.attributes.OBJECTID === params.objectID;}) : {attributes: _.object(fields, _.range(fields.length).map(function () { return '' })),geometry:{x: 0,y: 0}};
-	//console.log(fac);
 	var tableContent = 'Location: <input type="text" id="Location" name="Location" value="<%= fac.LOCATION %>"><br>\
 		Address: <input type="text" id="Address" name="Address" size="50" value="<%= fac.ADDRESS %>"><br>\
 		Total Square Feets (Number Only): <input type="text" id="TotalSquarFeets" name="TotalSquarFeets" size="10" value="<%= fac.TOTALSQUAREFEET %>"><br>\
@@ -461,63 +460,6 @@ PubSub.on("MOECC_MAP_ADD_EDIT_RECORD", function (params) {
 		else{input.removeClass("valid").addClass("invalid");}
 	});
 });
-PubSub.on("MOECC_MAP_SEARCH_REQUEST_READY", function (params) {
-	var infoWindowHeight = '140px';
-	var infoWindowWidth = '280px';
-	if (params.type === 'search') {
-		var initParams = {address: params.searchString, withinExtent: false};
-		var geocodingParams = _.defaults(initParams, GeocoderSettings);
-		Geocoder.geocode(geocodingParams).done(function(result) {
-			if (result.status === "OK") {
-				
-				PubSub.emit("MOECC_MAP_SET_CENTER_ZOOMLEVEL", {
-					center: result.latlng,
-					zoomLevel: (result.hasOwnProperty('zoomLevel')) ? result.zoomLevel : globalConfigure.maxQueryZoomLevel
-				});
-				
-				if (result.hasOwnProperty('geometry')) {
-					PubSub.emit("MOECC_MAP_ADD_POLYLINES", {
-						geometry: result.geometry,
-						boundary: result.boundary
-					});
-				}
-				var radius = $('#lstRadius')[0].value * 1000;
-				console.log(radius);
-				var circle = Util.computeCircle(result.latlng, radius);
-				var queryParamsList = _.map(_.range(5), function(num){
-					return {
-						mapService: mainMapService,
-						layerID: num,
-						returnGeometry: false,
-						geometry: (num === 4) ? Util.computeCircle(result.latlng, 1) : circle,
-						outFields: (num === 4) ? ['MOE_REGION'] : ['TILE']
-					};
-				});
-				ArcGISServerAdapter.queryLayers(queryParamsList).done(function() {
-					var moeRegion = 'N/A';
-					if (arguments[4].features && arguments[4].features.length > 0) {
-						moeRegion = arguments[4].features[0].attributes.MOE_REGION;
-					}
-					var tiles = _.map(Util.combineFeatures(_.initial(arguments)), function(feature) {
-						return "<a href='https://www.ontario.ca/sites/default/files/moe_mapping/mapping/data/DEM/tile" + feature.attributes.TILE + ".zip'>" + feature.attributes.TILE + "</a>";
-					}).join(', ');
-					var container = document.createElement('div');
-					container.style.width = infoWindowWidth;
-					container.style.height = infoWindowHeight;
-					container.innerHTML = 'The DEM for <strong>' + params.searchString + '</strong> with radius of <strong>' + $('#lstRadius')[0].value + '</strong> km can be downloaded at the following URLs:<strong>' + tiles + '</strong>';
-					PubSub.emit("MOECC_MAP_GEOCODING_ADDRESS_MARKER_READY", {container: container, latlng: result.latlng});
-					PubSub.emit("MOECC_MAP_OPEN_INFO_WINDOW", {container: container, latlng: result.latlng});
-					
-					//var message = (globalConfigure.langs.yourLocationSearchForLang + '<strong>' + params.searchString + '</strong> ' + globalConfigure.langs.returnedOneResultLang);
-					$('#' + globalConfigure.informationDivId).html('<i>' + container.innerHTML + '.</i>');		
-				});
-			} else {
-				var message = (globalConfigure.langs.yourLocationSearchForLang + '<strong>' + params.searchString + '</strong> ' + globalConfigure.langs.returnedNoResultLang);
-				$('#' + globalConfigure.informationDivId).html('<i>' + message + '</i>');		
-			}
-		});	
-	}
-});
 
 PubSub.on("MOECC_MAP_SEARCH_TABLE_READY", function (params) {	
 	var tableTemplate = '<button type="submit" onclick="MOECC_UI.addRecord()" style="background-color:transparent; border-color:transparent;"><img src="Add-icon.png" height="20"/></button><br>\
@@ -534,7 +476,6 @@ PubSub.on("MOECC_MAP_SEARCH_TABLE_READY", function (params) {
 		<td><button type="submit" onclick="MOECC_UI.zoomInRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="zoom-in-2-xxl.png" height="20"/></button><button type="submit" onclick="MOECC_UI.editRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="Edit.png" height="20"/></button><button type="submit" onclick="MOECC_UI.deleteRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="DeleteRed.png" height="20"/></button></td></tr>\
 	<% }); %>\
 	</tbody></table>';
-	//console.log(facilities);
 	var convertOccupantsCode = function (OccupantsCode) {
 		return _.map(OccupantsCode.split(','), function(code) {
 			return codeToName[code];
@@ -545,7 +486,6 @@ PubSub.on("MOECC_MAP_SEARCH_TABLE_READY", function (params) {
 	tableID = Util.getTableIDFromTableTemplate(tableTemplate);	
 	var dataTableOptions = {
 		'bJQueryUI': true,
-		//paging: false,
 		iDisplayLength: 50,
 		"aaSorting": [[1, "asc" ]],
 		'sPaginationType': 'full_numbers',
@@ -626,7 +566,7 @@ PubSub.on("MOECC_MAP_MOUSEOVER_MARKER", function (params) {
 PubSub.on("MOECC_MAP_MOUSEOUT_MARKER", function (params) {
 	$('table#' + tableID + ' td').trigger('mouseleave', [params.OBJECTID]);
 });
-
+/*
 
 
 PubSub.on("MOECC_MAP_MOUSE_MOVE_MESSAGE", function (params) {
@@ -647,9 +587,10 @@ PubSub.on("MOECC_MAP_RESET_QUERY_TABLE", function (params) {
 });
 PubSub.on("MOECC_MAP_RESET_MESSAGE_CENTER", function (params) {
 	$('#' + globalConfigure.informationDivId).html(globalConfigure.searchHelpText);
-});	
+});
+*/
 GoogleMapsAdapter.init(PubSub);
-var mainMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/AirDispersionModellingMap1/MapServer';
+//var mainMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/AirDispersionModellingMap1/MapServer';
 var globalConfigure = {
 	langs: langSetting,
 	maxMapScale: 19
@@ -657,10 +598,10 @@ var globalConfigure = {
 globalConfigure = _.defaults(globalConfigure, defaultConfiguration);
 
 /*English Begins*/
-$('#' + globalConfigure.otherInfoDivId).html("");	
+//$('#' + globalConfigure.otherInfoDivId).html("");	
 /*English Ends*/
 /*French Begins*/
-$('#' + globalConfigure.otherInfoDivId).html('');
+//$('#' + globalConfigure.otherInfoDivId).html('');
 /*French Ends*/
 /*English Begins*/
 $("#" + globalConfigure.searchControlDivId).html('Username: <input type="text" id="username" name="username">\
