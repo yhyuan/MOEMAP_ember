@@ -188,9 +188,16 @@ var init = function (thePubSub) {
 	PubSub.on("MOECC_MAP_MOUSEOUT_TABLE", function (params) {
 		searchMarkers[params.OBJECTID].setIcon(markerIcon);
 	});
+	
 	PubSub.on("MOECC_MAP_REMOVE_MARKER", function (params) {
 		searchMarkers[params.OBJECTID].setMap(null);
 	});
+	PubSub.on("MOECC_MAP_REMOVE_ALL_MARKER", function (params) {
+		_.each(_.values(searchMarkers), function(marker) {
+			marker.setMap(null);
+		});
+		searchMarkers = {};
+	});	
 	PubSub.on("MOECC_MAP_SEARCH_BOUNDS_CHANGED", function (params) {
 		var convertToGBounds = function(b) {
 			var sw = new google.maps.LatLng(b.southWest.lat, b.southWest.lng);
