@@ -2,13 +2,13 @@
 /*JAVASCRIPT
 bower_components/underscore/underscore.js
 bower_components/jquery.dataTables/jquery.dataTables.js
-bower_components/yepnope/yepnope.js
 bower_components/jquery-impromptu/jquery-impromptu.min.js
 bower_components/jquery.ui/ui/jquery.ui.core.js
 bower_components/jquery.ui/ui/jquery.ui.datepicker.js
 JAVASCRIPT*/
 
 /*CSS
+bower_components/jquery.dataTables/jquery.dataTables.css
 bower_components/jquery-impromptu/jquery-impromptu.min.css
 scripts/Configures/FacilitiesMap/Facilities.css
 CSS*/
@@ -167,6 +167,8 @@ var nameToCode = _.object(organizationNames, organizationCodes);
 var facilities;
 var username;
 var token;
+var timeCount;
+var timer;
 var websiteURL = 'http://localhost:9000';
 //var websiteURL = 'http://lrcdrrvsdvap002/web/FacilitiesMap/FacilitiesMap.en.htm';
 var gpURL = 'https://lrctptvsuaap003:6443/arcgis/rest/services/Interactive_Map_Internal/Facilities3/GPServer/Facilities3/execute';
@@ -175,16 +177,20 @@ window.MOECC_UI = {
 		$("#" + globalConfigure.searchControlDivId).html('Username: <input type="text" id="username" name="username">\
 			Password: <input type="password" id="password" name="password">\
 			<input id="login" type="submit" title="Login" onclick="MOECC_UI.login()" value="Login"></input>\
-			<div id="information">Please log in</div>');
-		
+			<div id="information"></div>');
+		$("#" + globalConfigure.mapCanvasDivId).hide();
+		$('#' + globalConfigure.queryTableDivId).html('');
+		clearInterval(timer);
 	},
 	zoomInRecord: function (objectID) {
+		timeCount = 0;
 		var fac = _.find(facilities, function(facility) {
 			return facility.attributes.OBJECTID === objectID;
 		});
 		PubSub.emit("MOECC_MAP_SET_CENTER_ZOOMLEVEL", {zoomLevel: 10, center: {lat: fac.geometry.y, lng: fac.geometry.x}});
 	},
 	deleteRecord: function (objectID) {
+		timeCount = 0;
 		$.prompt("Do you really want to delete this facility?", {
 			title: "Are you sure?",
 			buttons: { "Yes, I am": true, "No, I am not": false },
@@ -219,9 +225,11 @@ window.MOECC_UI = {
 		});		
 	},
 	editRecord: function (objectID) {
+		timeCount = 0;
 		PubSub.emit("MOECC_MAP_ADD_EDIT_RECORD", {objectID: objectID});
 	},
 	leasedOwnedChange: function (leased_owned) {
+		timeCount = 0;
 		if ($("#leased").is(':checked'))  {
 			$("#LeaseExpiry").prop('disabled', false);
 			$("#LeaseExpiry1").prop('disabled', false);
@@ -233,12 +241,15 @@ window.MOECC_UI = {
 		}
 	},
 	addRecord: function () {
+		timeCount = 0;
 		PubSub.emit("MOECC_MAP_ADD_EDIT_RECORD");
 	},
 	cancelRecord: function(objectID) {
+		timeCount = 0;
 		PubSub.emit("MOECC_MAP_SEARCH_TABLE_READY");
 	},
 	submitRecord: function(objectID) {
+		timeCount = 0;
 		var Occupants = [];
 		_.each(organizationTable, function(organization) {
 			if ($('#org' + organization.code).is(':checked')) {
@@ -300,8 +311,17 @@ window.MOECC_UI = {
 			beforeSend: function() {				
 			},
 			success: function(data, textStatus, xhr) {
-				$("#" + globalConfigure.searchControlDivId).html('You have successfully loged in. The system will automatically log you out if no activity is detected with 10 minutes.\
-					<input id="login" type="submit" title="Login" onclick="MOECC_UI.logout()" value="Logout"></input>');			
+				timeCount = 0;
+				timer = setInterval(function(){
+					timeCount = timeCount + 1;
+					if (timeCount > 10) {
+						MOECC_UI.logout();
+					}
+				}, 1000*60*60);
+				
+				$("#" + globalConfigure.mapCanvasDivId).show();
+				$("#" + globalConfigure.searchControlDivId).html('<input id="logout" type="submit" title="Logout" onclick="MOECC_UI.logout()" value="Logout"></input>\
+					<div id="information">You have successfully loged in. The system will automatically log you out if no activity is detected with 60 minutes.</div>');			
 				token = data;
 				var queryParamsList = [{
 					mapService: 'https://lrctptvsuaap003:6443/arcgis/rest/services/Interactive_Map_Internal/Facilities2/MapServer',
@@ -327,7 +347,7 @@ window.MOECC_UI = {
 				});
 			},
 			error: function(xhr, textStatus, errorThrown) {
-				console.log(textStatus);
+				$('#information').html('<font color="red">Your username or password is wrong. Please try again.</font>');
 			}
 		});
 	}
@@ -344,11 +364,13 @@ var langSetting = require('../scripts/Configures/Languages/French');
 var PubSub = require('../scripts/PubSub');
 var defaultConfiguration = require('../scripts/Configures/Defaults');
 
+/*
 var url = defaultConfiguration.dynamicResourcesLoadingURL;
 //var urls = [url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js'];
-var urls = [url + 'css/jquery.dataTables.css'];
+//var urls = [url + 'css/jquery.dataTables.css'];
+var urls = ['bower_components/jquery.dataTables/jquery.dataTables.css'];
 _.each(urls, function(url) {yepnope({load: url,callback: function(){}});});
-
+*/
 PubSub.on("MOECC_MAP_GEOPROCESSING_ADD_EDIT_READY", function (params) {
 	$.ajax({
 		url: params.url,
@@ -416,81 +438,43 @@ PubSub.on("MOECC_MAP_ADD_EDIT_RECORD", function (params) {
 		'sPaginationType': 'full_numbers'		
 	};
 	$('#' + tableID).dataTable(dataTableOptions);
-
-	$( "#LeaseExpiry" ).datepicker();
-	$( "#LeaseExpiry1" ).datepicker();
-	$( "#LeaseExpiry2" ).datepicker();
-	$('#Location').on('input', function() {
-		var input=$(this);
-		var is_name=input.val();
-		if(is_name){input.removeClass("invalid").addClass("valid");}
-		else{input.removeClass("valid").addClass("invalid");}
+	_.each(['LeaseExpiry', 'LeaseExpiry1', 'LeaseExpiry2'], function(divID) {
+		$( "#" + divID).datepicker();	
 	});
-	$('#Address').on('input', function() {
-		var input=$(this);
-		var is_name=input.val();
-		if(is_name){input.removeClass("invalid").addClass("valid");}
-		else{input.removeClass("valid").addClass("invalid");}
+	_.each(['Location', 'Address'], function(divID) {
+		$('#' + divID).on('input', function() {
+			var input=$(this);
+			var is_name=input.val();
+			if(is_name){input.removeClass("invalid").addClass("valid");}
+			else{input.removeClass("valid").addClass("invalid");}
+		});		
 	});
-	$('#TotalSquarFeets').on('input', function() {
-		var re = /^\d+$/
-		var input=$(this);
-		var is_int=re.test(input.val());
-		if(is_int){input.removeClass("invalid").addClass("valid");}
-		else{input.removeClass("valid").addClass("invalid");}
-	});
-	$('#LeaseCost').on('input', function() {
-		var re = /^\d+$/
-		var input=$(this);
-		var is_int=re.test(input.val());
-		if(is_int){input.removeClass("invalid").addClass("valid");}
-		else{input.removeClass("valid").addClass("invalid");}
-	});
-	$('#NumberofStaffs').on('input', function() {
-		var re = /^\d+$/
-		var input=$(this);
-		var is_int=re.test(input.val());
-		if(is_int){input.removeClass("invalid").addClass("valid");}
-		else{input.removeClass("valid").addClass("invalid");}
-	});
-	$('#StaffCapacity').on('input', function() {
-		var re = /^\d+$/
-		var input=$(this);
-		var is_int=re.test(input.val());
-		if(is_int){input.removeClass("invalid").addClass("valid");}
-		else{input.removeClass("valid").addClass("invalid");}
-	});
-	$('#RSF_per_FTE').on('input', function() {
-		var re = /^\d+$/
-		var input=$(this);
-		var is_int=re.test(input.val());
-		if(is_int){input.removeClass("invalid").addClass("valid");}
-		else{input.removeClass("valid").addClass("invalid");}
-	});
-	$('#NumberofFleet').on('input', function() {
-		var re = /^\d+$/
-		var input=$(this);
-		var is_int=re.test(input.val());
-		if(is_int){input.removeClass("invalid").addClass("valid");}
-		else{input.removeClass("valid").addClass("invalid");}
+	_.each(['TotalSquarFeets', 'LeaseCost', 'NumberofStaffs', 'StaffCapacity', 'RSF_per_FTE', 'NumberofFleet'], function(divID) {
+		$('#' + divID).on('input', function() {
+			var re = /^\d+$/
+			var input=$(this);
+			var is_int=re.test(input.val());
+			if(is_int){input.removeClass("invalid").addClass("valid");}
+			else{input.removeClass("valid").addClass("invalid");}
+		});
 	});
 });
 
 PubSub.on("MOECC_MAP_SEARCH_TABLE_READY", function (params) {	
 	var tableTemplate = '<button type="submit" onclick="MOECC_UI.addRecord()" style="background-color:transparent; border-color:transparent;"><img src="Add-icon.png" height="20"/></button><br>\
-	<table id="myTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
-	<thead><tr><th><center>ID</center></th><th><center>Location</center></th><th><center>Address</center></th><th><center>Total Square Feet</center></th>\
-	<th><center>Annual Cost</center></th><th><center>Lease Expiry</center></th><th><center>Owned or Leased</center></th><th><center>Occupants</center></th>\
-	<th><center>Number of Staff</center></th><th><center>Staff Capacity</center></th><th><center>RSF per FTE</center></th><th><center>Number of Fleet</center></th>\
-	<th><center>Action</center></th></tr></thead><tbody>\
-	<% _.each(features, function(feature) {\
-		var attrs = feature.attributes; %> \
-		<tr><td><div id="row-<%= attrs.OBJECTID %>"><%= attrs.OBJECTID %></div></td><td><%= attrs.LOCATION %></td><td><%= attrs.ADDRESS %></td><td><%= attrs.TOTALSQUAREFEET %></td><td><%= attrs.ANNUALCOST %></td>\
-		<td><%= attrs.LEASEEXPIRY %><%= attrs.LEASEEXPIRY1 === "" ? " " : (", " + attrs.LEASEEXPIRY1) %><%= attrs.LEASEEXPIRY2 === "" ? " " : (", " + attrs.LEASEEXPIRY2) %></td>\
-		<td><%= attrs.LEASEDOWNED %></td><td><%= convertOccupantsCode(attrs.OCCUPANTS) %></td><td><%= attrs.NUMBEROFSTAFF %></td><td><%= attrs.STAFFCAPACITY %></td><td><%= attrs.RSFPERFTE %></td><td><%= attrs.NUMBEROFFLEET %></td>\
-		<td><button type="submit" onclick="MOECC_UI.zoomInRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="zoom-in-2-xxl.png" height="20"/></button><button type="submit" onclick="MOECC_UI.editRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="Edit.png" height="20"/></button><button type="submit" onclick="MOECC_UI.deleteRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="DeleteRed.png" height="20"/></button></td></tr>\
-	<% }); %>\
-	</tbody></table>';
+		<table id="myTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
+		<thead><tr><th><center>ID</center></th><th><center>Location</center></th><th><center>Address</center></th><th><center>Total Square Feet</center></th>\
+		<th><center>Annual Cost</center></th><th><center>Lease Expiry</center></th><th><center>Owned or Leased</center></th><th><center>Occupants</center></th>\
+		<th><center>Number of Staff</center></th><th><center>Staff Capacity</center></th><th><center>RSF per FTE</center></th><th><center>Number of Fleet</center></th>\
+		<th><center>Action</center></th></tr></thead><tbody>\
+		<% _.each(features, function(feature) {\
+			var attrs = feature.attributes; %> \
+			<tr><td><div id="row-<%= attrs.OBJECTID %>"><%= attrs.OBJECTID %></div></td><td><%= attrs.LOCATION %></td><td><%= attrs.ADDRESS %></td><td><%= attrs.TOTALSQUAREFEET %></td><td><%= attrs.ANNUALCOST %></td>\
+			<td><%= attrs.LEASEEXPIRY %><%= attrs.LEASEEXPIRY1 === "" ? " " : (", " + attrs.LEASEEXPIRY1) %><%= attrs.LEASEEXPIRY2 === "" ? " " : (", " + attrs.LEASEEXPIRY2) %></td>\
+			<td><%= attrs.LEASEDOWNED %></td><td><%= convertOccupantsCode(attrs.OCCUPANTS) %></td><td><%= attrs.NUMBEROFSTAFF %></td><td><%= attrs.STAFFCAPACITY %></td><td><%= attrs.RSFPERFTE %></td><td><%= attrs.NUMBEROFFLEET %></td>\
+			<td><button type="submit" onclick="MOECC_UI.zoomInRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="zoom-in-2-xxl.png" height="20"/></button><button type="submit" onclick="MOECC_UI.editRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="Edit.png" height="20"/></button><button type="submit" onclick="MOECC_UI.deleteRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="DeleteRed.png" height="20"/></button></td></tr>\
+		<% }); %>\
+		</tbody></table>';
 	var convertOccupantsCode = function (OccupantsCode) {
 		return _.map(OccupantsCode.split(','), function(code) {
 			return codeToName[code];
@@ -585,68 +569,22 @@ PubSub.on("MOECC_MAP_MOUSEOUT_MARKER", function (params) {
 PubSub.on("MOECC_MAP_MOUSE_MOVE_MESSAGE", function (params) {
 	
 });*/
-/*
-PubSub.on("MOECC_MAP_POINT_BUFFER_MESSAGE", function (params) {
-	var lat = params.center.lat;
-	var lng = params.center.lat;
-	var radius = params.radiusInKM;
-	$('#' + globalConfigure.informationDivId).html('<i>' + globalConfigure.langs.searchCenterLang + " (latitude:" + lat.toFixed(6) + ", longitude:" + lng.toFixed(6) + "), " + globalConfigure.langs.searchRadiusLang + " (" + radius.toFixed(2) + " " + globalConfigure.langs.searchKMLang + ")" + '</i>');
-});
-PubSub.on("MOECC_MAP_RESET_SEARCH_INPUTBOX", function (params) {
-	$('#' + globalConfigure.searchInputBoxDivId)[0].value = '';
-	$('#' + globalConfigure.searchInputBoxDivId)[0].focus();
-});
-PubSub.on("MOECC_MAP_RESET_QUERY_TABLE", function (params) {
-	$("#" + globalConfigure.queryTableDivId).html('');
-});
-PubSub.on("MOECC_MAP_RESET_MESSAGE_CENTER", function (params) {
-	$('#' + globalConfigure.informationDivId).html(globalConfigure.searchHelpText);
-});
-*/
+
 GoogleMapsAdapter.init(PubSub);
-//var mainMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/AirDispersionModellingMap1/MapServer';
 var globalConfigure = {
 	langs: langSetting,
 	maxMapScale: 19
 };
 globalConfigure = _.defaults(globalConfigure, defaultConfiguration);
-
-/*English Begins*/
-//$('#' + globalConfigure.otherInfoDivId).html("");	
-/*English Ends*/
-/*French Begins*/
-//$('#' + globalConfigure.otherInfoDivId).html('');
-/*French Ends*/
 /*English Begins*/
 $("#" + globalConfigure.searchControlDivId).html('Username: <input type="text" id="username" name="username">\
 	Password: <input type="password" id="password" name="password">\
 	<input id="login" type="submit" title="Login" onclick="MOECC_UI.login()" value="Login"></input>\
-	<div id="information">Please log in</div>');
+	<div id="information"></div>');
 /*English Ends*/
 /*French Begins*/
 $("#" + globalConfigure.searchControlDivId).html('Username: <input type="text" id="username" name="username">\
 	Password: <input type="password" id="password" name="password">\
 	<input id="login" type="submit" title="Login" onclick="MOECC_UI.login()" value="Login"></input>\
-	<div id="information">Please log in</div>');
+	<div id="information"></div>');
 /*French Ends*/
-
-//PubSub.emit("MOECC_MAP_INITIALIZATION", globalConfigure);
-
-/*
-disallowMouseClick
-extraImageServices
-pointBufferToolCircle.color,  
-pointBufferToolCircle.opacity,
-pointBufferToolCircle.weight
-pointBufferToolAvailable
-legendAvailable
-legendLocation
-legendSize
-legendURL
-pointBufferToolSize
-pointBufferToolLocation
-
-pointBufferToolDownIcon
-pointBufferToolUpIcon
-langs.selectTooltip,
-*/
