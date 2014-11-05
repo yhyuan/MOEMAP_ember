@@ -213,9 +213,10 @@ window.MOECC_UI = {
 			timer = setInterval(function(){
 				timeCount = timeCount + 1;
 				if (timeCount >= 6) {
-					MOECC_UI.logout();
+					MOECC_UI.logout();					
+				} else {
+					PubSub.emit("MOECC_MAP_REGULAR_UPDATE");
 				}
-				PubSub.emit("MOECC_MAP_REGULAR_UPDATE");
 			}, 1000*60*10); 			
 			$("#" + globalConfigure.mapCanvasDivId).show();
 			$("#" + globalConfigure.searchControlDivId).html('<input id="logout" type="submit" title="Logout" onclick="MOECC_UI.logout()" value="Logout"></input>\
@@ -260,7 +261,7 @@ PubSub.on("MOECC_MAP_REGULAR_UPDATE", function (params) {
 			PubSub.emit("MOECC_MAP_UPDATE_MARKERS_TABLE", {features: facilities});				
 		}
 	});
-	console.log("MOECC_MAP_REGULAR_UPDATE");
+	//console.log("MOECC_MAP_REGULAR_UPDATE");
 });
 PubSub.on("MOECC_MAP_ADD_EDIT_RECORD", function (params) {
 	var tableTemplate = '<table id="organizationTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
