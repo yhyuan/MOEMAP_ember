@@ -138,6 +138,9 @@ var init = function (thePubSub) {
 		})(container, pointBufferToolMarker);
 	});
 	PubSub.on("MOECC_MAP_SEARCH_MARKERS_READY", function (params) {
+		if (params.markers.length === 0) {
+			return;
+		}
 		if (params.markers[0].hasOwnProperty('icon') && params.markers[0].hasOwnProperty('mouseoverIcon')) {
 			markerIcon = params.markers[0].icon;
 			markerMouseoverIcon = params.markers[0].mouseoverIcon;
@@ -152,12 +155,18 @@ var init = function (thePubSub) {
 				marker = new google.maps.Marker({
 					position: gLatLng, 
 					icon: m.icon,
+					draggable: m.hasOwnProperty('draggable') ? m.draggable : false
 				});				
 			} else {
 				marker = new google.maps.Marker({
-					position: gLatLng
+					position: gLatLng,
+					draggable: m.hasOwnProperty('draggable') ? m.draggable : false
 				});
-			}
+			}			
+			google.maps.event.addListener(marker, 'dragend', function() 
+			{
+				PubSub.emit("MOECC_MAP_MARKER_DRAGEND", {OBJECTID: m.OBJECTID});
+			});
 			google.maps.event.addListener(marker, 'mouseover', function () {
 				marker.setIcon(m.mouseoverIcon);
 				PubSub.emit("MOECC_MAP_MOUSEOVER_MARKER", {OBJECTID: m.OBJECTID});
@@ -229,6 +238,7 @@ var init = function (thePubSub) {
 		map.setZoom(params.zoomLevel);
 	});
 	PubSub.on("MOECC_MAP_ADD_POLYLINES", function (params) {
+		//console.log(params);
 		_.each(params.geometry, function(elm) {
 			_.each(elm.rings, function (ring) {
 				var polyline = new google.maps.Polyline({
@@ -389,6 +399,24 @@ var init = function (thePubSub) {
 					map: map
 				});
 			}
+			var getCurrentMapExtent = function () {
+				var b = map.getBounds();
+				var ne = b.getNorthEast();
+				var sw = b.getSouthWest();
+				var nLat = ne.lat();
+				var eLng = ne.lng();
+				var sLat = sw.lat();
+				var wLng = sw.lng();
+				var swLatLng = {lat: sLat, lng: wLng};
+				var seLatLng = {lat: sLat, lng: eLng};
+				var neLatLng = {lat: nLat, lng: eLng};
+				var nwLatLng = {lat: nLat, lng: wLng};
+				return [swLatLng, seLatLng, neLatLng, nwLatLng, swLatLng];
+			};
+			PubSub.emit("MOECC_MAP_BOUNDS_CHANGED", {
+				bounds: getCurrentMapExtent(), 
+				zoomLevel: map.getZoom()
+			});
 		});
 		PubSub.emit("MOECC_MAP_INITIALIZATION_FINISHED", {map: map});
 	});

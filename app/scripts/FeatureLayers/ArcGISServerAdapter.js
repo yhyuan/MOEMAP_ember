@@ -190,10 +190,52 @@ var query = function (p) {
 	});
 	return $.when.apply($, promises);
   };
+  
+var geoprocessing = function (p) {
+	//var dfd = new $.Deferred();
+	var url = p.gpURL + '?USER=' + p.username+ '&ACTION=' + p.ACTION + '&DATA=' + p.DATA + '&env%3AoutSR=&env%3AprocessSR=&returnZ=false&returnM=false&f=pjson&token=' + p.token;
+	return $.ajax({
+		url: url,
+		type: 'GET',
+		dataType: 'json'/*,
+		beforeSend: function() {
+			
+		},
+		success: function(data, textStatus, xhr) {
+			dfd.resolve(data);
+		},
+		error: function(xhr, textStatus, errorThrown) {
+			dfd.reject();
+		}*/
+	});
+	//return dfd.promise();
+};
+var getToken = function (p) {
+	//var dfd = new $.Deferred();
+	var url = p.tokenURL + '?request=gettoken&username=' + p.username + '&password=' + p.password + '&clientid=ref.' + p.websiteURL + '&expiration=' + p.expiration;
+	return $.ajax({
+		url: url,
+		type: 'GET',
+		dataType: 'html'/*,
+		beforeSend: function() {
+			
+		},
+		success: function(data, textStatus, xhr) {
+			dfd.resolve(data);
+		},
+		error: function(xhr, textStatus, errorThrown) {
+			dfd.reject();
+		}*/
+	});
+	//return dfd.promise();
+};
+		
 var api = {
     query: query,
     exportMap: exportMap,
-	queryLayers: queryLayers
+	queryLayers: queryLayers,
+	geoprocessing: geoprocessing,
+	getToken: getToken
 };
 
 module.exports = api;

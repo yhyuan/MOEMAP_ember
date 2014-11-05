@@ -1,5 +1,22 @@
 /* global _, $, google */
+/*JAVASCRIPT
+bower_components/underscore/underscore.js
+bower_components/yepnope/yepnope.js
+bower_components/arcgislink/arcgislink.js
+JAVASCRIPT*/
+
 'use strict';
+
+if (!String.prototype.trim) {
+  (function(){
+    // Make sure we trim BOM and NBSP
+    var rtrim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
+    String.prototype.trim = function () {
+      return this.replace(rtrim, "");
+    }
+  })();
+}
+
 var GoogleMapsAdapter = require('../scripts/Basemaps/GoogleMapsAdapter');
 window.MOECC_UI = {
 	entsub: function(event){
@@ -63,10 +80,7 @@ PubSub.on("MOECC_MAP_SEARCH_REQUEST_READY", function (params) {
 		Geocoder.geocode(geocodingParams).done(function(result) {
 			if (result.status === "OK") {
 				
-				PubSub.emit("MOECC_MAP_SET_CENTER_ZOOMLEVEL", {
-					center: result.latlng,
-					zoomLevel: (result.hasOwnProperty('zoomLevel')) ? result.zoomLevel : globalConfigure.maxQueryZoomLevel
-				});
+
 				
 				if (result.hasOwnProperty('geometry')) {
 					PubSub.emit("MOECC_MAP_ADD_POLYLINES", {
@@ -77,6 +91,33 @@ PubSub.on("MOECC_MAP_SEARCH_REQUEST_READY", function (params) {
 				var radius = $('#lstRadius')[0].value * 1000;
 				//console.log(radius);
 				var circle = Util.computeCircle(result.latlng, radius);
+				
+				PubSub.emit("MOECC_MAP_ADD_POLYLINES", {
+					geometry: [
+						{
+							rings: [_.map(circle, function(latlng) {
+								return [latlng.lng, latlng.lat];
+							})]
+						}
+					],
+					boundary: {
+						color: '#FF0000',
+						opacity: 1,
+						weight: 2
+					}
+				});
+				var zoomLevels = {
+					1: 14,
+					2: 13,
+					5: 12,
+					10: 11,
+					25: 10,
+					50: 9
+				};
+				PubSub.emit("MOECC_MAP_SET_CENTER_ZOOMLEVEL", {
+					center: result.latlng,
+					zoomLevel: zoomLevels[$('#lstRadius')[0].value]//(result.hasOwnProperty('zoomLevel')) ? result.zoomLevel : globalConfigure.maxQueryZoomLevel
+				});				
 				var queryParamsList = _.map(_.range(5), function(num){
 					return {
 						mapService: mainMapService,
@@ -87,31 +128,23 @@ PubSub.on("MOECC_MAP_SEARCH_REQUEST_READY", function (params) {
 					};
 				});
 				ArcGISServerAdapter.queryLayers(queryParamsList).done(function() {
-					var MET = {
-						Crops: 'N/A',
-						Forest: 'N/A',
-						Urban: 'N/A',
-						Raw: 'N/A'				
-					};
-					if (arguments[4].features && arguments[4].features.length > 0) {
-						MET.Crops = arguments[4].features[0].attributes.Crops;
-						MET.Forest = arguments[4].features[0].attributes.Forest;
-						MET.Urban = arguments[4].features[0].attributes.Urban;
-						MET.Raw = arguments[4].features[0].attributes.Raw;				
-					}
-					var fields = ["Crops", "Forest", "Urban", "Raw"];
-					var METLinks = _.map(fields, function(field) {
-						return "<a href='https://www.ontario.ca/sites/default/files/moe_mapping/mapping/data/met_data/1996_2000_regional_dataset/" + MET[field] + "'>" + field + "</a>";
-					}).join(', ');
-					
-					var tiles = _.map(Util.combineFeatures(_.initial(arguments)), function(feature) {
-						return "<a href='https://www.ontario.ca/sites/default/files/moe_mapping/mapping/data/DEM/tile" + feature.attributes.TILE + ".zip'>" + feature.attributes.TILE + "</a>";
-					}).join(', ');
 					var container = document.createElement('div');
 					container.style.width = infoWindowWidth;
-					container.style.height = infoWindowHeight;
-					container.innerHTML = 'The DEM data for <strong>' + params.searchString + '</strong> with radius of <strong>' + $('#lstRadius')[0].value + '</strong> km can be downloaded at the following URLs:<strong>' + tiles + '</strong>';
-					container.innerHTML = container.innerHTML + '<br>The MET data for <strong>' + params.searchString + '</strong> can be downloaded at the following URLs:<strong>' + METLinks + '</strong>';
+					container.style.height = infoWindowHeight;					
+					if (arguments[4].features && arguments[4].features.length > 0) {
+						var region = arguments[4].features[0].attributes.REGION.replace(' ', '_');
+						var fields = ["Crops", "Forest", "Urban", "Raw"];
+						var METLinks = _.map(fields, function(field) {
+							return "<a href='https://www.ontario.ca/sites/default/files/moe_mapping/mapping/data/met_data/1996_2000_regional_dataset/" + region + "_" + field + ".zip'>" + field + "</a>";
+						}).join(', ');						
+						var tiles = _.map(Util.combineFeatures(_.initial(arguments)), function(feature) {
+							return "<a href='https://www.ontario.ca/sites/default/files/moe_mapping/mapping/data/DEM/tile" + feature.attributes.TILE + ".zip'>" + feature.attributes.TILE + "</a>";
+						}).join(', ');
+						container.innerHTML = 'The DEM data for <strong>' + params.searchString + '</strong> with radius of <strong>' + $('#lstRadius')[0].value + '</strong> km can be downloaded at the following URLs:<strong>' + tiles + '</strong>';
+						container.innerHTML = container.innerHTML + '<br>The MET data for <strong>' + params.searchString + '</strong> can be downloaded at the following URLs:<strong>' + METLinks + '</strong>';
+					} else {
+						container.innerHTML = 'The location you search is not inside Ontario.';
+					}
 					PubSub.emit("MOECC_MAP_GEOCODING_ADDRESS_MARKER_READY", {container: container, latlng: result.latlng});
 					PubSub.emit("MOECC_MAP_OPEN_INFO_WINDOW", {container: container, latlng: result.latlng});
 					
@@ -156,10 +189,10 @@ PubSub.on("MOECC_MAP_RESET_MESSAGE_CENTER", function (params) {
 	$('#' + globalConfigure.informationDivId).html(globalConfigure.searchHelpText);
 });	
 GoogleMapsAdapter.init(PubSub);
-var mainMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/AirDispersionModellingMap/MapServer';
+var mainMapService = 'http://lrcdrrvsdvap002/ArcGIS/rest/services/Interactive_Map_Public/AirDispersionModellingMap1/MapServer';
 var globalConfigure = {
 	langs: langSetting,
-	maxMapScale: 9
+	maxMapScale: 21
 };
 globalConfigure = _.defaults(globalConfigure, defaultConfiguration);
 

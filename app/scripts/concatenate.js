@@ -10,6 +10,7 @@ var fs = require('fs')
 
 var config = fs.readFileSync("Configures/" + foldername + "/configure.js", 'utf8');
 var libs = config.split("JAVASCRIPT")[1].trim().split('\r\n');
+//console.log(libs);
 var result = '';
 for (var i = 0; i < libs.length; i++) {
 	result = result + fs.readFileSync("../" + libs[i], 'utf8');
@@ -18,13 +19,15 @@ result = result + fs.readFileSync("../configures/configure.js", 'utf8');
 fs.writeFileSync("../configures/" + foldername + "." + language + ".js", result);
 fs.writeFileSync("../configures/configure.js", result);
 
-libs = config.split("CSS")[1].trim().split('\r\n');
-result = '';
-for (var i = 0; i < libs.length; i++) {
-	result = result + fs.readFileSync("../" + libs[i], 'utf8');
+if (config.indexOf("CSS") > -1) {
+	libs = config.split("CSS")[1].trim().split('\r\n');
+	result = '';
+	for (var i = 0; i < libs.length; i++) {
+		result = result + fs.readFileSync("../" + libs[i], 'utf8');
+	}
+	fs.writeFileSync("../configures/" + foldername + "." + language + ".css", result);
+	fs.writeFileSync("../configures/configure.css", result);
 }
-fs.writeFileSync("../configures/" + foldername + "." + language + ".css", result);
-fs.writeFileSync("../configures/configure.css", result);
 
 fs.readFile("../configures/index.html", 'utf8', function(err, data) {
 	var array = data.split('MOEMAPJAVASCRIPT');

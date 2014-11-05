@@ -37,156 +37,45 @@ GeocoderSettings = _.defaults(defaultGeocoderConfigurations, GeocoderSettings);
 Geocoder.init(GeocoderSettings);
 /*Geocoder setup ends*/
 var GoogleMapsAdapter = require('../scripts/Basemaps/GoogleMapsAdapter');
-var occupants = {
-	"Drinking Water Management Division": {
-		"Assistant Deputy Minister's Office":null,
-		"Drinking Water Programs Branch":null,
-		"Safe Drinking Water Branch":null,
-		"Source Protection Programs Branch":null
-	},
-	"Operations Division": {
-		"Assistant Deputy Minister's Office":null,
-		"Environmental Approvals Access and Service Integration Branch":null,
-		"Environmental Approvals Branch":null,
-		"Operations Integration/Spills Action Centre":null,
-		"Sector Compliance Branch":null,
-		"Investigations and Enforcement":null,
-		"Central Regional Office":{
-			"Barrie District Office":null,
-			"Halton-Peel District Office":null,
-			"Toronto District Office":null,
-			"York-Durham District Office":null
-		},
-		"Eastern Regional Office":{
-			"Kingston District Office":{
-				"Belleville Area Office": null
-			},
-			"Ottawa District Office":{
-				"Cornwall Area Office": null
-			},
-			"Peterborough District Office":null
-		},
-		"Northern Regional Office":{
-			"Thunder Bay District Office": {
-				"Kenora Area Office": null
-			},
-			"Sudbury District Office": {
-				"North Bay Area Office": null,
-				"Sault Ste Marie Area Office": null
-			},
-			"Timmins District Office": null
-		},
-		"Southwestern Regional Office":{
-			"London District Office": null,
-			"Owen Sound District Office": null,
-			"Sarnia District Office": {
-				"Windsor Area Office": null
-			}
-		},
-		"West Central Regional Office":{
-			"Hamilton District Office": null,
-			"Guelph District Office": null,
-			"Niagara District Office": null
-		},
-		"Northern Development Initiatives":null	
-	},
-	"Corporate Management Division": {
-		"Assistant Deputy Minister's Office":null,
-		"Business and Fiscal Planning Branch":null,
-		"Information Management & Access Branch":null,
-		"Strategic Human Resources Branch":null,
-		"Transition Office":null,
-		"French Language Services":null	
-	},
-	"Environmental Sciences and Standards Division": {
-		"Assistant Deputy Minister's Office":null,
-		"Drive Clean Office":null,
-		"Environmental Monitoring and Reporting Branch":null,
-		"Laboratory Services Branch":null,
-		"Standards Development Branch":null	
-	},
-	"Integrated Environmental Policy Division": {
-		"Assistant Deputy Minister's Office":null,
-		"Air Policy and Climate Change Branch":null,
-		"Air Policy Instruments and Program Design Branch":null,
-		"Land and Water Policy Branch":null,
-		"Environmental Intergovernmental Affairs Branch":null,
-		"Strategic Policy Branch":null,
-		"Waste Management Policy Branch":null	
-	},
-	"Environmental Programs Division": {
-		"Assistant Deputy Minister's Office":null,
-		"Aboriginal Affairs Branch":null,
-		"Environmental Innovations Branch":null,
-		"Program Planning and Implementation Branch":null,
-		"Modernization of Approvals Branch ":null
-	},
-	"Minister's Office": {
-		"Parliamentary Assistant":null	
-	},
-	"Deputy Minister's Office": {
-		"Communications Branch":null,
-		"Legal Services":null,
-		"Ontario Internal Audit, Resources and Labour Audit Services Team":null	
-	}
-};
-
-var getTableFromTree = function (tree, level, topname) {
-	var names = _.keys(tree);
-	var result = [];
-	_.each(_.range(names.length), function (i) {
-		var name = names[i];
-		if (topname.length !== 0) {
-			name = topname + ' - ' + name;
-		}
-		var code = level + (i + 1);
-		_.each(_.range(code.length, 4), function (j) {
-			code = code + '0';
-		});
-		result.push({
-			name: name,
-			code: code
-		});
-		var subtree = tree[names[i]];
-		if (subtree) {
-			result = result.concat(getTableFromTree(subtree, level + (i + 1), name));
-		}
-	});
-	return result;
-};
-var organizationTable = getTableFromTree(occupants, '', '');
-var organizationCodes = _.map(organizationTable, function(row) {
-	return row.code;
-});
-var organizationNames = _.map(organizationTable, function(row) {
-	return row.name;
-});
-var codeToName = _.object(organizationCodes, organizationNames);
-var nameToCode = _.object(organizationNames, organizationCodes);
-
-var facilities;
+var ArcGISServerAdapter = require('../scripts/FeatureLayers/ArcGISServerAdapter');
+var Util = require('../scripts/Util');
+/*English Begins*/
+var langSetting = require('../scripts/Configures/Languages/English');
+/*English Ends*/
+/*French Begins*/
+var langSetting = require('../scripts/Configures/Languages/French');
+/*French Ends*/
+var PubSub = require('../scripts/PubSub');
+var defaultConfiguration = require('../scripts/Configures/Defaults');
+var MOEOccupants = require('../scripts/Configures/FacilitiesMap/Occupants');
+var loginHTMLUI = 'Username: <input type="text" id="username" name="username">\
+			Password: <input type="password" id="password" name="password">\
+			<input id="login" type="submit" title="Login" onclick="MOECC_UI.login()" value="Login"></input>\
+			<div id="information"></div>';
+//var facilities;
+var facsDict;
+//var currentEditingObjectID = null;
 var username;
 var token;
 var timeCount;
 var timer;
 var websiteURL = 'http://localhost:9000';
-//var websiteURL = 'http://lrcdrrvsdvap002/web/FacilitiesMap/FacilitiesMap.en.htm';
-var gpURL = 'https://lrctptvsuaap003:6443/arcgis/rest/services/Interactive_Map_Internal/Facilities3/GPServer/Facilities3/execute';
+//var websiteURL = 'https://lrctptvsuaap003/FacilitiesMap/';
+var gpURL = 'https://lrctptvsuaap003:6443/arcgis/rest/services/Interactive_Map_Internal/Facilities4/GPServer/Facilities4/execute';
+var tokenURL = 'https://lrctptvsuaap003:6443/arcgis/tokens/';
+var mapService = 'https://lrctptvsuaap003:6443/arcgis/rest/services/Interactive_Map_Internal/Facilities2/MapServer';
 window.MOECC_UI = {
 	logout: function() {
-		$("#" + globalConfigure.searchControlDivId).html('Username: <input type="text" id="username" name="username">\
-			Password: <input type="password" id="password" name="password">\
-			<input id="login" type="submit" title="Login" onclick="MOECC_UI.login()" value="Login"></input>\
-			<div id="information"></div>');
+		$("#" + globalConfigure.searchControlDivId).html(loginHTMLUI);
 		$("#" + globalConfigure.mapCanvasDivId).hide();
 		$('#' + globalConfigure.queryTableDivId).html('');
+		$("#" + globalConfigure.coordinatesDivId).html('');
 		clearInterval(timer);
+		token = '';
 	},
 	zoomInRecord: function (objectID) {
 		timeCount = 0;
-		var fac = _.find(facilities, function(facility) {
-			return facility.attributes.OBJECTID === objectID;
-		});
+		var fac = facsDict[objectID];
 		PubSub.emit("MOECC_MAP_SET_CENTER_ZOOMLEVEL", {zoomLevel: 10, center: {lat: fac.geometry.y, lng: fac.geometry.x}});
 	},
 	deleteRecord: function (objectID) {
@@ -195,50 +84,32 @@ window.MOECC_UI = {
 			title: "Are you sure?",
 			buttons: { "Yes, I am": true, "No, I am not": false },
 			submit: function(e,v,m,f){
-				// use e.preventDefault() to prevent closing when needed or return false. 
-				// e.preventDefault(); 
 				if (v) {
-					var fac = _.find(facilities, function(facility) {
-						return facility.attributes.OBJECTID === objectID;
+					ArcGISServerAdapter.geoprocessing({
+						gpURL: gpURL,
+						username: username,
+						token: token,
+						ACTION: 'DELETE',
+						DATA: objectID
+					}).done(function() {
+						PubSub.emit("MOECC_MAP_REMOVE_MARKER", {OBJECTID: objectID});
+						var row = $('#row-' + objectID).closest('tr');
+						$('#' + tableID).DataTable().fnDeleteRow(row[0]);
 					});
-					var DATA = '' + fac.attributes.OBJECTID;
-					var url = gpURL + '?USER=' + username+ '&ACTION=DELETE&DATA=' + DATA + '&env%3AoutSR=&env%3AprocessSR=&returnZ=false&returnM=false&f=pjson&token=' + token;
-					$.ajax({
-						url: url,
-						type: 'GET',
-						dataType: 'json',
-						beforeSend: function() {
-							
-						},
-						success: function(data, textStatus, xhr) {
-							PubSub.emit("MOECC_MAP_REMOVE_MARKER", {OBJECTID: fac.attributes.OBJECTID});
-							$('#row-' + objectID).parent().parent().children().each(function(){
-								$(this).css("display","none");
-							});
-						},
-						error: function(xhr, textStatus, errorThrown) {
-							console.log(textStatus);
-						}
-					});					
 				}
 			}
-		});		
+		});
 	},
 	editRecord: function (objectID) {
 		timeCount = 0;
+		//currentEditingObjectID = objectID;
 		PubSub.emit("MOECC_MAP_ADD_EDIT_RECORD", {objectID: objectID});
 	},
 	leasedOwnedChange: function (leased_owned) {
 		timeCount = 0;
-		if ($("#leased").is(':checked'))  {
-			$("#LeaseExpiry").prop('disabled', false);
-			$("#LeaseExpiry1").prop('disabled', false);
-			$("#LeaseExpiry2").prop('disabled', false);
-		} else {
-			$("#LeaseExpiry").prop('disabled', true);
-			$("#LeaseExpiry1").prop('disabled', true);
-			$("#LeaseExpiry2").prop('disabled', true);
-		}
+		_.each(["LeaseExpiry", "LeaseExpiry1", "LeaseExpiry2"], function(div) {
+			$("#" + div).prop('disabled', !$("#leased").is(':checked'));
+		});
 	},
 	addRecord: function () {
 		timeCount = 0;
@@ -250,50 +121,73 @@ window.MOECC_UI = {
 	},
 	submitRecord: function(objectID) {
 		timeCount = 0;
-		var Occupants = [];
-		_.each(organizationTable, function(organization) {
-			if ($('#org' + organization.code).is(':checked')) {
-				Occupants.push(organization.code);
-			}
-		});	
+		var Occupants = _.map(_.filter(MOEOccupants.organizationTable, function(organization) {
+			return $('#org' + organization.code).is(':checked');
+		}), function(organization) {
+			return organization.code;
+		});
 		var initParams = {address: $('#Address').val(), withinExtent: false};
 		var geocodingParams = _.defaults(initParams, GeocoderSettings);	
 		if (objectID) {
-			var fac = _.find(facilities, function(facility) {
-				return facility.attributes.OBJECTID === objectID;
-			});
-			var fields = ["LOCATION", "TOTALSQUAREFEET", "ANNUALCOST", "LEASEDOWNED", "LEASEEXPIRY", "LEASEEXPIRY1", "LEASEEXPIRY2", "OCCUPANTS", "NUMBEROFSTAFF", "STAFFCAPACITY", "RSFPERFTE", "NUMBEROFFLEET"];
-			var DATA = _.object(fields, [$('#Location').val(), $('#TotalSquarFeets').val(), $('#AnnualCost').val(), ($("#leased").is(':checked') ? 'Leased' : 'Owned'), $('#LeaseExpiry').val(), $('#LeaseExpiry1').val(), $('#LeaseExpiry2').val(), Occupants.join(','), $('#NumberofStaffs').val(),$('#StaffCapacity').val(),$('#RSF_per_FTE').val(),$('#NumberofFleet').val()]);
-			DATA = _.filter(_.map(fields, function(field) {
-				if (DATA[field] === fac.attributes[field])  {
-					return "";
-				} else {
-					return field + '|' + DATA[field];
-				}
-			}), function (item) {
-				return item.length > 0;
-			}).join('|');
+			var fac = facsDict[objectID];
+			var DATA = {
+				LOCATION: $('#Location').val(),
+				TOTALSQUAREFEET: $('#TotalSquarFeets').val(),
+				ANNUALCOST: $('#AnnualCost').val(),
+				LEASEDOWNED: ($("#leased").is(':checked') ? 'Leased' : 'Owned'),
+				LEASEEXPIRY: $('#LeaseExpiry').val(),
+				LEASEEXPIRY1: $('#LeaseExpiry1').val(),
+				LEASEEXPIRY2: $('#LeaseExpiry2').val(),
+				OCCUPANTS: Occupants.join(','),
+				NUMBEROFSTAFF: $('#NumberofStaffs').val(),
+				STAFFCAPACITY: $('#StaffCapacity').val(),
+				RSFPERFTE: $('#RSF_per_FTE').val(),
+				NUMBEROFFLEET: $('#NumberofFleet').val(),
+				LOCATIONNAME: $('#LocationName').val()
+			};
+			DATA = _.filter(_.map(_.keys(DATA), function(field) {return (DATA[field] === fac.attributes[field]) ? "" : (field + '|' + DATA[field]);}), function (item) {return item.length > 0;}).join('|');
 			if (fac.attributes.ADDRESS !== $('#Address').val()) {
 				Geocoder.geocode(geocodingParams).done(function(result) {
 					if (result.status === "OK"){
 						DATA = objectID + '|LATITUDE|' + result.latlng.lat.toFixed(6) + '|LONGITUDE|' + result.latlng.lng.toFixed(6) + '|ADDRESS|' + $('#Address').val() + '|' + DATA;
-						var url = gpURL + '?USER=' + username+ '&ACTION=UPDATE&DATA=' + DATA + '&env%3AoutSR=&env%3AprocessSR=&returnZ=false&returnM=false&f=pjson&token=' + token;					
-						PubSub.emit("MOECC_MAP_GEOPROCESSING_ADD_EDIT_READY", {url: url});
+						ArcGISServerAdapter.geoprocessing({
+							gpURL: gpURL,
+							username: username,
+							token: token,
+							ACTION: 'UPDATE',
+							DATA: DATA
+						}).done(function() {
+							PubSub.emit("MOECC_MAP_INITIALIZATION_FINISHED");
+						});						
 					} else {
 						$.prompt("The address is not successfully verified. Please fix the errors.");
 					}
 				});
 			} else {
 				DATA = objectID + '|' + DATA;
-				var url = gpURL + '?USER=' + username+ '&ACTION=UPDATE&DATA=' + DATA + '&env%3AoutSR=&env%3AprocessSR=&returnZ=false&returnM=false&f=pjson&token=' + token;
-				PubSub.emit("MOECC_MAP_GEOPROCESSING_ADD_EDIT_READY", {url: url});
+				ArcGISServerAdapter.geoprocessing({
+					gpURL: gpURL,
+					username: username,
+					token: token,
+					ACTION: 'UPDATE',
+					DATA: DATA
+				}).done(function() {
+					PubSub.emit("MOECC_MAP_INITIALIZATION_FINISHED");
+				});
 			}
 		} else {
 			Geocoder.geocode(geocodingParams).done(function(result) {
 				if (result.status === "OK"){
-					var DATA = [result.latlng.lat.toFixed(6), result.latlng.lng.toFixed(6), $('#Location').val(), $('#Address').val(), $('#TotalSquarFeets').val(), $('#AnnualCost').val(), ($("#leased").is(':checked') ? 'Leased' : 'Owned'), $('#LeaseExpiry').val(), $('#LeaseExpiry1').val(), $('#LeaseExpiry2').val(), Occupants.join(','), $('#NumberofStaffs').val(),$('#StaffCapacity').val(),$('#RSF_per_FTE').val(),$('#NumberofFleet').val()].join('|'); 
-					var url = gpURL + '?USER=' + username+ '&ACTION=APPEND&DATA=' + DATA + '&env%3AoutSR=&env%3AprocessSR=&returnZ=false&returnM=false&f=pjson&token=' + token;
-					PubSub.emit("MOECC_MAP_GEOPROCESSING_ADD_EDIT_READY", {url: url});
+					var DATA = [result.latlng.lat.toFixed(6), result.latlng.lng.toFixed(6), $('#Location').val(), $('#Address').val(), $('#TotalSquarFeets').val(), $('#AnnualCost').val(), ($("#leased").is(':checked') ? 'Leased' : 'Owned'), $('#LeaseExpiry').val(), $('#LeaseExpiry1').val(), $('#LeaseExpiry2').val(), Occupants.join(','), $('#NumberofStaffs').val(),$('#StaffCapacity').val(),$('#RSF_per_FTE').val(),$('#NumberofFleet').val(), $('#LocationName').val()].join('|'); 
+					ArcGISServerAdapter.geoprocessing({
+						gpURL: gpURL,
+						username: username,
+						token: token,
+						ACTION: 'APPEND',
+						DATA: DATA
+					}).done(function() {
+						PubSub.emit("MOECC_MAP_INITIALIZATION_FINISHED");
+					});
 				} else {
 					$.prompt("The address is not successfully verified. Please fix the errors.");
 				}
@@ -303,100 +197,70 @@ window.MOECC_UI = {
 	login: function() {
 		username = $('#username').val();
 		var password = $('#password').val();
-		var url = 'https://lrctptvsuaap003:6443/arcgis/tokens/?request=gettoken&username=' + username + '&password=' + password + '&clientid=ref.' + websiteURL + '&expiration=600';
-		$.ajax({
-			url: url,
-			type: 'GET',
-			dataType: 'html',
-			beforeSend: function() {				
-			},
-			success: function(data, textStatus, xhr) {
-				timeCount = 0;
-				timer = setInterval(function(){
-					timeCount = timeCount + 1;
-					if (timeCount > 10) {
-						MOECC_UI.logout();
-					}
-				}, 1000*60*60);
-				
-				$("#" + globalConfigure.mapCanvasDivId).show();
-				$("#" + globalConfigure.searchControlDivId).html('<input id="logout" type="submit" title="Logout" onclick="MOECC_UI.logout()" value="Logout"></input>\
-					<div id="information">You have successfully loged in. The system will automatically log you out if no activity is detected with 60 minutes.</div>');			
-				token = data;
-				var queryParamsList = [{
-					mapService: 'https://lrctptvsuaap003:6443/arcgis/rest/services/Interactive_Map_Internal/Facilities2/MapServer',
-					layerID: 0,
-					returnGeometry: true,
-					token: token,
-					where: '1=1',
-					outFields: ['*']
-				}];
-				ArcGISServerAdapter.queryLayers(queryParamsList).done(function() {
-					facilities = Util.combineFeatures(arguments);
-					PubSub.emit("MOECC_MAP_INITIALIZATION", {
-						mapCanvasDivId: globalConfigure.mapCanvasDivId,
-						orgLatitude: globalConfigure.orgLatitude,
-						orgLongitude: globalConfigure.orgLongitude,
-						orgzoomLevel: globalConfigure.orgzoomLevel,
-						defaultMapTypeId: globalConfigure.defaultMapTypeId,
-						maxQueryZoomLevel: globalConfigure.maxQueryZoomLevel,
-						dynamicResourcesLoadingURL: globalConfigure.dynamicResourcesLoadingURL,
-						maxMapScale: globalConfigure.maxMapScale,
-						minMapScale: globalConfigure.minMapScale
-					});
-				});
-			},
-			error: function(xhr, textStatus, errorThrown) {
-				$('#information').html('<font color="red">Your username or password is wrong. Please try again.</font>');
-			}
+		var promise = ArcGISServerAdapter.getToken({
+			tokenURL: tokenURL,
+			username: username,
+			password: $('#password').val(),
+			websiteURL: websiteURL,
+			expiration: 600
+		});
+		promise.fail(function(){
+			$('#information').html('<font color="red">Your username or password is wrong. Please try again.</font>');
+		});
+		promise.done(function(data) {
+			token = data;
+			timeCount = 0;
+			timer = setInterval(function(){
+				timeCount = timeCount + 1;
+				if (timeCount >= 6) {
+					MOECC_UI.logout();
+				}
+				PubSub.emit("MOECC_MAP_REGULAR_UPDATE");
+			}, 1000*60*10); 			
+			$("#" + globalConfigure.mapCanvasDivId).show();
+			$("#" + globalConfigure.searchControlDivId).html('<input id="logout" type="submit" title="Logout" onclick="MOECC_UI.logout()" value="Logout"></input>\
+				<div id="information">You have successfully loged in. The system will automatically log you out if no activity is detected with 60 minutes.</div>');			
+			PubSub.emit("MOECC_MAP_INITIALIZATION", {
+				mapCanvasDivId: globalConfigure.mapCanvasDivId,
+				orgLatitude: globalConfigure.orgLatitude,
+				orgLongitude: globalConfigure.orgLongitude,
+				orgzoomLevel: globalConfigure.orgzoomLevel,
+				defaultMapTypeId: globalConfigure.defaultMapTypeId,
+				maxQueryZoomLevel: globalConfigure.maxQueryZoomLevel,
+				dynamicResourcesLoadingURL: globalConfigure.dynamicResourcesLoadingURL,
+				maxMapScale: globalConfigure.maxMapScale,
+				minMapScale: globalConfigure.minMapScale
+			});
 		});
 	}
 };
-
-var ArcGISServerAdapter = require('../scripts/FeatureLayers/ArcGISServerAdapter');
-var Util = require('../scripts/Util');
-/*English Begins*/
-var langSetting = require('../scripts/Configures/Languages/English');
-/*English Ends*/
-/*French Begins*/
-var langSetting = require('../scripts/Configures/Languages/French');
-/*French Ends*/
-var PubSub = require('../scripts/PubSub');
-var defaultConfiguration = require('../scripts/Configures/Defaults');
-
-/*
-var url = defaultConfiguration.dynamicResourcesLoadingURL;
-//var urls = [url + 'css/jquery.dataTables.css', url + 'js/jquery.dataTables.js'];
-//var urls = [url + 'css/jquery.dataTables.css'];
-var urls = ['bower_components/jquery.dataTables/jquery.dataTables.css'];
-_.each(urls, function(url) {yepnope({load: url,callback: function(){}});});
-*/
-PubSub.on("MOECC_MAP_GEOPROCESSING_ADD_EDIT_READY", function (params) {
-	$.ajax({
-		url: params.url,
-		type: 'GET',
-		dataType: 'json',
-		beforeSend: function() {				
-		},
-		success: function(data, textStatus, xhr) {
-			var queryParamsList = [{
-				mapService: 'https://lrctptvsuaap003:6443/arcgis/rest/services/Interactive_Map_Internal/Facilities2/MapServer',
-				layerID: 0,
-				returnGeometry: true,
-				token: token,
-				where: '1=1',
-				outFields: ['*']
-			}];
-			ArcGISServerAdapter.queryLayers(queryParamsList).done(function() {
-				facilities = Util.combineFeatures(arguments);
-				PubSub.emit("MOECC_MAP_REMOVE_ALL_MARKER");
-				PubSub.emit("MOECC_MAP_INITIALIZATION_FINISHED");
-			});
-		},
-		error: function(xhr, textStatus, errorThrown) {
-			console.log(textStatus);
+PubSub.on("MOECC_MAP_REGULAR_UPDATE", function (params) {
+	var queryParamsList = [{
+		mapService: mapService,
+		layerID: 0,
+		returnGeometry: true,
+		token: token,
+		where: '1=1',
+		outFields: ['*']
+	}];
+	ArcGISServerAdapter.queryLayers(queryParamsList).done(function() {
+		var facilities = Util.combineFeatures(arguments);
+		var newFacsDict = _.object(_.map(facilities, function(feature) {
+			return feature.attributes.OBJECTID;
+		}), facilities);
+		var oldFacKeys = _.keys(facsDict);
+		var newFacKeys = _.keys(newFacsDict);
+		var deletedFacKeys = _.difference(oldFacKeys, newFacKeys);
+		var addedFacKeys = _.difference(newFacKeys, oldFacKeys);
+		var modiFacKeys = _.filter(_.intersection(oldFacKeys, newFacKeys), function (key) {
+			return (!_.isEqual(facsDict[key].attributes, newFacsDict[key].attributes)) || (!_.isEqual(facsDict[key].geometry, newFacsDict[key].geometry));
+		});
+		if ((deletedFacKeys.length > 0)|| (addedFacKeys.length > 0) || (modiFacKeys.length > 0)){
+			$.prompt("Because the data on server have been updated, your map and table will be refreshed now.");
+			PubSub.emit("MOECC_MAP_UPDATE_MARKERS_TABLE", {features: facilities});				
 		}
-	});	
+	});
+	console.log("MOECC_MAP_REGULAR_UPDATE");
 });
 PubSub.on("MOECC_MAP_ADD_EDIT_RECORD", function (params) {
 	var tableTemplate = '<table id="organizationTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
@@ -407,22 +271,23 @@ PubSub.on("MOECC_MAP_ADD_EDIT_RECORD", function (params) {
 		<% }); %>\
 		</tbody></table>';
 	var fields = ["LOCATION", "ADDRESS", "TOTALSQUAREFEET", "ANNUALCOST", "LEASEDOWNED", "LEASEEXPIRY", "LEASEEXPIRY1", "LEASEEXPIRY2", "OCCUPANTS", "NUMBEROFSTAFF", "STAFFCAPACITY", "RSFPERFTE", "NUMBEROFFLEET"];
-	var fac = (params) ? _.find(facilities, function(facility) {return facility.attributes.OBJECTID === params.objectID;}) : {attributes: _.object(fields, _.range(fields.length).map(function () { return '' })),geometry:{x: 0,y: 0}};
-	var tableContent = 'Location: <input type="text" id="Location" name="Location" value="<%= fac.LOCATION %>"><br>\
-		Address: <input type="text" id="Address" name="Address" size="50" value="<%= fac.ADDRESS %>"><br>\
-		Total Square Feets (Number Only): <input type="text" id="TotalSquarFeets" name="TotalSquarFeets" size="10" value="<%= fac.TOTALSQUAREFEET %>"><br>\
-		Annual Cost (Number Only): <input type="text" id="AnnualCost" name="AnnualCost" size="10" value="<%= fac.ANNUALCOST %>"><br>\
+	var fac = (params) ?  facsDict[params.objectID] : {attributes: _.object(fields, _.range(fields.length).map(function () { return '' })),geometry:{x: 0,y: 0}};
+	var tableContent = 'Facility Name: <input type="text" id="LocationName" name="LocationName" value="<%= fac.LOCATIONNAME %>"><br>\
+		Municipality: <input type="text" id="Location" name="Location" value="<%= fac.LOCATION %>"><br>\
+		Address: <input type="text" id="Address" name="Address" size="80" value="<%= fac.ADDRESS %>"><br>\
+		Total Square Footage (Number Only): <input type="text" id="TotalSquarFeets" name="TotalSquarFeets" size="10" value="<%= fac.TOTALSQUAREFEET %>"><br>\
+		Annual Cost (Number Only): $<input type="text" id="AnnualCost" name="AnnualCost" size="10" value="<%= fac.ANNUALCOST %>"><br>\
 		Leased or Owned: <input type="radio" name="leased_owned" id="leased" value="Leased" onclick="MOECC_UI.leasedOwnedChange(this)" <%= (fac.LEASEDOWNED.length === 0 || fac.LEASEDOWNED === "Leased")? "checked" : ""  %> >Leased<input type="radio" id="owned" name="leased_owned" value="Owned" onclick="MOECC_UI.leasedOwnedChange(this)" <%= (fac.LEASEDOWNED === "Owned")? "checked" : ""  %>>Owned<br>\
 		Lease Expiry (Date Only): <input type="text" id="LeaseExpiry" name="LeaseExpiry" size="10" value="<%= fac.LEASEEXPIRY %>">, \
 		<input type="text" id="LeaseExpiry1" name="LeaseExpiry1" size="10" value="<%= fac.LEASEEXPIRY1 %>">,\
 		<input type="text" id="LeaseExpiry2" name="LeaseExpiry2" size="10" value="<%= fac.LEASEEXPIRY2 %>"><br>\
-		Number of Staffs (Number Only): <input type="text" id="NumberofStaffs" name="NumberofStaffs" size="10" value="<%= fac.NUMBEROFSTAFF %>"><br>\
+		Number of Staff (Number Only): <input type="text" id="NumberofStaffs" name="NumberofStaffs" size="10" value="<%= fac.NUMBEROFSTAFF %>"><br>\
 		Staff Capacity (Number Only): <input type="text" id="StaffCapacity" name="StaffCapacity" size="10" value="<%= fac.STAFFCAPACITY %>"><br>\
 		RSF_per_FTE (Number Only): <input type="text" id="RSF_per_FTE" name="RSF_per_FTE" size="10" value="<%= fac.RSFPERFTE %>"><br>\
 		Number of Fleet (Number Only): <input type="text" id="NumberofFleet" name="NumberofFleet" size="10" value="<%= fac.NUMBEROFFLEET %>"><br>\
-		Occupants: ' + _.template(tableTemplate, {organizations: organizationTable}) + '\
+		Occupants: ' + _.template(tableTemplate, {organizations: MOEOccupants.organizationTable}) + '\
 		<input id="submitRecord" type="submit" title="submitRecord" onclick="MOECC_UI.submitRecord(<%= fac.OBJECTID %>)" value="Submit"></input>\
-		<input id="cancelRecord" type="submit" title="cancelRecord" onclick="MOECC_UI.cancelRecord(<%= fac.OBJECTID %>)" value="Cancell"></input>';
+		<input id="cancelRecord" type="submit" title="cancelRecord" onclick="MOECC_UI.cancelRecord(<%= fac.OBJECTID %>)" value="Cancel"></input>';
 	tableContent = 	_.template(tableContent, {fac: fac.attributes})
 	$('#' + globalConfigure.queryTableDivId).html(tableContent);
 	if (fac.attributes.OCCUPANTS.length > 0) {
@@ -463,30 +328,32 @@ PubSub.on("MOECC_MAP_ADD_EDIT_RECORD", function (params) {
 PubSub.on("MOECC_MAP_SEARCH_TABLE_READY", function (params) {	
 	var tableTemplate = '<button type="submit" onclick="MOECC_UI.addRecord()" style="background-color:transparent; border-color:transparent;"><img src="Add-icon.png" height="20"/></button><br>\
 		<table id="myTable" class="tablesorter" width="700" border="0" cellpadding="0" cellspacing="1">\
-		<thead><tr><th><center>ID</center></th><th><center>Location</center></th><th><center>Address</center></th><th><center>Total Square Feet</center></th>\
+		<thead><tr><th><center>ID</center></th><th><center>Facility Name</center></th><th><center>Municipality</center></th><th><center>Address</center></th><th><center>Total Square Footage</center></th>\
 		<th><center>Annual Cost</center></th><th><center>Lease Expiry</center></th><th><center>Owned or Leased</center></th><th><center>Occupants</center></th>\
 		<th><center>Number of Staff</center></th><th><center>Staff Capacity</center></th><th><center>RSF per FTE</center></th><th><center>Number of Fleet</center></th>\
 		<th><center>Action</center></th></tr></thead><tbody>\
 		<% _.each(features, function(feature) {\
 			var attrs = feature.attributes; %> \
-			<tr><td><div id="row-<%= attrs.OBJECTID %>"><%= attrs.OBJECTID %></div></td><td><%= attrs.LOCATION %></td><td><%= attrs.ADDRESS %></td><td><%= attrs.TOTALSQUAREFEET %></td><td><%= attrs.ANNUALCOST %></td>\
+			<tr><td><div id="row-<%= attrs.OBJECTID %>"><%= attrs.OBJECTID %></div></td><td><%= attrs.LOCATIONNAME %></td><td><%= attrs.LOCATION %></td><td><%= attrs.ADDRESS %></td><td><%= attrs.TOTALSQUAREFEET %></td><td><%= attrs.ANNUALCOST %></td>\
 			<td><%= attrs.LEASEEXPIRY %><%= attrs.LEASEEXPIRY1 === "" ? " " : (", " + attrs.LEASEEXPIRY1) %><%= attrs.LEASEEXPIRY2 === "" ? " " : (", " + attrs.LEASEEXPIRY2) %></td>\
 			<td><%= attrs.LEASEDOWNED %></td><td><%= convertOccupantsCode(attrs.OCCUPANTS) %></td><td><%= attrs.NUMBEROFSTAFF %></td><td><%= attrs.STAFFCAPACITY %></td><td><%= attrs.RSFPERFTE %></td><td><%= attrs.NUMBEROFFLEET %></td>\
-			<td><button type="submit" onclick="MOECC_UI.zoomInRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="zoom-in-2-xxl.png" height="20"/></button><button type="submit" onclick="MOECC_UI.editRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="Edit.png" height="20"/></button><button type="submit" onclick="MOECC_UI.deleteRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="DeleteRed.png" height="20"/></button></td></tr>\
+			<td><button type="submit" onclick="MOECC_UI.zoomInRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="zoom-in-2-xxl.png" height="20"/></button>\
+			<button type="submit" onclick="MOECC_UI.editRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="Edit.png" height="20"/></button>\
+			<button type="submit" onclick="MOECC_UI.deleteRecord(<%= attrs.OBJECTID %>)" style="background-color:transparent; border-color:transparent;"><img src="DeleteRed.png" height="20"/></button></td></tr>\
 		<% }); %>\
 		</tbody></table>';
 	var convertOccupantsCode = function (OccupantsCode) {
 		return _.map(OccupantsCode.split(','), function(code) {
-			return codeToName[code];
+			return MOEOccupants.codeToName[code];
 		}).join(',');
 	};
-	var tableContent = _.template(tableTemplate, {features: facilities, convertOccupantsCode: convertOccupantsCode});
+	var tableContent = _.template(tableTemplate, {features: params.features, convertOccupantsCode: convertOccupantsCode});
 	$('#' + globalConfigure.queryTableDivId).html(tableContent);
 	tableID = Util.getTableIDFromTableTemplate(tableTemplate);	
 	var dataTableOptions = {
 		'bJQueryUI': true,
 		iDisplayLength: 50,
-		"aaSorting": [[1, "asc" ]],
+		"aaSorting": [[2, "asc" ]],
 		'sPaginationType': 'full_numbers',
 		"fnDrawCallback": function(){
 			$('table#' + tableID + ' td').bind('mouseenter', function (e, OBJECTID, myValue) {
@@ -499,10 +366,7 @@ PubSub.on("MOECC_MAP_SEARCH_TABLE_READY", function (params) {
 						$(this).addClass('datatablerowhighlight');
 					});
 					var objectID = parseInt($(this).parent()[0].cells[0].innerHTML.split('>')[1].split('<')[0]);
-					var fac = _.find(facilities, function(facility) {
-						return facility.attributes.OBJECTID === objectID;
-					});
-					PubSub.emit("MOECC_MAP_MOUSEOVER_TABLE", {OBJECTID: fac.attributes.OBJECTID});
+					PubSub.emit("MOECC_MAP_MOUSEOVER_TABLE", {OBJECTID: objectID});
 				}
 			});
 			$('table#' + tableID + ' td').bind('mouseleave', function (e, OBJECTID, myValue) {
@@ -515,10 +379,7 @@ PubSub.on("MOECC_MAP_SEARCH_TABLE_READY", function (params) {
 						$(this).removeClass('datatablerowhighlight');
 					});
 					var objectID = parseInt($(this).parent()[0].cells[0].innerHTML.split('>')[1].split('<')[0]);
-					var fac = _.find(facilities, function(facility) {
-						return facility.attributes.OBJECTID === objectID;
-					});
-					PubSub.emit("MOECC_MAP_MOUSEOUT_TABLE", {OBJECTID: fac.attributes.OBJECTID});
+					PubSub.emit("MOECC_MAP_MOUSEOUT_TABLE", {OBJECTID: objectID});
 				}
 			});
 		}		
@@ -526,6 +387,26 @@ PubSub.on("MOECC_MAP_SEARCH_TABLE_READY", function (params) {
 	$('#' + tableID).dataTable(dataTableOptions);	
 });
 PubSub.on("MOECC_MAP_INITIALIZATION_FINISHED", function (params) {
+	PubSub.emit("MOECC_MAP_REMOVE_ALL_MARKER");
+	//currentEditingObjectID = null;
+	var queryParamsList = [{
+		mapService: mapService,
+		layerID: 0,
+		returnGeometry: true,
+		token: token,
+		where: '1=1',
+		outFields: ['*']
+	}];
+	ArcGISServerAdapter.queryLayers(queryParamsList).done(function() {
+		var facilities = Util.combineFeatures(arguments);
+		PubSub.emit("MOECC_MAP_UPDATE_MARKERS_TABLE", {features: facilities});
+	});
+});
+PubSub.on("MOECC_MAP_UPDATE_MARKERS_TABLE", function (params) {
+	var facilities = params.features;
+	facsDict = _.object(_.map(facilities, function(feature) {
+		return feature.attributes.OBJECTID;
+	}), facilities);
 	var markers = _.map(facilities, function(facility) {
 		return {
 			latlng: {
@@ -556,7 +437,7 @@ PubSub.on("MOECC_MAP_INITIALIZATION_FINISHED", function (params) {
 		};
 	});
 	PubSub.emit("MOECC_MAP_SEARCH_MARKERS_READY", {markers: markers});
-	PubSub.emit("MOECC_MAP_SEARCH_TABLE_READY");
+	PubSub.emit("MOECC_MAP_SEARCH_TABLE_READY", {features: facilities});
 });
 var tableID;
 PubSub.on("MOECC_MAP_MOUSEOVER_MARKER", function (params) {
@@ -565,11 +446,11 @@ PubSub.on("MOECC_MAP_MOUSEOVER_MARKER", function (params) {
 PubSub.on("MOECC_MAP_MOUSEOUT_MARKER", function (params) {
 	$('table#' + tableID + ' td').trigger('mouseleave', [params.OBJECTID]);
 });
-/*
 PubSub.on("MOECC_MAP_MOUSE_MOVE_MESSAGE", function (params) {
-	
-});*/
-
+	var latLng = params.latlng;
+	var utm = Util.convertLatLngtoUTM(latLng.lat, latLng.lng);
+	$("#" + globalConfigure.coordinatesDivId).html("Latitude:" + latLng.lat.toFixed(5) + ", Longitude:" + latLng.lng.toFixed(5) + " (" + globalConfigure.langs.UTM_ZoneLang + ":" + utm.Zone + ", " + globalConfigure.langs.EastingLang + ":" + utm.Easting + ", " + globalConfigure.langs.NorthingLang +":" + utm.Northing + ")<br>");
+});
 GoogleMapsAdapter.init(PubSub);
 var globalConfigure = {
 	langs: langSetting,
@@ -577,14 +458,8 @@ var globalConfigure = {
 };
 globalConfigure = _.defaults(globalConfigure, defaultConfiguration);
 /*English Begins*/
-$("#" + globalConfigure.searchControlDivId).html('Username: <input type="text" id="username" name="username">\
-	Password: <input type="password" id="password" name="password">\
-	<input id="login" type="submit" title="Login" onclick="MOECC_UI.login()" value="Login"></input>\
-	<div id="information"></div>');
+$("#" + globalConfigure.searchControlDivId).html(loginHTMLUI);
 /*English Ends*/
 /*French Begins*/
-$("#" + globalConfigure.searchControlDivId).html('Username: <input type="text" id="username" name="username">\
-	Password: <input type="password" id="password" name="password">\
-	<input id="login" type="submit" title="Login" onclick="MOECC_UI.login()" value="Login"></input>\
-	<div id="information"></div>');
+$("#" + globalConfigure.searchControlDivId).html(loginHTMLUI);
 /*French Ends*/
